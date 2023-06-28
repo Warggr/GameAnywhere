@@ -10,6 +10,7 @@ struct TicTacToeState {
         bool empty = true;
         unsigned int player: 1;
         constexpr Field(): player(0) {};
+        [[nodiscard]] char toString() const { return empty ? ' ' : player==0 ? 'O' : 'X'; }
     };
     static constexpr unsigned int BOARD_DIMENSION = 3;
     using BoardType = CheckerBoard<Field, BOARD_DIMENSION, BOARD_DIMENSION>;

@@ -4,7 +4,7 @@ void RandomAgent::message(std::string_view message) const {
     (void) message;
 }
 
-std::pair<int, int> RandomAgent::get2DChoice(std::pair<int, int> dimensions) {
+std::array<int, 2> RandomAgent::get2DChoice(std::array<int, 2> dimensions) {
     (void) dimensions;
     return {0, 0};
 }

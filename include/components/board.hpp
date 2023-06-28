@@ -17,11 +17,11 @@ public:
 
     std::array<Field, width>& operator[] (std::size_t index) { return board[index]; }
     const std::array<Field, width>& operator[] (std::size_t index) const { return board[index]; }
-    Field& operator[] (std::pair<std::size_t, std::size_t> index) { return board[index.first][index.second]; }
-    const Field& operator[] (std::pair<std::size_t, std::size_t> index) const { return board[index.first][index.second]; }
+    Field& operator[] (std::array<std::size_t, 2> index) { return board[index[0]][index[1]]; }
+    const Field& operator[] (std::array<std::size_t, 2> index) const { return board[index[0]][index[1]]; }
 
     constexpr static std::size_t getSize() { return width * height; }
-    constexpr static std::pair<std::size_t, std::size_t> getDimensions() { return std::make_pair(width, height); };
+    constexpr static std::array<std::size_t, 2> getDimensions() { return {width, height}; };
 };
 
 #endif //GAMEAWESOME_BOARD_HPP

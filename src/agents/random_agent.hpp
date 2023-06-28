@@ -9,7 +9,7 @@ class RandomAgent: public Agent {
     // TODO: seed
 public:
     void message(std::string_view message) const override;
-    std::pair<int, int> get2DChoice(std::pair<int, int> dimensions) override;
+    std::array<int, 2> get2DChoice(std::array<int, 2> dimensions) override;
 
     using InitializationPromise = void*;
     static InitializationPromise startInitialization() { return nullptr; }
