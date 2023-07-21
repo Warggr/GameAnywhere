@@ -1,5 +1,6 @@
 # build artifacts
 cmake-build-*/
+**/__pycache__/
 
 #IDEs
 .idea/
