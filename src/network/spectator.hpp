@@ -4,25 +4,31 @@
 #ifndef CPPCON2018_WEBSOCKET_SESSION_HPP
 #define CPPCON2018_WEBSOCKET_SESSION_HPP
 
-#include "net.hpp"
 #include <boost/beast.hpp>
 #include <memory>
 #include <string>
 #include <queue>
 #include <mutex>
+#include <condition_variable>
 #include <cassert>
+#include <exception>
 
 class ServerRoom;
-class NetworkAgent;
 
 namespace beast = boost::beast;
+using tcp = boost::asio::ip::tcp;
 namespace http = boost::beast::http;
 namespace websocket = boost::beast::websocket;
+using boost::system::error_code;
+
+using AgentId = unsigned short int;
 
 /** Represents an active WebSocket connection to the server. */
 class Spectator : public std::enable_shared_from_this<Spectator> {
 public:
     enum state { FREE, CLAIMED, CONNECTED, INTERRUPTED_BY_SERVER };
+    class DisconnectedException : public std::exception {
+    };
 protected:
     beast::flat_buffer buffer; //Only used for reading
     std::unique_ptr<websocket::stream<tcp::socket>> ws;
@@ -34,6 +40,7 @@ protected:
     ServerRoom& room;
     enum state state = FREE;
     bool previouslyConnected = false;
+
     void on_connect(error_code ec);
     void on_write(error_code ec, std::size_t bytes_transferred);
     void on_read(error_code ec, std::size_t bytes_transferred);
@@ -57,14 +64,19 @@ public:
     void send(const std::string& message){ send(std::make_shared<const std::string>(message)); }
     void send_sync(std::shared_ptr<const std::string> message);
 
+    std::string get_sync();
+
     bool isConnected() const { return state == CONNECTED; }
     bool isClaimed() const { return state == CLAIMED; }
     enum state getState() const { return state; }
     bool wasPreviouslyConnected() const { return previouslyConnected; }
 };
 
+/* A Session is like a Spectator, but can reconnect if the connection was lost. */
 class Session: public Spectator {
 public:
+    class TimeoutException : public std::exception {
+    };
     Session(ServerRoom& room, AgentId id): Spectator(room, id){
         assert(id != 0);
     }

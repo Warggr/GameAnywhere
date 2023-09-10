@@ -1,37 +1,30 @@
-#ifndef REVELATION_SERVER_HPP
-#define REVELATION_SERVER_HPP
+#ifndef REVELATION_SERVER_IMPL_HPP
+#define REVELATION_SERVER_IMPL_HPP
 
-#include "listener.hpp"
-#include <unordered_set>
-#include <utility>
+#include "base/base_server.hpp"
+#include "base/router.hpp"
+#include "room.hpp"
+#include <string_view>
+#include <unordered_map>
 
-class HttpSession;
+using RoomId = unsigned short int;
 
-/**
- * Class Server must be completely agnostic of whether the server is http-controlled or not.
- * If in the future, the server needs to know something about the dependent properties of Server_impl,
- * we can use a bridge pattern (every Server must contain a pointer to a Server_impl)
- */
 class Server {
-protected:
-    net::io_context ioc; // The io_context is required for all I/O
-    //ioc needs to be initialized before listener, that's why it comes first in the file
-    Listener listener; // The Listener listens for new clients and adds them to the Rooms
-    std::unordered_set<HttpSession*> sessions; //all these pointers are owning
-
+    Router router;
+    BaseServer server;
+    std::unordered_map<RoomId, GameRoom> rooms; //Each room contains a list of established WebSocket connections.
+    RoomId lastUsedIdentifier = 0;
 public:
-    Server(const char* ipAddress, unsigned short port);
+    Server(std::string_view ipAddress, unsigned short port);
 
-    ~Server();
+    void start(); // Similarly to BaseServer::start, this runs indefinitely and needs to be interrupted by stop() from outside
+    void stop();
 
-    void addSession(tcp::socket&& socket);
-
-    void askForHttpSessionDeletion(HttpSession* session);
-
-    template<typename Function>
-    void async_do(Function&& fun){
-        net::post(ioc, std::forward<Function>(fun));
-    }
+    void askForRoomDeletion(RoomId id);
+    std::pair<RoomId, GameRoom&> addRoom(RoomId newRoomId);
+    std::pair<RoomId, GameRoom&> addRoom(){ return addRoom(++lastUsedIdentifier); }
+    std::unordered_map<RoomId, GameRoom>& getRooms() { return rooms; }
+    const std::unordered_map<RoomId, GameRoom>& getRooms() const { return rooms; }
 };
 
-#endif //REVELATION_SERVER_HPP
+#endif //REVELATION_SERVER_IMPL_HPP

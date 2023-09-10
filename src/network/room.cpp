@@ -4,34 +4,11 @@
 
 #include "room.hpp"
 #include "spectator.hpp"
-#include "server_impl.hpp"
+#include "server.hpp"
 #include <algorithm>
 #include <iostream>
 
-GameRoom::GameRoom(Server_impl* server, RoomId): ServerRoom(server, true) {
-    greeterMessage = "\"Welcome! The game has not started yet\"";
-}
-
-void GameRoom::setGreeterMessage(const std::string& newMessage) {
-    greeterMessage = "{\"state\":";
-    greeterMessage += newMessage;
-    greeterMessage += ",\"steps\":[";
-    firstStep = true;
-    auto message = std::make_shared<std::string>(greeterMessage + "]}");
-    ServerRoom::send(message);
-}
-
-void GameRoom::send(const std::string& message){
-    // When the callbacks will be executed and the string will actually be sent,
-    // the string itself might have gone out of scope.
-    // Wrap it in a shared pointer before that happens.
-    auto const ss = std::make_shared<const std::string>(message);
-
-    if(firstStep) firstStep = false;
-    else greeterMessage += ',';
-    greeterMessage += message;
-
-    ServerRoom::send(ss);
+GameRoom::GameRoom(Server* server, RoomId): server(server) {
 }
 
 void ServerRoom::send(std::shared_ptr<const std::string> ss){
@@ -61,7 +38,7 @@ void ServerRoom::onConnect(Spectator& spectator) {
     if(spectator.id == 0)
         spectators.insert(spectator.shared_from_this());
     std::shared_ptr<const std::string> message = std::make_shared<const std::string>(
-        isGameRoom ? (greeterMessage + "]}") : greeterMessage
+        "Welcome to the room!"
     );
     spectator.send(message);
 }

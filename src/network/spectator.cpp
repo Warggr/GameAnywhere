@@ -4,7 +4,6 @@
 
 #include "spectator.hpp"
 #include "room.hpp"
-#include "control/agent.hpp"
 #include <iostream>
 #include <utility>
 
@@ -26,7 +25,7 @@ Spectator::~Spectator(){
 
 void Spectator::fail(error_code ec, char const* what){
     // Don't report these
-    if( ec == net::error::operation_aborted ) return;
+    if( ec == boost::asio::error::operation_aborted ) return;
     std::cerr << what << ": " << ec.message() << "\n";
 }
 
@@ -64,7 +63,7 @@ void Spectator::send(std::shared_ptr<const std::string> message){
     if(queue_empty) {
         // We are not currently writing, so send this immediately
         ws->async_write(
-                net::buffer(*writing_queue.front()),
+                boost::asio::buffer(*writing_queue.front()),
                 [sp=shared_from_this()](error_code ec, std::size_t bytes) {
                     sp->on_write(ec, bytes);
                 }
@@ -73,13 +72,13 @@ void Spectator::send(std::shared_ptr<const std::string> message){
 }
 
 void Spectator::send_sync(std::shared_ptr<const std::string> message){
-    net::post(ws->get_executor(),
+    boost::asio::post(ws->get_executor(),
         [&,message=std::move(message)]{ send(message); }
     );
 }
 
 void Spectator::on_write(error_code ec, std::size_t){
-    std::cout << "(async spectator" << id << ") Message written\n";
+    std::cout << "(async spectator " << id << ") Message written\n";
     // Handle the error, if any
     if(ec) return fail(ec, "write");
 
@@ -89,7 +88,7 @@ void Spectator::on_write(error_code ec, std::size_t){
     // Send the next message if any
     if(! writing_queue.empty())
         ws->async_write(
-            net::buffer(*writing_queue.front()),
+            boost::asio::buffer(*writing_queue.front()),
             [sp=shared_from_this()](error_code ec, std::size_t bytes){
                 sp->on_write(ec, bytes);
             });
@@ -142,31 +141,32 @@ void Spectator::on_read(error_code ec, std::size_t size) {
     );
 }
 
-std::string Session::get_sync(){
-    // There are two waiting states: connected (waiting for string...) and disconnected (waiting for connection...)
-    // Each can transform into the other. For memory performance reasons, both use the same mutex / cv / semaphore.
-    // Both will return quickly if their precondition isn't met.
-    // Arbitrarily starting with the connected (wait for string...) state.
+std::string Spectator::get_sync(){
     std::cout << "(main) Getting string, waiting for mutex...\n";
     listening = true;
-    {
-connected:
-        std::unique_lock<std::mutex> lock(protectReadingQueue);
-        if(reading_queue.empty()){
-            if(state != CONNECTED) goto disconnected; //"fail rapidly if the precondition isn't met"
-            signalReadingQueue.wait(lock, [&] { return not reading_queue.empty() or state != CONNECTED; });
-            if(state != CONNECTED) goto disconnected;
-            assert(not reading_queue.empty());
-        }
 
-        listening = false; //okay, maybe a semaphore would've been cleaner
-        std::string retVal = std::move(reading_queue.front());
-        reading_queue.pop();
-        return retVal;
+    std::unique_lock<std::mutex> lock(protectReadingQueue);
+    if(reading_queue.empty()){
+        if(state != CONNECTED) throw DisconnectedException();
+        signalReadingQueue.wait(lock, [&] { return not reading_queue.empty() or state != CONNECTED; });
+        if(state != CONNECTED) throw DisconnectedException();
+        assert(not reading_queue.empty());
     }
-disconnected:
-    awaitReconnect();
-    goto connected;
+
+    listening = false; //okay, maybe a semaphore would've been cleaner
+    std::string retVal = std::move(reading_queue.front());
+    reading_queue.pop();
+    return retVal;
+}
+
+std::string Session::get_sync() {
+connected:
+    try {
+        return Spectator::get_sync();
+    } catch (const Spectator::DisconnectedException&) {
+        awaitReconnect();
+        goto connected;
+    }
 }
 
 void Session::awaitReconnect() {
