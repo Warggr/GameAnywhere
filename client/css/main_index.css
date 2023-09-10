@@ -35,9 +35,18 @@ header {
     align-items: center;
 }
 
-.indexMainDiv button {
+.indexMainDiv > * {
     width: 100%;
     /* background-color: transparent; */
     margin-bottom: 15px;
 
+}
+
+.indexMainDiv > form {
+    display: flex;
+    gap: 20px;
+}
+
+.indexMainDiv > form > button {
+    flex-grow: 1;
 }
