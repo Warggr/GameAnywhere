@@ -1,5 +1,7 @@
 from typing import Tuple
 
+AgentId = int
+
 class Agent:
     class Surrendered:
         pass

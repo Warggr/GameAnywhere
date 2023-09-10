@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<script>'use strict';</script>
+    <title>Play | GameAnywhere</title>
+    <link rel="stylesheet" href="css/main_index.css">
+</head>
+<body>
+<div>
+	<span>Status:</span><span id="connection-status">Not connected</span>
+	<form onsubmit="connectToServer(); return false;">
+		<h2>Server connection</h2>
+		<label for="serverUrl">Server address</label>
+		<input type="text" id="serverUrl"/>
+		<label for="playerId">Seat number</label>
+		<input type="text" value="0" id="playerId"/>
+		<label for="roomId">Room ID</label>
+		<input type="text" id="roomId"/>
+		<!--<button type="submit">Join room</button>-->
+	</form>
+</div>
+<div id="screen" style="background-color: black; color: white; min-height: 80vh; min-width: 50vw;"></div>
+</body>
+<script>
+	function getServerUrl(){ return document.getElementById('serverUrl').value; }
+	var socket = undefined;
+	var currentStep = 0;
+	var connectionStatusDom = document.getElementById('connection-status');
+	const connectToServer = serverAddress => {
+		const teamNr = document.getElementById('playerId').value;
+		const roomNr = document.getElementById('roomId').value;
+
+		connectionStatusDom.textContent = 'Connecting...';
+		if(window.WebSocket === undefined) {
+			connectionStatusDom.textContent = 'WebSockets not supported!';
+			return;
+		}
+
+		socket = new WebSocket('ws://' + serverAddress + '/r/' + roomNr + '/ws/' + teamNr);
+		socket.onopen = (event) => {
+			connectionStatusDom.textContent = 'Connected';
+			initialized = false;
+		};
+		socket.onclose = (event) => { connectionStatusDom.textContent = 'Not connected'; };
+		socket.onerror = console.error;
+		socket.onmessage = message => console.log(JSON.parse(message.data));
+	}
+
+	const urlParams = new URLSearchParams(window.location.search);
+	const roomId = urlParams.get('room'); document.getElementById('roomId').value = roomId || '';
+	const playerId = urlParams.get('seat'); document.getElementById('playerId').value = playerId || '';
+	const serverUrl = urlParams.get('serverUrl') || window.location.host;
+	if(roomId) connectToServer(serverUrl);
+</script>
+</html>

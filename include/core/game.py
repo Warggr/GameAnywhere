@@ -1,7 +1,5 @@
 from typing import List
-from .agent import Agent
-
-AgentId = int
+from .agent import Agent, AgentId
 
 class GameSummary:
     NO_WINNER = 0

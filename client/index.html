@@ -4,15 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GameAnywhere</title>
-    <link rel="stylesheet" href="./css/main_index.css">
+    <link rel="stylesheet" href="css/main_index.css">
 </head>
 <body>
     <header>
         <p class="PageTitle">Game Anywhere</p>
     </header>
     <div class="indexMainDiv">
-        <button>Start a new game</button>
-        <button>Join a game with a code</button>
+        <button onclick="createNewRoom()">Start a new game</button>
+        <form method="get" action="player.html">
+            <input type="text" name="room"/>
+            <input type="text" name="seat"/>
+            <button type="submit">Join a game with a code</button>
+        </form>
     </div>
+    <script>
+        function createNewRoom(){
+            fetch('/room', { method: 'POST', body: '{}' }).then(console.log);
+        }
+    </script>
 </body>
 </html>
