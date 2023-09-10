@@ -1,0 +1,43 @@
+html, body, div, p {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+body {
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+}
+
+header {
+    width: 65vw;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* border: 1px solid black; */
+}
+
+.PageTitle {
+    text-align: center;
+    width: 100%;
+    font-weight: 700;
+    font-size: x-large;
+}
+
+.indexMainDiv {
+    display: flex;
+    flex-flow: column;
+    width: 65vw;
+    /* justify-content: space-around; */
+    align-items: center;
+}
+
+.indexMainDiv button {
+    width: 100%;
+    /* background-color: transparent; */
+    margin-bottom: 15px;
+
+}
