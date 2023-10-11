@@ -32,6 +32,8 @@
 		const teamNr = document.getElementById('playerId').value;
 		const roomNr = document.getElementById('roomId').value;
 
+		fetch('http://' + serverAddress + '/r/' + roomNr + '/html').then(async content => {document.getElementById('screen').innerHTML = await content.text();});
+
 		connectionStatusDom.textContent = 'Connecting...';
 		if(window.WebSocket === undefined) {
 			connectionStatusDom.textContent = 'WebSockets not supported!';

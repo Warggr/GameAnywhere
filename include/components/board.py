@@ -1,10 +1,11 @@
 from typing import TypeVar, Generic, Type, Union, List, Tuple, Callable
+from .component import Component
 
-class Board:
+class Board(Component):
     # TODO: a board that's as general as possible
     pass
 
-T = TypeVar('T')
+T = TypeVar('T', bound=Component)
 
 class CheckerBoard(Board, Generic[T]):
     def __init__(self, fill: Callable[[], T], width: int, height: int):
@@ -23,3 +24,15 @@ class CheckerBoard(Board, Generic[T]):
 
     def get_dimensions(self) -> Tuple[int, int]:
         return len(self.board) , len(self.board[0])
+
+    def html(self):
+        result = ''
+        result += '<table class="checkerboard"><tbody>'
+        for row in self.board:
+            result += '<tr>'
+            for cell in row:
+                result += '<td>' + cell.html() + '</td>'
+            result += '</tr>'
+        result += '</tbody></table>'
+        result += '<style>.checkerboard{border-collapse:collapse;width:100%;height:100%;} .checkerboard td{border:3px;background:white;}</style>'
+        return result

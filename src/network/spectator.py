@@ -3,7 +3,7 @@ import asyncio
 from aiohttp import web
 from enum import Enum, unique
 from game_anywhere.include.core.agent import AgentId
-from typing import Optional, Any
+from typing import Optional, Any, List, Awaitable
 from threading import Condition, Lock
 
 """
@@ -21,20 +21,33 @@ class Spectator:
         INTERRUPTED_BY_SERVER = 3
 
     class DisconnectedException(Exception):
-        pass
+        def __init__(self, state = 0):
+            self.state = state
 
     def __init__(self, room : 'ServerRoom'):
+        self.room = room
+        print(f'Create spectator with {room=}')
+
         self.state = Spectator.state.FREE
-        self.reading_queue = [] # All messages that haven't been read yet
-        self.writing_queue = [] # All messages that haven't been sent yet
-        self.protect_reading_queue = Lock()
-        self.signal_reading_queue = Condition(self.protect_reading_queue)
         self.listening = False
         self.previously_connected = False
+
+        self.reading_queue : List[str] = [] # All messages that haven't been read yet
+        # the reading queue can block the game thread but not the network thread, so we use threading sync primitives
+        # (the game thread will wait for messages by locking these primitives)
+        self.protect_reading_queue = Lock()
+        self.signal_reading_queue = Condition(self.protect_reading_queue)
+
+        self.writing_queue = asyncio.Queue() # All messages that haven't been sent yet
+        # the network thread will wait for the writing queue, so we use asyncio sync primitives
+        self.signal_connected = self.loop.create_future()
+
+        self.run_handle : Optional[asyncio.Task] = None
         self.ws : Optional[aiohttp.web.WebSocketResponse] = None
-        self.room = room
-        self.message_writing_loop = None
-        self.run_coro = None
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop:
+        return self.room.server.loop
 
     # this is not guaranteed to be called, unlike a C++ destructor.
     # but it's just an assertion so it's fine
@@ -43,10 +56,10 @@ class Spectator:
 
     # note: in C++, this method is split into two parts, claim() and on_connect()
     # this is not necessary here since we have actual coroutines instead of callbacks
-    async def on_connect(self, request):
+    async def on_connect(self, request : web.Request, websocket : web.WebSocketResponse) -> Awaitable[None]:
         assert self.state == Spectator.state.FREE
         self.state = Spectator.state.CLAIMED
-        self.ws = web.WebSocketResponse()
+        self.ws = websocket
 
         # do the websocket handshake
         await self.ws.prepare(request)
@@ -55,75 +68,78 @@ class Spectator:
         with self.protect_reading_queue:
             self.state = Spectator.state.CONNECTED
             self.signal_reading_queue.notify()
+        return self.ws
 
-        self.run_coro = self.run()
+    async def run(self) -> Awaitable[None]:
+        assert self.run_handle is None
+        self.run_handle = asyncio.create_task( self._run() )
+        await self.run_handle
+        self.run_handle = None
 
-    async def run(self):
-        # start the message writing loop, in case there are some messages in the buffer
-        if self.message_writing_loop is None:
-            self.message_writing_loop = self.send_all_messages()
-
-        await self.read_all_messages()
-
-        if self.message_writing_loop is not None:
-            await self.message_writing_loop
-
-        print(self, "received close, ask for disconnect")
-        with self.protect_reading_queue:
-            self.state = Spectator.state.FREE
-            self.signal_reading_queue.notify()
-
-        self.room.report_afk(self)
+    async def _run(self):
+        print(self, '_run')
+        message_sending_task = self.loop.create_task(self.send_all_messages())
+        try:
+            await self.read_all_messages()
+            # all messages read, connection closed
+            print(self, "client closed")
+            with self.protect_reading_queue:
+                self.state = Spectator.state.FREE
+        finally: # catch asyncio.CancelledError
+            message_sending_task.cancel()
+            # signal anyone that waits for an incoming message
+            with self.protect_reading_queue:
+                self.signal_reading_queue.notify()
+            self.room.report_afk(self)
 
     async def read_all_messages(self):
         async for msg in self.ws:
             if msg.type == aiohttp.WSMsgType.TEXT:
-                print(self, "Read message of size", len(msg))
+                print(self, "Read message:", msg.data)
 
                 # Add to queue
                 with self.protect_reading_queue:
-                    self.reading_queue.append(msg)
+                    self.reading_queue.append(msg.data)
                     self.signal_reading_queue.notify()
 
                 if not self.listening:
-                    await self.ws.send_str("\"Not listening\"")
+                    await self.ws.send_json("Not listening")
 
             elif msg.type == aiohttp.WSMsgType.ERROR:
                 print(self, "ws connection closed with exception", self.ws.exception())
 
+    async def send_all_messages(self) -> None:
+        try:
+            while True:
+                msg = await self.writing_queue.get()
+                while True:
+                    try:
+                        print('writing', msg)
+                        await self.ws.send_json(msg)
+                        break
+                    except ConnectionResetError:
+                        await self.signal_connected
+        finally: # most likely asyncio.CancelledError
+            print("Finished sending messages")
+
     # This is executed on the network thread, so the only possible race condition is with send() or get()
-    async def interrupt(self, msg='Server shutdown') -> None:
+    def interrupt(self, msg='Server shutdown') -> None:
+        if not self.run_handle:
+            return
         print(self, "connection interrupted")
         with self.protect_reading_queue:
-            self.state = INTERRUPTED_BY_SERVER
-            self.signal_reading_queue.notify() #in case anyone was waiting for it
+            self.state = Spectator.state.INTERRUPTED_BY_SERVER
+            self.signal_reading_queue.notify()
 
-        if self.ws is not None and not self.ws.closed:
-            await self.ws.close()
-
-    async def send_all_messages(self) -> None:
-        while len(self.writing_queue) > 0:
-            msg = self.writing_queue[0]
-            try:
-                print('writing', self.writing_queue[0])
-                await self.ws.send_json(msg)
-                del self.writing_queue[0]
-            except ConnectionResetError:
-                break
-        self.message_writing_loop = None
+        self.run_handle.cancel()
 
     async def send(self, msg: Any) -> None:
-        print("(main) Sending message")
-        queue_empty : bool = len(self.writing_queue) == 0
-
-        # always append to queue, in case the sending fails
-        self.writing_queue.append(msg)
-
-        if self.state == Spectator.state.CONNECTED and queue_empty:
-            self.message_writing_loop = self.send_all_messages()
+        print("(net) Sending message:", repr(msg))
+        await self.writing_queue.put(msg)
 
     def send_sync(self, msg : str) -> None:
-        self.room.server.call_soon_threadsafe( self.send(msg) )
+        print("(game) Scheduling send:", repr(msg))
+        asyncio.run_coroutine_threadsafe( self.send(msg), loop=self.loop )
 
     def get_sync(self) -> str:
         print("(main) Getting string, waiting for mutex...")
@@ -131,18 +147,19 @@ class Spectator:
             self.listening = True
             if len(self.reading_queue) == 0:
                 if self.state != Spectator.state.CONNECTED:
-                    raise Spectator.DisconnectedException()
-                self.signal_reading_queue.wait( # condition for waking up:
+                    raise Spectator.DisconnectedException(self.state)
+                self.signal_reading_queue.wait_for( # condition for waking up:
                     lambda: len(self.reading_queue)>0
                     or self.state != Spectator.state.CONNECTED
                 )
                 if self.state != Spectator.state.CONNECTED:
-                    raise Spectator.DisconnectedException()
+                    raise Spectator.DisconnectedException(self.state)
 
             assert len(self.reading_queue) > 0
             self.listening = False # okay, maybe a semaphore would've been cleaner
             retVal = self.reading_queue[0]
             del self.reading_queue[0]
+        print('(main) Got message', retVal)
         return retVal
 
 
@@ -162,14 +179,13 @@ class Session(Spectator):
     def reconnect_sync(self) -> None:
         with self.protect_reading_queue:
             if self.state == Spectator.state.INTERRUPTED_BY_SERVER:
-                raise Spectator.DisconnectedException()
+                raise Spectator.DisconnectedException(Spectator.state.INTERRUPTED_BY_SERVER)
             elif self.state == Spectator.state.CONNECTED:
                 return
 
-            # the lock needs to be still locked when we wait for the signal
-            print("(sync session) Awaiting reconnect...")
+            # the lock needs to be still locked when we wait for the signal (wait_for unlocks it)
+            print("(sync session) Awaiting reconnect, state is", self.state, '...')
             if not self.signal_reading_queue.wait_for(
-                # predicate=lambda:True,
                 predicate=lambda: self.state in [Spectator.state.CONNECTED, Spectator.state.INTERRUPTED_BY_SERVER],
                 timeout=Session.TIMEOUT_SECONDS
             ):
@@ -184,8 +200,13 @@ class Session(Spectator):
 
     # Override
     def get_sync(self) -> str:
+        print('(session) Getting message')
         while True:
             try:
                 return super().get_sync()
-            except Spectator.DisconnectedException:
-                self.reconnect_sync()
+            except Spectator.DisconnectedException as err:
+                print('(session) couldn\'t get message:', err.state)
+                if err.state == Spectator.state.INTERRUPTED_BY_SERVER:
+                    raise err
+                else:
+                    self.reconnect_sync()

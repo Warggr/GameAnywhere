@@ -3,7 +3,7 @@ from typing import Tuple
 AgentId = int
 
 class Agent:
-    class Surrendered:
+    class Surrendered(Exception):
         pass
 
     def message(self, message: str) -> None:

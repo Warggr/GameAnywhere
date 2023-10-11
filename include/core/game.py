@@ -1,9 +1,13 @@
 from typing import List
+from abc import ABC, abstractmethod
 from .agent import Agent, AgentId
 
-class GameSummary:
+html = str
+
+class GameSummary(ABC):
     NO_WINNER = 0
 
+    @abstractmethod
     def get_winner(self) -> AgentId:
         raise NotImplementedError()
 
@@ -19,9 +23,14 @@ class SimpleGameSummary(GameSummary):
 """
 Represents a game in progress. Most often has a gameState attribute.
 """
-class Game:
+class Game(ABC):
     def __init__(self, agents: List[Agent]):
         self.agents = agents
 
+    @abstractmethod
     def play_game(self) -> GameSummary:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def html(self) -> html:
         raise NotImplementedError()

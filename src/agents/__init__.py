@@ -1,2 +1,2 @@
 from .local_agent import HumanAgent
-from .parse_agent_descriptor import parse_agent_descriptions
+from .parse_descriptors import parse_agent_descriptions

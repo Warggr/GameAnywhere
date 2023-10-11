@@ -2,10 +2,10 @@ from aiohttp import web
 from aiohttp.http import http
 from .server import Server
 from game_anywhere.src.agents.parse_descriptors import parse_game_descriptor
-from .room import ServerRoom, GameRoom
+from .game_room import GameRoom
 import json
 
-def json_encode_server_room(room : ServerRoom):
+def json_encode_server_room(room : 'ServerRoom'):
     return {
         'spectators': len(room.spectators),
         'seats': { key: str(value.state) for key, value in room.sessions.items() }
@@ -21,8 +21,7 @@ class HttpControlledServer(Server):
 
     async def http_create_room(self, request : web.Request) -> web.Response:
         game_description = parse_game_descriptor(await request.json())
-        game = game_description.create()
-        room_id, room = self.new_room(room=GameRoom(game))
+        room_id, room = self.new_room(room=GameRoom(game_description, server=self))
         return web.json_response(room_id, status=http.HTTPStatus.CREATED)
 
     def http_get_rooms(self, request : web.Request) -> web.Response:

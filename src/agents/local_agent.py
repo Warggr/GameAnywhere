@@ -1,9 +1,11 @@
 from game_anywhere.include.core import Agent
-from .agent_descriptor import AgentDescriptor
+from .descriptors import AgentDescriptor
 
 class HumanAgent(Agent):
     class Descriptor(AgentDescriptor):
-        def initialize(self):
+        def start_initialization(self, id : 'AgentId', context):
+            pass
+        def await_initialization(self, promise) -> 'HumanAgent':
             return HumanAgent()
 
     def message(self, message):

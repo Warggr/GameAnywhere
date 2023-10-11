@@ -7,7 +7,9 @@ from websockets.server import serve, WebSocketServerProtocol
 from contextlib import AbstractContextManager
 from abc import ABCMeta
 from .room import ServerRoom, SeatId
-from typing import Dict, Callable
+from typing import Dict, Callable, Optional
+from signal import SIGINT
+from .async_resource import AsyncResource
 
 class Singleton(ABCMeta):
     def get_instance(cls, *args, **kwargs):
@@ -40,10 +42,10 @@ Convention:
 all functions that are intended to be called on the network thread start with nt_
     (or with http_ for HTTP request handler)
 """
-class Server(AbstractContextManager, metaclass=Singleton):
+class Server(AbstractContextManager, AsyncResource, metaclass=Singleton):
     def __init__(self, RoomClass = ServerRoom):
-        self.loop = None
-        self.serverThread = None
+        self.loop : Optional[asyncio.AbstractEventLoop] = None
+        self.serverThread : Optional[Thread] = None
         self.running = False
         self.rooms : Dict[RoomId, ServerRoom] = {}
         self.app = web.Application()
@@ -55,7 +57,6 @@ class Server(AbstractContextManager, metaclass=Singleton):
 
         @web.middleware
         async def room_dispatcher(request: web.Request, handler: web.RequestHandler):
-            print(f'{request.path=}, {handler=}')
             if request.match_info.http_exception is not None:
                 return await handler(request)
             if 'roomId' not in request.match_info:
@@ -64,8 +65,8 @@ class Server(AbstractContextManager, metaclass=Singleton):
             if roomId not in self.rooms:
                 raise web.HTTPNotFound(text=f'Room {roomId} not found')
             # Using room.<handler_function> instead of the unbound ServerRoom.<handler_function>.
-            # TODO: this is very non-idiomatic and bad
-            return await handler(self.rooms[roomId], request)
+            # by specifying self manually. TODO: this is very non-idiomatic and bad
+            return await handler(self=self.rooms[roomId], request=request)
 
         subapp = RoomClass.http_interface(instance_dispatcher=room_dispatcher)
         self.app.add_subapp('/r/', subapp)
@@ -83,20 +84,38 @@ class Server(AbstractContextManager, metaclass=Singleton):
     def __exit__(self, type, value, traceback):
         self.close()
 
+    def __del__(self):
+        assert len(self.rooms) == 0
+
     def nt_start(self, on_start=None, *args, **kwargs):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
+        #self.loop.add_signal_handler(sig=SIGINT, callback=self.nt_close)
         if on_start is not None:
             on_start()
-        # we'll handle SIGINT in our code, no need for aiohttp to handle them
-        web.run_app(self.app, handle_signals=False, loop=self.loop, *args, **kwargs)
-        print('Server thread ending')
+        self.app.on_shutdown.append( self.on_shutdown ) # we can't do this after shutdown because the loop will no longer exist
+        web.run_app(self.app, loop=self.loop, *args, **kwargs)
+        print('Server thread ending now')
 
-    def nt_close(self):
-        raise GracefulExit
+    async def on_shutdown(self, app):
+        await self.interrupt_and_close()
+
+    async def nt_close(self):
+        print('Server thread ending, closing rooms…')
+        if len(self.rooms) != 0:
+            await asyncio.wait([ self.loop.create_task(room.nt_close()) for room in self.rooms.values()])
+        print('All rooms closed!')
+        # closing the web_app
+        raise GracefulExit()
+
+    def nt_interrupt(self):
+        print('(server) nt_interrupt')
+        for room in self.rooms.values():
+            room.nt_interrupt()
 
     def close(self):
-        self.loop.call_soon_threadsafe( self.nt_close )
+        print('(server) close')
+        self.loop.call_soon_threadsafe( self.interrupt_and_close() )
         self.loop.stop()
         self.serverThread.join()
 
@@ -106,9 +125,13 @@ class Server(AbstractContextManager, metaclass=Singleton):
 
     def new_room(self, room : ServerRoom = None) -> (RoomId, ServerRoom):
         if room is None:
-            room = ServerRoom()
+            room = ServerRoom(server=self)
         roomId = len(self.rooms)
         self.rooms[roomId] = room
         # this would be the idiomatic way of doing it, but unfortunately you can't add subapps at runtime
         # self.app.add_subapp('/' + str(roomId), room.http_interface())
         return roomId, room
+
+    def delete_room(self, room : ServerRoom) -> None:
+        room_key = [ key for (key, value) in self.rooms.items() if value is room ][0]
+        del self.rooms[room_key]

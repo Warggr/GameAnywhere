@@ -5,12 +5,12 @@ sys.path.append( str( Path(__file__).parent.parent.parent.parent) )
 from typing import Tuple, Union
 
 from game_anywhere.include import run_game
-from game_anywhere.include.core.game import AgentId
+from game_anywhere.include.core.game import AgentId, html
 from game_anywhere.include.core import TurnBasedGame, SimpleGameSummary
-from game_anywhere.include.components import CheckerBoard
+from game_anywhere.include.components import Component, CheckerBoard
 
 class TicTacToeState:
-    class Field:
+    class Field(Component):
         def __init__(self):
             self.empty = True
             self.player : AgentId = 0
@@ -22,6 +22,9 @@ class TicTacToeState:
 
     def __init__(self):
         self.board = CheckerBoard(self.Field, self.BOARD_DIMENSION, self.BOARD_DIMENSION)
+
+    def html(self) -> html:
+        return '<div id="game-board" style="width:100%;height:100%;">' + self.board.html() + '</div>'
 
 
 def hasRow(player: AgentId, board: CheckerBoard[TicTacToeState.Field], start: Tuple[int, int], step: Tuple[int, int]):
@@ -83,6 +86,9 @@ class TicTacToe(TurnBasedGame):
             return SimpleGameSummary( self.get_current_agent_id() )
 
         return None
+
+    def html(self) -> html:
+        return self.state.html()
 
 if __name__ == "__main__":
     run_game(TicTacToe, sys.argv);
