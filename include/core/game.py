@@ -31,6 +31,7 @@ class Game(ABC):
     def play_game(self) -> GameSummary:
         raise NotImplementedError()
 
+    @staticmethod
     @abstractmethod
-    def html(self) -> html:
+    def html() -> html:
         raise NotImplementedError()

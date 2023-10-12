@@ -1,4 +1,5 @@
 from typing import TypeVar, Generic, Type, Union, List, Tuple, Callable
+from abc import ABC
 from .component import Component
 
 class Board(Component):
@@ -6,10 +7,18 @@ class Board(Component):
     pass
 
 T = TypeVar('T', bound=Component)
+CellTypeType = TypeVar('CellType', bound=Component)
 
 class CheckerBoard(Board, Generic[T]):
-    def __init__(self, fill: Callable[[], T], width: int, height: int):
-        self.board = [ [ fill() for i in range(width) ] for j in range(height) ]
+    @classmethod
+    def specialize(cls, height : int, width : int, CellType : CellTypeType) -> Type['CheckerBoard[CellTypeType]']:
+        class _CheckerBoard(CheckerBoard[CellTypeType]):
+            def __init__(self, fill: Callable[[], CellType] = CellType):
+                self.board = [ [ fill() for i in range(width) ] for j in range(height) ]
+        _CheckerBoard.width = width
+        _CheckerBoard.height = height
+        _CheckerBoard.CellType = CellType
+        return _CheckerBoard
 
     def __getitem__(self, index: Union[int, Tuple[int, int]]) -> Union[T, List[T]]:
         if type(index) == int:
@@ -19,19 +28,22 @@ class CheckerBoard(Board, Generic[T]):
         else:
             raise TypeError(f"expected int or (int, int), got {type(index)}")
 
-    def get_size(self) -> int:
-        return len(self.board) * len(self.board[0])
+    @classmethod
+    def get_size(cls) -> int:
+        return cls.width * cls.height
 
-    def get_dimensions(self) -> Tuple[int, int]:
-        return len(self.board) , len(self.board[0])
+    @classmethod
+    def get_dimensions(cls) -> Tuple[int, int]:
+        return cls.height, cls.width
 
-    def html(self):
+    @classmethod
+    def html(cls):
         result = ''
         result += '<table class="checkerboard"><tbody>'
-        for row in self.board:
+        for row in range(cls.height):
             result += '<tr>'
-            for cell in row:
-                result += '<td>' + cell.html() + '</td>'
+            for cell in range(cls.width):
+                result += '<td>' + cls.CellType.html() + '</td>'
             result += '</tr>'
         result += '</tbody></table>'
         result += '<style>.checkerboard{border-collapse:collapse;width:100%;height:100%;} .checkerboard td{border:3px;background:white;}</style>'

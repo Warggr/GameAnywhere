@@ -2,12 +2,14 @@ from .room import ServerRoom
 from ..agents.descriptors import Context
 from threading import Thread
 from aiohttp import web
+from typing import Type
 import asyncio
 
 class GameRoom(ServerRoom):
     def __init__(self, game_descriptor : 'GameDescriptor', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.first_step = True
+        self.GameClass : Type['Game'] = game_descriptor.GameType
         self.game : 'Game' = None # delayed initialization in game thread
         self.game_thread = Thread(target=self.run_game_thread, args=(game_descriptor,))
         self.game_thread.start()
@@ -47,4 +49,4 @@ class GameRoom(ServerRoom):
         # TODO: if the game is not initialized yet, this will throw an error
         # we could make Game.html() a class method that can be called even when no instance exists,
         # and split up the representation of the game state to another instance method
-        return web.Response(body=self.game.html(), content_type='text/html')
+        return web.Response(body=self.GameClass.html(), content_type='text/html')

@@ -1,6 +1,8 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from game_anywhere.include.core.game import html
 
 class Component(ABC):
-    def html(self) -> html:
-        return str(self)
+    @staticmethod
+    @abstractmethod
+    def html() -> html:
+        raise NotImplementedError()
