@@ -11,6 +11,7 @@ from game_anywhere.include.components import Component, CheckerBoard
 
 class TicTacToeField(Component):
     def __init__(self):
+        super().__init__()
         self.empty = True
         self.player : AgentId = 0
 
@@ -45,15 +46,11 @@ class TicTacToe(TurnBasedGame):
         if self.get_current_turn() == TOTAL_MOVES:
             return SimpleGameSummary(SimpleGameSummary.NO_WINNER)
 
-        BOARD_DIMENSIONS = self.board.get_dimensions()
+        fields = list(filter( lambda field : field.empty, self.board.all_fields() ))
+        print(fields)
 
-        field = None
-        while True:
-            position = self.get_current_agent().get_2D_choice(BOARD_DIMENSIONS);
-            field = self.board[position]
-            if field.empty:
-                break
-
+        field = self.get_current_agent().choose_one_component(fields)
+        print(repr(field))
         field.empty = False
         field.player = self.get_current_agent_index()
 
@@ -86,7 +83,7 @@ class TicTacToe(TurnBasedGame):
 
     @classmethod
     def html(cls) -> html:
-        return '<div id="game-board" style="width:100%;height:100%;">' + TicTacToeBoard.html() + '</div>'
+        return TicTacToeBoard.html()
 
 if __name__ == "__main__":
     run_game(TicTacToe, sys.argv);

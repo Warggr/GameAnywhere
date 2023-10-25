@@ -5,35 +5,33 @@ import time
 from threading import Thread, Semaphore, Lock
 from websockets.server import serve, WebSocketServerProtocol
 from contextlib import AbstractContextManager
-from abc import ABCMeta
 from .room import ServerRoom, SeatId
 from typing import Dict, Callable, Optional
 from signal import SIGINT
 from .async_resource import AsyncResource
+from functools import wraps
 
-class Singleton(ABCMeta):
+def Singleton(cls):
+    cls._instance = None
+
     def get_instance(cls, *args, **kwargs):
         """ warning: no guarantee that the returned instance will actually have been created with the given args"""
         if cls._instance is None:
             cls._instance = cls(*args, **kwargs)
         return cls._instance
 
-    def create_instance(cls, *args, **kwargs):
-        assert cls._instance is None
-        cls._instance = cls(*args, **kwargs)
+    cls.get_instance = get_instance
+
+    old__new__ = cls.__new__
+    @wraps(cls.__new__)
+    def _wrapper(cls, *args, **kwargs):
+        assert cls._instance == None, "An instance already exists. Please use get_instance"
+        cls._instance = old__new__(cls) # object.__new__ takes no *args
+        # the default __new__ takes care of removing those
         return cls._instance
 
-    def __init__(cls, name, superclasses, attributes):
-        super().__init__(name, superclasses, attributes)
-
-        cls._instance = None
-
-        def wrap_new(__new):
-            def _wrapper(cls, *args, **kwargs):
-                assert cls._instance == None, "An instance already exists. Please use get_instance"
-                return __new(cls, *args, **kwargs)
-            return _wrapper
-        cls.__new__ = wrap_new(cls.__new__)
+    cls.__new__ = _wrapper
+    return cls
 
 RoomId = int
 
@@ -42,7 +40,8 @@ Convention:
 all functions that are intended to be called on the network thread start with nt_
     (or with http_ for HTTP request handler)
 """
-class Server(AbstractContextManager, AsyncResource, metaclass=Singleton):
+@Singleton
+class Server(AbstractContextManager, AsyncResource):
     def __init__(self, RoomClass = ServerRoom):
         self.loop : Optional[asyncio.AbstractEventLoop] = None
         self.serverThread : Optional[Thread] = None

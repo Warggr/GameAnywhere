@@ -1,7 +1,7 @@
 from game_anywhere.include.core.agent import AgentId
 from .spectator import Session, Spectator
 from itertools import chain
-from typing import Iterable, Dict, List, Awaitable
+from typing import Iterable, Dict, List, Awaitable, Optional
 from aiohttp import web
 import asyncio
 from .async_resource import AsyncResource
@@ -29,21 +29,6 @@ class ServerRoom(AsyncResource):
         session = Session( agent_id, self )
         self.sessions[agent_id] = session
         return session
-
-    def add_spectator(self, request, session_id : int = 0) -> Spectator:
-        if session_id != 0:
-            if session_id not in self.sessions:
-                raise ServerRoom.CouldntConnect('No such session expected')
-            session = self.sessions[session_id]
-            # this is done on the network thread, which is single-threaded.
-            # There can be no race condition between reading session.state and claiming the session
-            if session.state != Session.state.FREE:
-                raise ServerRoom.CouldntConnect('Session already taken')
-            return session
-        else:
-            spectator = Spectator(self)
-            self.spectators.append(spectator)
-            return spectator
 
     # signals the game that it should end as soon as possible.
     def nt_interrupt(self):
@@ -77,17 +62,33 @@ class ServerRoom(AsyncResource):
         router = web.Application(middlewares=[instance_dispatcher])
         router.add_routes([
             # see @class Server for an explanation of parameter {roomId}
-            web.get(r'/{roomId:\d+}/ws/{seat:\d+}', cls.nt_handle_websocket),
+            web.get(r'/{roomId:\d+}/ws/{seat:\d+}', cls.nt_connect_session),
+            web.get(r'/{roomId:\d+}/ws/watch', cls.nt_add_spectator)
         ])
         return router
 
-    async def nt_handle_websocket(self, request : web.Request):
-        try:
-            seatId = SeatId(request.match_info['seat'])
-            spectator = self.add_spectator(request, seatId)
-        except ServerRoom.CouldntConnect as err:
-            raise web.HTTPNotFound(text=str(err))
+    async def nt_add_spectator(self, request : web.Request):
+        print("Adding spectator…")
+        spectator = Spectator(self)
+        self.spectators.append(spectator)
+        return await self.nt_handle_websocket(request, spectator)
 
+    async def nt_connect_session(self, request : web.Request):
+        print("Connecting session…")
+        try:
+            session_id = SeatId(request.match_info['seat'])
+            session = self.sessions[session_id]
+        except (KeyError, ValueError):
+            raise web.HTTPNotFound(text='No such session expected')
+
+        # this is done on the network thread, which is single-threaded.
+        # There can be no race condition between reading session.state and claiming the session
+        if session.state != Session.state.FREE:
+            raise web.HTTPNotFound(text='Session already taken')
+        return await self.nt_handle_websocket(request, session)
+
+    async def nt_handle_websocket(self, request : web.Request, spectator : Spectator):
+        print("Handling websocket…")
         ws = web.WebSocketResponse()
         try:
             await spectator.on_connect(request, ws)

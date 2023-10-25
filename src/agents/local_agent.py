@@ -1,5 +1,6 @@
 from game_anywhere.include.core import Agent
 from .descriptors import AgentDescriptor
+from typing import Optional, List
 
 class HumanAgent(Agent):
     class Descriptor(AgentDescriptor):
@@ -32,5 +33,13 @@ class HumanAgent(Agent):
             return i
         return HumanAgent.get_value(_suitable_int, message=f"Enter a value between {min} and {max}")
 
+    # override
     def get_2D_choice(self, dimensions):
         return tuple( self.get_integer(min=0, max=dim-1) for dim in dimensions )
+
+    # override
+    def choose_one_component(self, components : List['Component']) -> 'Component':
+        for i, component in enumerate(components):
+            print(f"[{i+1}]", component)
+        i = self.get_integer(min=1, max=len(components)) - 1
+        return components[i]

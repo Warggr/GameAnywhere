@@ -42,11 +42,7 @@ class GameRoom(ServerRoom):
             # see @class Server for an explanation of parameter {roomId}
             web.get(r'/{roomId:\d+}/html', cls.http_get_html_view),
         ])
-        print('Creating GameRoom http interface')
         return router
 
     async def http_get_html_view(self, request: web.Request) -> web.Response:
-        # TODO: if the game is not initialized yet, this will throw an error
-        # we could make Game.html() a class method that can be called even when no instance exists,
-        # and split up the representation of the game state to another instance method
         return web.Response(body=self.GameClass.html(), content_type='text/html')

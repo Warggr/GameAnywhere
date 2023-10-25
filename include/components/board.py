@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, Type, Union, List, Tuple, Callable
+from typing import TypeVar, Generic, Type, Union, List, Tuple, Callable, Iterable
 from abc import ABC
 from .component import Component
 
@@ -7,12 +7,11 @@ class Board(Component):
     pass
 
 T = TypeVar('T', bound=Component)
-CellTypeType = TypeVar('CellType', bound=Component)
 
 class CheckerBoard(Board, Generic[T]):
     @classmethod
-    def specialize(cls, height : int, width : int, CellType : CellTypeType) -> Type['CheckerBoard[CellTypeType]']:
-        class _CheckerBoard(CheckerBoard[CellTypeType]):
+    def specialize(cls, height : int, width : int, CellType : Type[T]) -> Type['CheckerBoard[T]']:
+        class _CheckerBoard(CheckerBoard[CellType]):
             def __init__(self, fill: Callable[[], CellType] = CellType):
                 self.board = [ [ fill() for i in range(width) ] for j in range(height) ]
         _CheckerBoard.width = width
@@ -28,6 +27,12 @@ class CheckerBoard(Board, Generic[T]):
         else:
             raise TypeError(f"expected int or (int, int), got {type(index)}")
 
+    def __setitem__(self, index: Tuple[int, int], val : T):
+        self.board[index[0]][index[1]] = val
+
+    def all_fields(self) -> Iterable[T]:
+        return (self.board[i][j] for j in range(self.height) for i in range(self.width))
+
     @classmethod
     def get_size(cls) -> int:
         return cls.width * cls.height
@@ -39,12 +44,9 @@ class CheckerBoard(Board, Generic[T]):
     @classmethod
     def html(cls):
         result = ''
-        result += '<table class="checkerboard"><tbody>'
-        for row in range(cls.height):
-            result += '<tr>'
-            for cell in range(cls.width):
-                result += '<td>' + cls.CellType.html() + '</td>'
-            result += '</tr>'
-        result += '</tbody></table>'
-        result += '<style>.checkerboard{border-collapse:collapse;width:100%;height:100%;} .checkerboard td{border:3px;background:white;}</style>'
+        result += f'<div class="checkerboard" style="grid-template-rows: repeat({cls.width}, 1fr); grid-template-columns: repeat({cls.height}, 1fr)">'
+        for row in range(cls.get_size()):
+            result += '<div></div>'
+        result += '</div>'
+        result += '<style>.checkerboard{display:grid;width:100%;height:100%;background-color:red;gap:10px;} .checkerboard div{background-color:white;border:2px solid;aspect-ratio:1;}</style>'
         return result

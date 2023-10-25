@@ -1,6 +1,7 @@
 from game_anywhere.include.core import Agent
 from .descriptors import AgentDescriptor, Context
 from ..network import Server, ServerRoom
+from typing import List
 
 class NetworkAgent(Agent):
     class Descriptor(AgentDescriptor):
@@ -27,12 +28,24 @@ class NetworkAgent(Agent):
     def __init__(self, session: 'Session'):
         self.session = session
 
+    # override
     def message(self, message) -> None:
         self.session.send_sync(message)
 
     # override
     def get_2D_choice(self, dimensions):
         return tuple( self.get_integer(min=0, max=dim-1) for dim in dimensions )
+
+    # override
+    def choose_one_component(self, components : List['Component']):
+        self.session.send_sync({ 'type': 'choice', 'components': [ component.id for component in components ] })
+        ids = { c.id : c for c in components }
+        while True:
+            chosen_id = self.session.get_sync()
+            if chosen_id in ids:
+                return ids[chosen_id]
+            else:
+                self.session.send_sync({ 'type': 'error', 'message': 'Invalid choice, please try again!' })
 
     def get_integer(self, min=None, max=None) -> int:
         while True:
