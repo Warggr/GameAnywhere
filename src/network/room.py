@@ -36,7 +36,10 @@ class ServerRoom(AsyncResource):
             spectator.interrupt()
 
     async def nt_close(self) -> None:
-        await asyncio.wait([ spectator.run_handle for spectator in self.get_spectators_and_sessions() if spectator.run_handle is not None ])
+        # some sessions are probably still waiting for reconnection, let's wait until they all end
+        spectators_still_running = [ spectator.run_handle for spectator in self.get_spectators_and_sessions() if spectator.run_handle is not None ]
+        if spectators_still_running:
+            await asyncio.wait(spectators_still_running)
         self.server.delete_room(self)
 
     def report_afk(self, spectator: Spectator):

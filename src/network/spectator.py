@@ -87,6 +87,7 @@ class Spectator:
                 self.state = Spectator.state.FREE
         finally: # catch asyncio.CancelledError
             message_sending_task.cancel()
+            await message_sending_task # in case it had any other exception
             # signal anyone that waits for an incoming message
             with self.protect_reading_queue:
                 self.signal_reading_queue.notify()
@@ -119,7 +120,11 @@ class Spectator:
                         break
                     except ConnectionResetError:
                         await self.signal_connected
-        finally: # most likely asyncio.CancelledError
+                    except Exception as x:
+                        print("(net) EXCEPTION when trying to send message:", x)
+                        print("(net) discarded message!")
+                        break
+        except asyncio.CancelledError:
             print("Finished sending messages")
 
     # This is executed on the network thread, so the only possible race condition is with send() or get()

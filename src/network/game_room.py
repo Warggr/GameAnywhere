@@ -31,8 +31,11 @@ class GameRoom(ServerRoom):
         await super().nt_close()
         print('Everything closed, now waiting for the game thread to end…')
         # then wait for the game to end (with no one connected, it can't take long)
-        self.game_thread.join()
-        print('Game thread ended')
+        try:
+            self.game_thread.join()
+            print('Game thread ended')
+        except Exception:
+            print('Game thread ended with an exception')
 
     # override
     @classmethod
