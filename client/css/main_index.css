@@ -50,3 +50,7 @@ header {
 .indexMainDiv > form > button {
     flex-grow: 1;
 }
+
+.clickable {
+    background-color: yellow !important;
+}

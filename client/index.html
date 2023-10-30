@@ -20,7 +20,7 @@
     </div>
     <script>
         function createNewRoom(){
-            fetch('/room', { method: 'POST', body: '{}' }).then(console.log);
+            fetch('/room', { method: 'POST', body: JSON.stringify({"game": "TicTacToe"}) }).then(console.log);
         }
     </script>
 </body>

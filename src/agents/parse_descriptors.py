@@ -1,13 +1,12 @@
-from typing import List, Any
+from typing import List, Any, Dict
 from .descriptors import AgentDescriptor, GameDescriptor
 
 from .local_agent import HumanAgent
 from .network_agent import NetworkAgent
 
-from ...examples.tic_tac_toe.tic_tac_toe import TicTacToe
-
 def parse_agent_descriptions(args: List[str]) -> List[AgentDescriptor]:
-    return [ HumanAgent.Descriptor(), NetworkAgent.Descriptor() ]
+    return [ NetworkAgent.Descriptor(), NetworkAgent.Descriptor() ]
 
-def parse_game_descriptor(obj: Any) -> GameDescriptor:
-    return GameDescriptor(TicTacToe, parse_agent_descriptions([]))
+def parse_game_descriptor(obj: Any, available_games : Dict[str, 'Game']) -> GameDescriptor:
+    GameType = available_games[obj["game"]]
+    return GameDescriptor(GameType, parse_agent_descriptions([]))
