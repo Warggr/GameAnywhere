@@ -18,7 +18,6 @@ class Component(ABC):
         Component.components[id] = self
         self.id = id
 
-    @staticmethod
     @abstractmethod
-    def html() -> html:
+    def html(self) -> html:
         raise NotImplementedError()

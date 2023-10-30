@@ -10,13 +10,13 @@ class GameRoom(ServerRoom):
         super().__init__(*args, **kwargs)
         self.first_step = True
         self.GameClass : Type['Game'] = game_descriptor.GameType
-        self.game : 'Game' = None # delayed initialization in game thread
+        self.game = self.GameClass()
         self.game_thread = Thread(target=self.run_game_thread, args=(game_descriptor,))
         self.game_thread.start()
 
     def run_game_thread(self, game_descriptor : 'GameDescriptor'):
         print('Starting game thread, waiting for agents…')
-        self.game = game_descriptor.create( Context(server_room=self) )
+        self.game.agents = game_descriptor.create_agents( Context(server_room=self) )
         print('…Agents connected')
         self.game.play_game()
         print('Game ended, interrupting agents')
@@ -45,4 +45,4 @@ class GameRoom(ServerRoom):
         return router
 
     async def http_get_html_view(self, request: web.Request) -> web.Response:
-        return web.Response(body=self.GameClass.html(), content_type='text/html')
+        return web.Response(body=self.game.html(), content_type='text/html')

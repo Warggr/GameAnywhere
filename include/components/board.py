@@ -41,12 +41,11 @@ class CheckerBoard(Board, Generic[T]):
     def get_dimensions(cls) -> Tuple[int, int]:
         return cls.height, cls.width
 
-    @classmethod
-    def html(cls):
+    def html(self):
         result = ''
-        result += f'<div class="checkerboard" style="grid-template-rows: repeat({cls.width}, 1fr); grid-template-columns: repeat({cls.height}, 1fr)">'
-        for row in range(cls.get_size()):
-            result += '<div></div>'
+        result += f'<div class="checkerboard" style="grid-template-rows: repeat({self.width}, 1fr); grid-template-columns: repeat({self.height}, 1fr)">'
+        for field in self.all_fields():
+            result += field.html()
         result += '</div>'
         result += '<style>.checkerboard{display:grid;width:100%;height:100%;background-color:red;gap:10px;} .checkerboard div{background-color:white;border:2px solid;aspect-ratio:1;}</style>'
         return result

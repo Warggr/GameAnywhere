@@ -6,10 +6,12 @@ from .core.game import Game, GameSummary
 def run_game(GameType : type[Game], args: List[str]) -> GameSummary:
     agent_descriptions = parse_agent_descriptions(args)
 
+    game = GameType()
     context = Context()
+
     promises = [ desc.start_initialization(i, context) for i, desc in enumerate(agent_descriptions) ]
     agents = [ desc.await_initialization(promises[i]) for i, desc in enumerate(agent_descriptions) ]
 
-    game = GameType(agents)
+    game.agents = agents
 
     return game.play_game()

@@ -18,9 +18,8 @@ class TicTacToeField(Component):
     def __str__(self):
         return ' ' if self.empty else 'X' if self.player==0 else 'O'
 
-    @staticmethod
-    def html():
-        return ''
+    def html(self):
+        return f'<div id="{self.id}">' + str(self) + '</div>'
 
 BOARD_SIZE = 3
 
@@ -81,9 +80,8 @@ class TicTacToe(TurnBasedGame):
 
         return None
 
-    @classmethod
-    def html(cls) -> html:
-        return TicTacToeBoard.html()
+    def html(self) -> html:
+        return self.board.html()
 
 if __name__ == "__main__":
     run_game(TicTacToe, sys.argv);

@@ -27,7 +27,7 @@ class GameDescriptor(Generic[GameType]):
         self.GameType = GameType
         self.agents_descriptors = agents_descriptors
 
-    def create(self, context) -> GameType:
+    def create_agents(self, context) -> List[Agent]:
         promises : List[AgentPromise] = []
         for i, agent in enumerate(self.agents_descriptors):
             promises.append( agent.start_initialization(i, context) )
@@ -36,4 +36,4 @@ class GameDescriptor(Generic[GameType]):
         for i, agent in enumerate(self.agents_descriptors):
             agents.append( agent.await_initialization(promises[i]) )
 
-        return self.GameType(agents)
+        return agents

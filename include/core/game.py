@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from abc import ABC, abstractmethod
 from .agent import Agent, AgentId
 
@@ -24,8 +24,8 @@ class SimpleGameSummary(GameSummary):
 Represents a game in progress. Most often has a gameState attribute.
 """
 class Game(ABC):
-    def __init__(self, agents: List[Agent]):
-        self.agents = agents
+    def __init__(self):
+        self.agents : Optional[List[Agent]] = None
 
     @abstractmethod
     def play_game(self) -> GameSummary:
