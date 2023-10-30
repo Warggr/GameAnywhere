@@ -1,6 +1,11 @@
 # GameAwesome
 A multi-player game hosting server
 
+# Usage
+```sh
+python examples/run_server.py
+```
+
 ## Design Goals
 
 - Modularity: The server should support as many games as possible and be easily extensible.

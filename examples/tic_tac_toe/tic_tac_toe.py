@@ -46,21 +46,13 @@ class TicTacToe(TurnBasedGame):
             return SimpleGameSummary(SimpleGameSummary.NO_WINNER)
 
         fields = list(filter( lambda field : field.empty, self.board.all_fields() ))
-        print(fields)
-
         field = self.get_current_agent().choose_one_component(fields)
-        print(repr(field))
+
         field.empty = False
         field.player = self.get_current_agent_index()
 
-        message = "-------\n"
-        for row in self.board.board:
-            for cell in row:
-                message += '|' + str(cell)
-            message += "|\n-------\n"
-
         for agent in self.agents:
-            agent.message(message)
+            agent.update([ { 'replace': field } ])
 
         #check rows
         for row in range(BOARD_SIZE):

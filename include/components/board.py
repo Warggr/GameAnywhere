@@ -47,5 +47,5 @@ class CheckerBoard(Board, Generic[T]):
         for field in self.all_fields():
             result += field.html()
         result += '</div>'
-        result += '<style>.checkerboard{display:grid;width:100%;height:100%;background-color:red;gap:10px;} .checkerboard div{background-color:white;border:2px solid;aspect-ratio:1;}</style>'
+        result += '<style>.checkerboard{display:grid;width:100%;height:100%;background-color:red;gap:10px;} .checkerboard div{background-color:white;color:black;border:2px solid;aspect-ratio:1;}</style>'
         return result

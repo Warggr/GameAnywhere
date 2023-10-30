@@ -1,7 +1,7 @@
 from game_anywhere.include.core import Agent
 from .descriptors import AgentDescriptor, Context
 from ..network import Server, ServerRoom
-from typing import List
+from typing import List, Any
 
 class NetworkAgent(Agent):
     class Descriptor(AgentDescriptor):
@@ -31,6 +31,16 @@ class NetworkAgent(Agent):
     # override
     def message(self, message) -> None:
         self.session.send_sync(message)
+
+    # override
+    def update(self, diffs : List[Any]):
+        def serialize_diff(diff):
+            if True: # TODO multiple types of diffs
+                component_to_replace : 'Component' = diff['replace']
+                return { 'id': component_to_replace.id, 'newHTML': component_to_replace.html() }
+            else:
+                return diff
+        self.session.send_sync( list(map(serialize_diff, diffs)) )
 
     # override
     def get_2D_choice(self, dimensions):

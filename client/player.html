@@ -57,10 +57,22 @@
 				let components = data.components.map(id => document.getElementById(id));
 				let eventListener = event => {
 					const chosenComponent = event.target;
-					components.forEach(c => c.removeEventListener('click', eventListener));
+					components.forEach(c => {
+						c.removeEventListener('click', eventListener);
+						c.classList.remove('clickable');
+					});
 					socket.send(chosenComponent.id);
 				}
-				components.forEach(c => c.addEventListener('click', eventListener));
+				components.forEach(c => {
+					c.addEventListener('click', eventListener);
+					c.classList.add('clickable');
+				});
+			}
+			else if(Array.isArray(data)){
+				const tmp = document.createElement('div');
+				for(let diff of data){
+					document.getElementById(diff.id).outerHTML = diff.newHTML;
+				}
 			}
 		}
 	}
