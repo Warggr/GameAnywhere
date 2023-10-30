@@ -28,6 +28,7 @@
 	var socket = undefined;
 	var currentStep = 0;
 	var connectionStatusDom = document.getElementById('connection-status');
+
 	const connectToServer = serverAddress => {
 		const teamNr = document.getElementById('playerId').value;
 		const roomNr = document.getElementById('roomId').value;
@@ -47,7 +48,21 @@
 		};
 		socket.onclose = (event) => { connectionStatusDom.textContent = 'Not connected'; };
 		socket.onerror = console.error;
-		socket.onmessage = message => console.log(JSON.parse(message.data));
+
+		socket.onmessage = (event) => {
+			const data = JSON.parse(event.data);
+			console.log(data, data.type);
+
+			if(data.type == "choice"){
+				let components = data.components.map(id => document.getElementById(id));
+				let eventListener = event => {
+					const chosenComponent = event.target;
+					components.forEach(c => c.removeEventListener('click', eventListener));
+					socket.send(chosenComponent.id);
+				}
+				components.forEach(c => c.addEventListener('click', eventListener));
+			}
+		}
 	}
 
 	const urlParams = new URLSearchParams(window.location.search);

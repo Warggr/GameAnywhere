@@ -36,9 +36,7 @@ class ServerRoom(AsyncResource):
             spectator.interrupt()
 
     async def nt_close(self) -> None:
-        for spectator in self.get_spectators_and_sessions():
-            assert spectator.run_handle is not None
-        await asyncio.wait([ spectator.run_handle for spectator in self.get_spectators_and_sessions() ])
+        await asyncio.wait([ spectator.run_handle for spectator in self.get_spectators_and_sessions() if spectator.run_handle is not None ])
         self.server.delete_room(self)
 
     def report_afk(self, spectator: Spectator):

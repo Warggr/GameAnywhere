@@ -31,7 +31,7 @@ class CheckerBoard(Board, Generic[T]):
         self.board[index[0]][index[1]] = val
 
     def all_fields(self) -> Iterable[T]:
-        return (self.board[i][j] for j in range(self.height) for i in range(self.width))
+        return (self.board[i][j] for j in range(self.width) for i in range(self.height))
 
     @classmethod
     def get_size(cls) -> int:
