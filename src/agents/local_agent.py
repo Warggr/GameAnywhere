@@ -1,6 +1,8 @@
 from game_anywhere.include.core import Agent
 from .descriptors import AgentDescriptor
-from typing import Optional, List
+from typing import Optional, List, TypeVar
+
+T = TypeVar('T')
 
 class HumanAgent(Agent):
     class Descriptor(AgentDescriptor):
@@ -38,8 +40,8 @@ class HumanAgent(Agent):
         return tuple( self.get_integer(min=0, max=dim-1) for dim in dimensions )
 
     # override
-    def choose_one_component(self, components : List['Component']) -> 'Component':
+    def choose_one_component(self, components : List['Component'], indices : List[T]) -> T:
         for i, component in enumerate(components):
             print(f"[{i+1}]", component)
         i = self.get_integer(min=1, max=len(components)) - 1
-        return components[i]
+        return indices[i]

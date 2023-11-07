@@ -1,7 +1,9 @@
 from game_anywhere.include.core import Agent
 from .descriptors import AgentDescriptor, Context
 from ..network import Server, ServerRoom
-from typing import List, Any
+from typing import List, Any, TypeVar
+
+T = TypeVar('T')
 
 class NetworkAgent(Agent):
     class Descriptor(AgentDescriptor):
@@ -47,9 +49,9 @@ class NetworkAgent(Agent):
         return tuple( self.get_integer(min=0, max=dim-1) for dim in dimensions )
 
     # override
-    def choose_one_component(self, components : List['Component']):
+    def choose_one_component(self, components : List['Component'], indices : List[T]) -> T:
         self.session.send_sync({ 'type': 'choice', 'components': [ component.id for component in components ] })
-        ids = { c.id : c for c in components }
+        ids = { components[i].id : indices[i] for i in range(len(components)) }
         while True:
             chosen_id = self.session.get_sync()
             if chosen_id in ids:

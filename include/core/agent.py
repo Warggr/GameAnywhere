@@ -1,7 +1,9 @@
-from typing import Tuple, List, Any
+from typing import Tuple, List, Any, TypeVar
 from abc import ABC, abstractmethod
 
 AgentId = int
+
+T = TypeVar('T')
 
 class Agent(ABC):
     class Surrendered(Exception):
@@ -20,5 +22,5 @@ class Agent(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def choose_one_component(self, components : List['Component']) -> 'Component':
+    def choose_one_component(self, components : List['Component'], indices : List[T]) -> T:
         raise NotImplementedError()

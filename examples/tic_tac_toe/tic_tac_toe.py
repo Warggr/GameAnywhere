@@ -45,8 +45,8 @@ class TicTacToe(TurnBasedGame):
         if self.get_current_turn() == TOTAL_MOVES:
             return SimpleGameSummary(SimpleGameSummary.NO_WINNER)
 
-        fields = list(filter( lambda field : field.empty, self.board.all_fields() ))
-        field = self.get_current_agent().choose_one_component(fields)
+        fields = [ field for _, field in self.board.all_fields() if field.empty ]
+        field = self.get_current_agent().choose_one_component(fields, fields)
 
         field.empty = False
         field.player = self.get_current_agent_index()
