@@ -5,13 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GameAnywhere</title>
     <link rel="stylesheet" href="css/main_index.css">
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script>'use strict'; const e = React.createElement;</script>
 </head>
 <body>
     <header>
         <p class="PageTitle">Game Anywhere</p>
     </header>
     <div class="indexMainDiv">
-        <button onclick="createNewRoom()">Start a new game</button>
+        <span id="connection-status"></span>
+        <div id="status-rooms"></div>
+        <form action="javascript:void(0);">
+            <select id="gameType">
+                <option name="Chess">Chess</option>
+                <option name="TicTacToe">TicTacToe</option>
+            </select>
+            <button onclick="createNewRoom()">Start a new game</button>
+        </form>
         <form method="get" action="player.html">
             <input type="text" name="room"/>
             <input type="text" name="seat"/>
@@ -20,8 +31,32 @@
     </div>
     <script>
         function createNewRoom(){
-            fetch('/room', { method: 'POST', body: JSON.stringify({"game": "TicTacToe"}) }).then(console.log);
+            const gameType = document.getElementById('gameType').value;
+            fetch('/room', { method: 'POST', body: JSON.stringify({"game": gameType }) }).then(loadRooms);
         }
+        const roomsRoot = ReactDOM.createRoot(document.getElementById('status-rooms'));
+        function loadRooms(){
+            fetch('/room/list').then(response => response.json()).then(rooms => {
+                rooms = Object.entries(rooms);
+                console.log(rooms);
+                if(rooms.length == 0) roomsRoot.render('(no rooms)');
+                else roomsRoot.render(rooms.map(room =>
+                    e('div', {key:room[0]}, [
+                        e('h3', {key:'h3'}, 'Room ' + room[0]),
+                        e('a', {key:'a', href: `player.html?room=${room[0]}`}, 'Watch'),
+                        e('p', {key:'p'}, room[1].spectators + ' spectators'),
+                        e('div', {key:'div'}, Object.entries(room[1].seats).map(seat =>
+                            e('span', {key:seat[0]},
+                                seat[1] == "state.FREE"
+                                ? e('a', {href:`player.html?room=${room[0]}&seat=${Number(seat[0])}`}, 'Join')
+                                : e('p', {}, seat[1])
+                            )
+                        ))
+                    ])
+                ));
+            });
+        }
+        loadRooms();
     </script>
 </body>
 </html>

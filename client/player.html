@@ -30,7 +30,7 @@
 	var connectionStatusDom = document.getElementById('connection-status');
 
 	const connectToServer = serverAddress => {
-		const teamNr = document.getElementById('playerId').value;
+		const teamNr = document.getElementById('playerId').value || 'watch';
 		const roomNr = document.getElementById('roomId').value;
 
 		fetch('http://' + serverAddress + '/r/' + roomNr + '/html').then(async content => {document.getElementById('screen').innerHTML = await content.text();});
