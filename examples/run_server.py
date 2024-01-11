@@ -20,4 +20,4 @@ HttpControlledServer(available_games)\
     .add_client(heartbeat)\
     .add_client(web.static('/web', PROJECT_ROOT / 'client'))\
     .add_client(web.get('/', lambda request: web.Response(status=http.http.HTTPStatus.PERMANENT_REDIRECT, headers={'Location': '/web/index.html'}))) \
-    .nt_start(port=args.port)
+    .nt_start(port=args.port, print=lambda message:print(message.replace("0.0.0.0", "localhost")))
