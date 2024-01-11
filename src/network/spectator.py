@@ -129,14 +129,13 @@ class Spectator:
 
     # This is executed on the network thread, so the only possible race condition is with send() or get()
     def interrupt(self, msg='Server shutdown') -> None:
-        if not self.run_handle:
-            return
         print(self, "connection interrupted")
         with self.protect_reading_queue:
             self.state = Spectator.state.INTERRUPTED_BY_SERVER
             self.signal_reading_queue.notify()
 
-        self.run_handle.cancel()
+        if self.run_handle:
+            self.run_handle.cancel()
 
     async def send(self, msg: Any) -> None:
         print("(net) Sending message:", repr(msg))
