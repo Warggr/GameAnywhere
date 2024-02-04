@@ -1,5 +1,5 @@
 from aiohttp import web
-from aiohttp.http import http
+from aiohttp import http
 from .server import Server
 from game_anywhere.src.agents.parse_descriptors import parse_game_descriptor
 from .game_room import GameRoom

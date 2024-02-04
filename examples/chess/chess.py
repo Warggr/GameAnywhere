@@ -12,6 +12,7 @@ class ChessPiece:
         ROOK = 0
         KNIGHT = 1
         BISHOP = 2
+        # Here we use `auto()` to indicate that we don't care about their specific values.
         KING = auto()
         QUEEN = auto()
         PAWN = auto()
