@@ -51,6 +51,7 @@ class GameRoom: public ServerRoom {
     Server* const server;
 public:
     GameRoom(Server* server, RoomId roomId);
+    GameRoom(GameRoom&& other) = default;
     ~GameRoom(){
         if(myThread.joinable()) myThread.join();
     }

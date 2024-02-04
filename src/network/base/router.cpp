@@ -3,89 +3,66 @@
 std::string path_cat(std::string_view base, std::string_view path);
 std::string_view mime_type(std::string_view path);
 
-class SimpleRouter: public RoutingRule {
-    const std::string_view path;
-    const http::verb method;
-public:
-    SimpleRouter(std::string_view path, http::verb method): path(path), method(method) {};
-    virtual void handle(const Request& request, std::unique_ptr<HttpSession>&& session) const = 0;
+bool SimpleRouter::operator() (const Request& request, std::unique_ptr<HttpSession>& session) const {
+    if(request.target() != path or request.method() != method) return false;
+    handle(request, std::move(session));
+    return true;
+}
 
-    bool operator() (const Request& request, std::unique_ptr<HttpSession>& session) const override {
-        if(request.target() != path or request.method() != method) return false;
-        handle(request, std::move(session));
-        return true;
+void Heartbeat::handle(const Request &request, std::unique_ptr<HttpSession>&& session) const {
+    return HttpSession::sendResponse(std::move(session),
+         http::response<http::empty_body>(http::status::ok, request.version())
+    );
+}
+
+bool StaticFileServer::operator() (const Request& request, std::unique_ptr<HttpSession>& session) const {
+    if (request.method() != http::verb::get and request.method() != http::verb::head)
+        return false;
+
+    if (not beast::iequals(web_path_root, request.target().substr(0, web_path_root.length())))
+        RESPOND(bad_request(request, "File not found"));
+    std::string_view req_path = request.target().substr(web_path_root.length());
+
+    auto const posParams = req_path.rfind('?');
+    if (posParams != std::string_view::npos) req_path = req_path.substr(0, posParams);
+
+    // Request path must be absolute and not contain ".."
+    if (req_path.empty() or req_path[0] != '/' or req_path.find("..") != std::string_view::npos)
+        RESPOND(bad_request(request, "Illegal request-target"));
+
+    auto path = path_cat(doc_root, req_path);
+    if (req_path.back() == '/') path.append("index.html");
+    // Attempt to open the file
+    boost::beast::error_code error;
+    http::file_body::value_type body;
+    body.open(path.c_str(), boost::beast::file_mode::scan, error);
+
+    // File doesn't exist
+    if (error == boost::system::errc::no_such_file_or_directory) RESPOND(not_found(request));
+    // Unknown error
+    if (error) RESPOND(server_error(request, error.message()));
+
+    // Cache the size since we need it after the move
+    auto const size = body.size();
+
+    // Respond to HEAD request
+    if (request.method() == http::verb::head) {
+        http::response<http::empty_body> res{http::status::ok, request.version()};
+        res.set(http::field::content_type, mime_type(path));
+        res.content_length(size);
+        RESPOND(std::move(res));
+    } else { // Respond to GET request
+        http::response<http::file_body> res{
+                std::piecewise_construct,
+                std::make_tuple(std::move(body)),
+                std::make_tuple(http::status::ok, request.version())};
+        const std::string_view mimeType = mime_type(path);
+        res.set(http::field::content_type, mimeType);
+        res.content_length(size);
+        RESPOND(std::move(res));
     }
-};
-
-class Heartbeat: public SimpleRouter {
-public:
-    Heartbeat(): SimpleRouter("/heartbeat", http::verb::get) {};
-    void handle(const Request &request, std::unique_ptr<HttpSession>&& session) const override {
-        return HttpSession::sendResponse(std::move(session),
-             http::response<http::empty_body>(http::status::ok, request.version())
-        );
-    }
-};
-
-class StaticFileServer: public RoutingRule {
-    const std::string doc_root;
-public:
-    bool operator() (const Request& request, std::unique_ptr<HttpSession>& session) const override {
-        const char doc_api_path[] = "/files";
-        constexpr unsigned int doc_api_path_len = sizeof(doc_api_path) / sizeof(char) - 1;
-
-        if (request.method() == http::verb::get or request.method() == http::verb::head) {
-            if (boost::beast::iequals(request.target(), "/"))
-                RESPOND(redirect(request, "/files/"));
-
-            std::string_view req_path;
-
-            if (boost::beast::iequals(doc_api_path, request.target().substr(0, doc_api_path_len))) {
-                req_path = request.target().substr(doc_api_path_len);
-                auto const posParams = req_path.rfind('?');
-                if (posParams != std::string_view::npos) req_path = req_path.substr(0, posParams);
-
-                // Request path must be absolute and not contain ".."
-                if (req_path.empty() or req_path[0] != '/' or req_path.find("..") != std::string_view::npos)
-                    RESPOND(bad_request(request, "Illegal request-target"));
-            }
-            else if (boost::beast::iequals(request.target(), "/favicon.ico")) req_path = "/favicon.ico";
-            else
-                RESPOND(bad_request(request, "File not found"));
-
-            auto path = path_cat(doc_root, req_path);
-            if (req_path.back() == '/') path.append("index.html");
-            // Attempt to open the file
-            boost::beast::error_code error;
-            http::file_body::value_type body;
-            body.open(path.c_str(), boost::beast::file_mode::scan, error);
-
-            // File doesn't exist
-            if (error == boost::system::errc::no_such_file_or_directory) RESPOND(not_found(request));
-            // Unknown error
-            if (error) RESPOND(server_error(request, error.message()));
-
-            // Cache the size since we need it after the move
-            auto const size = body.size();
-
-            // Respond to HEAD request
-            if (request.method() == http::verb::head) {
-                http::response<http::empty_body> res{http::status::ok, request.version()};
-                res.set(http::field::content_type, mime_type(path));
-                res.content_length(size);
-                HttpSession::sendResponse(std::move(session), std::move(res)); return true;
-            } else { // Respond to GET request
-                http::response<http::file_body> res{
-                        std::piecewise_construct,
-                        std::make_tuple(std::move(body)),
-                        std::make_tuple(http::status::ok, request.version())};
-                res.set(http::field::content_type, mime_type(path));
-                res.content_length(size);
-                HttpSession::sendResponse(std::move(session), std::move(res)); return true;
-            }
-        }
-    }
-};
+    return false;
+}
 
 http::response<http::string_body> bad_request(const Request& req, std::string_view why){
     http::response<http::string_body> res{http::status::bad_request, req.version()};

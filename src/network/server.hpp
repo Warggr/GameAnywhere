@@ -10,11 +10,12 @@
 using RoomId = unsigned short int;
 
 class Server {
-    Router router;
     BaseServer server;
     std::unordered_map<RoomId, GameRoom> rooms; //Each room contains a list of established WebSocket connections.
     RoomId lastUsedIdentifier = 0;
 public:
+    Router router;
+
     Server(std::string_view ipAddress, unsigned short port);
 
     void start(); // Similarly to BaseServer::start, this runs indefinitely and needs to be interrupted by stop() from outside

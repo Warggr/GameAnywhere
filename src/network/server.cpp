@@ -9,14 +9,24 @@
 #include <cassert>
 #include <iostream>
 
-GameAwesome::Server::Server(std::string_view ipAddress, unsigned short port) {
-    impl = std::make_unique<::Server>(ipAddress, port);
+GameAwesome::Server::Server(std::string_view ipAddress, unsigned short port)
+    : impl( new ::Server(ipAddress, port) )
+{
+    impl->router.addRule([](const Request& request, std::unique_ptr<HttpSession>& session) -> bool {
+        if (beast::iequals(request.target(), "/"))
+            RESPOND(redirect(request, "/files/"));
+        return false;
+    });
+    impl->router.addRule(StaticFileServer("client", "/files"));
 }
-GameAwesome::Server::~Server() = default;
+GameAwesome::Server::~Server() {
+    delete impl;
+}
 void GameAwesome::Server::start() { impl->start(); }
 void GameAwesome::Server::stop() { impl->stop(); }
 
 bool read_request_path(std::string_view& str, unsigned short& retVal);
+bool consume(std::string_view& str, std::string_view expected);
 
 Server::Server(std::string_view ipAddress, unsigned short port)
     : server(ipAddress, port, router)
@@ -27,10 +37,10 @@ Server::Server(std::string_view ipAddress, unsigned short port)
             http::response<http::empty_body> res { http::status::no_content, request.version() };
             RESPOND(std::move(res));
         } else
-        if (request.target() == "/room/" and request.method() == http::verb::get) {
+        if (request.target() == "/room/list" and request.method() == http::verb::get) {
             std::string res;
-            for(const auto& room : getRooms()) {
-                res += room.first; // TODO display some info about the rooms
+            for(const auto& [ roomId, _room ] : getRooms()) {
+                res += std::to_string(roomId) + ','; // TODO display some info about the rooms
             }
             RESPOND(textResponse(request, res));
         } else
@@ -43,8 +53,12 @@ Server::Server(std::string_view ipAddress, unsigned short port)
             GameRoom* room = nullptr;
             RoomId roomId;
             AgentId agentId;
-            if (read_request_path(request_path, roomId)
-                and read_request_path(request_path, agentId)) {
+            if (
+                read_request_path(request_path, roomId) and
+                consume(request_path, "r") and
+                read_request_path(request_path, agentId) and
+                consume(request_path, "ws")
+            ) {
                 if (getRooms().find(roomId) == getRooms().end()) RESPOND(not_found(request));
                 room = &getRooms().find(roomId)->second;
             } else RESPOND(bad_request(request, "Wrong path"));
@@ -86,7 +100,7 @@ void Server::stop(){
 
 std::pair<RoomId, GameRoom&> Server::addRoom(RoomId newRoomId) {
     std::cout << "(main) Add room to server\n";
-    auto [iter, success] = rooms.insert(std::make_pair<RoomId, GameRoom>(std::move(newRoomId), GameRoom(newRoomId)));
+    auto [iter, success] = rooms.emplace(newRoomId, GameRoom(this, newRoomId));
     assert(success and iter->first == newRoomId);
     return { newRoomId, iter->second };
 }
@@ -103,6 +117,16 @@ void Server::askForRoomDeletion(RoomId id) {
         rooms.erase(id);
         std::cout << "(async server) ...room deleted!\n";
     });
+}
+
+bool consume(std::string_view& str, std::string_view expected) {
+    if(str[0] != '/') return false;
+    if(str.length() < expected.length() + 1) return false;
+    for(unsigned iter = 0; iter < expected.length(); iter++){
+        if(str[iter+1] != expected[iter]) return false;
+    }
+    str = str.substr(expected.length() + 1);
+    return true;
 }
 
 //Writes the read values to @param roomId and @param agentId and returns a bool to indicate errors, C-style.

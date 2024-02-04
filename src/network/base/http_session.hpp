@@ -13,8 +13,8 @@
 class Router;
 
 namespace beast = boost::beast;
+namespace http = beast::http;
 using boost::asio::ip::tcp;
-namespace http = boost::beast::http;
 using boost::system::error_code;
 
 /** Represents an established HTTP connection. */

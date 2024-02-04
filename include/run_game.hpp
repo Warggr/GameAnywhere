@@ -6,7 +6,7 @@
 
 template<typename GameType>
 std::unique_ptr<GameSummary> run_game(int argc, const char** argv) {
-    auto agentDescriptions = parseAgentDescription(argc, argv);
+    const auto agentDescriptions = parseAgentDescription(argc, argv);
 
     //TODO does agentDescription have an acceptable size?
 

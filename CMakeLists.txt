@@ -5,7 +5,7 @@ set(PROJECT_VERSION_PATCH 0)
 set(PROJECT_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 set(CMAKE_CXX_STANDARD 17)
 
-project(GameAwesome VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+project(GameAnywhere VERSION ${PROJECT_VERSION} LANGUAGES C CXX)
 
 if ( ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR} )
     message( FATAL_ERROR "In-source builds not allowed! Create a build directory and run CMake from there." )
@@ -23,29 +23,27 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-add_compile_options(
-        -Wall -Wextra -Werror
-        -Wnon-virtual-dtor -Wcast-align
-        -Wunused -Woverloaded-virtual -Wpedantic
-        -Wdouble-promotion
-        -Wformat=2
+
+set(c_flags
+    -Wall -Wextra -Werror
+    -Wcast-align -Wunused -Wpedantic
+    -Wdouble-promotion
+    -Wformat=2
 )
-
-# some GCC specific warnings. These flags are added only if the used compiler is GCC.
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-   add_compile_options(
-            -Wmisleading-indentation
-            -Wduplicated-cond
-            -Wlogical-op
-            -Wuseless-cast
-    )
-endif()
-
-#json serializer
-include(FetchContent)
-FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.10.5/json.tar.xz)
-FetchContent_MakeAvailable(json)
-include_directories(PRIVATE ${CMAKE_BINARY_DIR}/_deps/json-src/include)
+set(cxx_flags
+    -Woverloaded-virtual -Wnon-virtual-dtor
+)
+set(gcc_flags
+    -Wmisleading-indentation
+    -Wduplicated-cond
+    -Wlogical-op
+)
+set(gcc_cxx_flags -Wuseless-cast)
+add_compile_options(
+    "$<$<COMPILE_LANGUAGE:CXX>:${cxx_flags}>"
+    "$<$<CXX_COMPILER_ID:GNU>:${gcc_flags}>"
+    "$<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:GNU>>:${gcc_cxx_flags}>"
+)
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 

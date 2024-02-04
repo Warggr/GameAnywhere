@@ -66,7 +66,5 @@ void BaseServer::start(){
 }
 
 void BaseServer::stop(){
-    std::cout << "(network) ...stopping server and interrupting rooms\n";
-
     ioc.stop(); //Stop io_context. Now the only things that can block are in the game threads.
 }

@@ -7,6 +7,8 @@
 #include <iostream>
 #include <utility>
 
+#include "router.hpp"
+
 namespace websocket = boost::beast::websocket;
 
 HttpSession::HttpSession(tcp::socket&& socket, const Router& router)
@@ -76,6 +78,8 @@ void HttpSession::on_read(std::unique_ptr<HttpSession>&& self, error_code ec, st
 
         return sendResponse(std::move(self), std::move(res));
     }
+
+    self->router.handle(self->_req, std::move(self));
 }
 
 void HttpSession::on_write(std::unique_ptr<HttpSession>&& self, error_code ec, std::size_t, bool close){
