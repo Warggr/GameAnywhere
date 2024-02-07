@@ -19,6 +19,7 @@ class HttpControlledServer(Server):
         self.app.add_routes([
             web.post('/room', self.http_create_room),
             web.get('/room/list', self.http_get_rooms),
+            web.options('/room', self.http_options_create_room),
         ])
 
     async def http_create_room(self, request : web.Request) -> web.Response:
@@ -31,3 +32,8 @@ class HttpControlledServer(Server):
 
     def http_get_rooms(self, request : web.Request) -> web.Response:
         return web.json_response(text=json.dumps(self.rooms, default=json_encode_server_room))
+
+    def http_options_create_room(self, request : web.Request) -> web.Response:
+        return web.json_response({
+            "enum": list(self.available_games.keys())
+        }, headers={'Allow': 'POST'})
