@@ -107,12 +107,25 @@ class ChessMove:
 CARDINAL_DIRECTIONS = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 DIAGONAL_DIRECTIONS = [(i, j) for i in (-1, 1) for j in (-1, 1)]
 
-class ChessState:
-    def __init__(self):
+class Chess(TurnBasedGame):
+    SummaryType = SimpleGameSummary
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.board = full_chessboard()
-        self.playing = ChessPiece.Color.WHITE
         self.last_field_moved_through_for_en_passant = None
         self.captured : List[ChessPiece] = []
+
+    def color_of(self, agent_id : 'AgentId'):
+        """
+        currently a static method, but in the future, colors might not be tied to agent ID
+        (e.g. color could be decided randomly at the beginning of the game).
+        In that case, it would become a regular method again
+        """
+        return ChessPiece.Color.WHITE if agent_id == 1 else ChessPiece.Color.BLACK
+
+    def current_color(self):
+        return self.color_of(self.get_current_agent_id())
 
     def go_straight(self, position : ChessCoordinates, direction : Tuple[int, int], color : ChessPiece.Color) -> List[ChessCoordinates]:
         assert self.board[position].piece and self.board[position].piece.color == color
@@ -175,12 +188,12 @@ class ChessState:
              return [ ChessCoordinates(coords)
                         for coords, field in self.board.all_fields()
                         if field.piece is not None
-                            and field.piece.color == self.playing
+                            and field.piece.color == self.current_color()
                     ]
 
         field_chosen: Tuple[int, int] = previous_choices[0]
         piece_chosen = self.board[field_chosen].piece
-        assert piece_chosen.color == self.playing
+        assert piece_chosen.color == self.current_color()
 
         if len(previous_choices) == 1:
             return self.possible_movements(piece_chosen, field_chosen)
@@ -196,12 +209,12 @@ class ChessState:
         starting_field = self.board[starting_coords]
         piece = starting_field.piece
         starting_field.piece = None
-        assert piece.color == self.playing
+        assert piece.color == self.current_color()
 
         captured = None
         if self.board[stopping_coords].piece:
             captured = self.board[stopping_coords].piece
-            assert captured.color != self.playing
+            assert captured.color != self.current_color()
             self.captured.append(captured)
 
         self.board[stopping_coords].piece = piece
@@ -213,46 +226,27 @@ class ChessState:
 
         # TODO: pawn promotion
 
-        self.playing = ChessPiece.Color(not self.playing.value)
         return ChessMove(starting_coords, stopping_coords, captured)
 
-class Chess(TurnBasedGame):
-    SummaryType = SimpleGameSummary
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.state = ChessState()
-
-    def color_of(self, agent_id : 'AgentId'):
-        """
-        currently a static method, but in the future, colors might not be tied to agent ID
-        (e.g. color could be decided randomly at the beginning of the game).
-        In that case, it would become a regular method again
-        """
-        return ChessPiece.Color.WHITE if agent_id == 1 else ChessPiece.Color.BLACK
-
     def turn(self) -> Optional[SimpleGameSummary]:
-        print(self.state.playing, self.get_current_agent_id(), self.color_of(self.get_current_agent_id()))
-        assert self.state.playing == self.color_of(self.get_current_agent_id())
         partial_choices : List[PartialChoice] = []
         while True:
-            options = self.state.all_options(partial_choices)
+            options = self.all_options(partial_choices)
             if options is None:
                 break
-            chosen_option = self.get_current_agent().choose_one_component([ self.state.board[coords] for coords in options ], options)
+            chosen_option = self.get_current_agent().choose_one_component([ self.board[coords] for coords in options ], options)
             # TODO allow undoing a move
             partial_choices.append(chosen_option)
             print(partial_choices)
 
-        move = self.state.apply_move(partial_choices)
+        move = self.apply_move(partial_choices)
 
         for agent in self.agents:
-            agent.update([ { 'replace' : self.state.board[move.start_coords] }, { 'replace' : self.state.board[move.stop_coords] } ])
+            agent.update([ { 'replace' : self.board[move.start_coords] }, { 'replace' : self.board[move.stop_coords] } ])
 
-        if any([ piece.type == ChessPiece.Type.KING for piece in self.state.captured ]):
+        if any([ piece.type == ChessPiece.Type.KING for piece in self.captured ]):
             return SimpleGameSummary(winner=self.get_current_agent_id())
 
     def html(self):
         # TODO add alternate black/white styling
-        return self.state.board.html()
-
+        return super().html()

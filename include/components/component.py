@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from game_anywhere.include.ui import HtmlElement
+from game_anywhere.include.ui import Html
 from itertools import count
 from typing import Optional, Dict
 
@@ -18,6 +18,9 @@ class Component(ABC):
         Component.components[id] = self
         self.id = id
 
+    def on_update(self):
+        print(f"Component with id #{self.id} updated")
+
     @abstractmethod
-    def html(self) -> HtmlElement:
+    def html(self) -> Html:
         ...

@@ -1,17 +1,35 @@
 import functools
 
-class HtmlElement:
+class Html:
+    def __init__(self, *content):
+        self.content = content
+    def __str__(self):
+        result = ''
+        for child in self.content:
+            result += str(child)
+        return result
+    def __add__(self, other):
+        if not isinstance(other, Html):
+            raise ValueError("HTML: cannot add unrelated type", type(other))
+        total_content = []
+        for html in (self, other):
+            if type(html) != Html:
+                total_content += [ html ]
+            else: # we can un-nest Html's within Html's
+                total_content += html.content
+        return Html(*total_content)
+
+class HtmlElement(Html):
     def __init__(self, tagName, *children, **attrs):
+        super().__init__(*children)
         self.tagName = tagName
-        self.children = children
         self.attrs = attrs
     def __str__(self):
         result = f'<{self.tagName}'
         for key, value in self.attrs.items():
             result += f' {key}="{value}"'
         result += '>'
-        for child in self.children:
-            result += str(child)
+        result += super().__str__()
         result += f'</{self.tagName}>'
         return result
 

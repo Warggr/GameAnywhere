@@ -1,7 +1,7 @@
 from typing import TypeVar, Generic, Type, Union, List, Tuple, Callable, Iterable
 from abc import ABC
 from .component import Component
-from game_anywhere.include.ui import HtmlElement, div, style
+from game_anywhere.include.ui import Html, div, style
 
 class Board(Component):
     # TODO: a board that's as general as possible
@@ -42,12 +42,14 @@ class CheckerBoard(Board, Generic[T]):
     def get_dimensions(cls) -> Tuple[int, int]:
         return cls.height, cls.width
 
-    def html(self):
-        return div(
-            *(field.html() for _, field in self.all_fields()),
+    def html(self) -> Html:
+        return Html(
+            div(
+                *(field.html() for _, field in self.all_fields()),
+                **{
+                    'class': "checkerboard",
+                    'style': f"grid-template-rows: repeat({self.width}, 1fr); grid-template-columns: repeat({self.height}, 1fr)",
+                }
+            ),
             style('.checkerboard{display:grid;width:100%;height:100%;background-color:red;gap:10px;} .checkerboard div{background-color:white;color:black;border:2px solid;aspect-ratio:1;}'),
-            **{
-                'class': "checkerboard",
-                'style': f"grid-template-rows: repeat({self.width}, 1fr); grid-template-columns: repeat({self.height}, 1fr)",
-            }
         )

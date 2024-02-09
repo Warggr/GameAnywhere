@@ -73,8 +73,5 @@ class TicTacToe(TurnBasedGame):
 
         return None
 
-    def html(self) -> HtmlElement:
-        return self.board.html()
-
 if __name__ == "__main__":
     run_game(TicTacToe, sys.argv);
