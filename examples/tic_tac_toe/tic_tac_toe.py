@@ -5,7 +5,8 @@ sys.path.append( str( Path(__file__).parent.parent.parent.parent) )
 from typing import Tuple, Union
 
 from game_anywhere.include import run_game
-from game_anywhere.include.core.game import AgentId, html
+from game_anywhere.include.core.game import AgentId
+from game_anywhere.include.ui import HtmlElement, div
 from game_anywhere.include.core import TurnBasedGame, SimpleGameSummary
 from game_anywhere.include.components import Component, CheckerBoard
 
@@ -19,7 +20,7 @@ class TicTacToeField(Component):
         return ' ' if self.empty else 'X' if self.player==0 else 'O'
 
     def html(self):
-        return f'<div id="{self.id}">' + str(self) + '</div>'
+        return div(str(self), id=self.id)
 
 BOARD_SIZE = 3
 
@@ -72,7 +73,7 @@ class TicTacToe(TurnBasedGame):
 
         return None
 
-    def html(self) -> html:
+    def html(self) -> HtmlElement:
         return self.board.html()
 
 if __name__ == "__main__":

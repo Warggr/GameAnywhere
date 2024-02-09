@@ -48,4 +48,4 @@ class GameRoom(ServerRoom):
         return router
 
     async def http_get_html_view(self, request: web.Request) -> web.Response:
-        return web.Response(body=self.game.html(), content_type='text/html')
+        return web.Response(body=str(self.game.html()), content_type='text/html')

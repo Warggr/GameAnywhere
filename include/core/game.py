@@ -1,8 +1,7 @@
 from typing import List, Optional
 from abc import ABC, abstractmethod
 from .agent import Agent, AgentId
-
-html = str
+from ..ui import HtmlElement
 
 class GameSummary(ABC):
     NO_WINNER = 0
@@ -29,9 +28,9 @@ class Game(ABC):
 
     @abstractmethod
     def play_game(self) -> GameSummary:
-        raise NotImplementedError()
+        ...
 
     @staticmethod
     @abstractmethod
-    def html() -> html:
-        raise NotImplementedError()
+    def html() -> HtmlElement:
+        ...

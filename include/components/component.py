@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from game_anywhere.include.core.game import html
+from game_anywhere.include.ui import HtmlElement
 from itertools import count
 from typing import Optional, Dict
 
@@ -19,5 +19,5 @@ class Component(ABC):
         self.id = id
 
     @abstractmethod
-    def html(self) -> html:
-        raise NotImplementedError()
+    def html(self) -> HtmlElement:
+        ...

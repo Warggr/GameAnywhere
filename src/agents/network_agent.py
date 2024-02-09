@@ -39,7 +39,7 @@ class NetworkAgent(Agent):
         def serialize_diff(diff):
             if True: # TODO multiple types of diffs
                 component_to_replace : 'Component' = diff['replace']
-                return { 'id': component_to_replace.id, 'newHTML': component_to_replace.html() }
+                return { 'id': component_to_replace.id, 'newHTML': str(component_to_replace.html()) }
             else:
                 return diff
         self.session.send_sync( list(map(serialize_diff, diffs)) )
