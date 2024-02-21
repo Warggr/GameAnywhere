@@ -40,8 +40,8 @@ class HumanAgent(Agent):
         return tuple( self.get_integer(min=0, max=dim-1) for dim in dimensions )
 
     # override
-    def choose_one_component(self, components : List['Component'], indices : List[T]) -> T:
-        for i, component in enumerate(components):
-            print(f"[{i+1}]", component)
-        i = self.get_integer(min=1, max=len(components)) - 1
+    def choose_one_component_slot(self, slots : List['ComponentSlot'], indices : List[T]) -> T:
+        for i, slot in enumerate(slots):
+            print(f"[{i+1}]", slot)
+        i = self.get_integer(min=1, max=len(slots)) - 1
         return indices[i]

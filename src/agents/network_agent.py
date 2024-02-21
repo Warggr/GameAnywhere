@@ -38,8 +38,10 @@ class NetworkAgent(Agent):
     def update(self, diffs : List[Any]):
         def serialize_diff(diff):
             if True: # TODO multiple types of diffs
-                component_to_replace : 'Component' = diff['replace']
-                return { 'id': component_to_replace.id, 'newHTML': str(component_to_replace.html()) }
+                return {
+                    'id': diff['id'],
+                    'newHTML': str(diff['new_value'].html()) if diff['new_value'] is not None else ''
+                }
             else:
                 return diff
         self.session.send_sync( list(map(serialize_diff, diffs)) )
@@ -49,9 +51,9 @@ class NetworkAgent(Agent):
         return tuple( self.get_integer(min=0, max=dim-1) for dim in dimensions )
 
     # override
-    def choose_one_component(self, components : List['Component'], indices : List[T]) -> T:
-        self.session.send_sync({ 'type': 'choice', 'components': [ component.id for component in components ] })
-        ids = { components[i].id : indices[i] for i in range(len(components)) }
+    def choose_one_component_slot(self, slots : List['ComponentSlot'], indices : List[T]) -> T:
+        ids = { slots[i].get_address() : indices[i] for i in range(len(slots)) }
+        self.session.send_sync({ 'type': 'choice', 'slots': list(ids.keys()) })
         while True:
             chosen_id = self.session.get_sync()
             if chosen_id in ids:

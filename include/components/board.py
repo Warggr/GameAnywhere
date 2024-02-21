@@ -1,6 +1,6 @@
-from typing import TypeVar, Generic, Type, Union, List, Tuple, Callable, Iterable
+from typing import TypeVar, Generic, Type, Union, List, Tuple, Callable, Iterable, Optional
 from abc import ABC
-from .component import Component
+from .component import Component, ComponentSlot
 from game_anywhere.include.ui import Html, div, style
 
 class Board(Component):
@@ -10,29 +10,41 @@ class Board(Component):
 T = TypeVar('T', bound=Component)
 
 class CheckerBoard(Board, Generic[T]):
+    class Field(ComponentSlot):
+        pass
+
     @classmethod
     def specialize(cls, height : int, width : int, CellType : Type[T]) -> Type['CheckerBoard[T]']:
         class _CheckerBoard(CheckerBoard[CellType]):
             def __init__(self, fill: Callable[[], CellType] = CellType):
-                self.board = [ [ fill() for i in range(width) ] for j in range(height) ]
+                super().__init__()
+                self.board = [ [ None for i in range(width) ] for j in range(height) ]
+                for i in range(width):
+                    for j in range(height):
+                        self.board[i][j] = CheckerBoard.Field(
+                            id=self.coords_to_field_id((i,j)),
+                            parent=self,
+                            content=fill()
+                        )
         _CheckerBoard.width = width
         _CheckerBoard.height = height
         _CheckerBoard.CellType = CellType
         return _CheckerBoard
 
-    def __getitem__(self, index: Union[int, Tuple[int, int]]) -> Union[T, List[T]]:
-        if type(index) == int:
-            return self.board[index]
-        elif len(index) == 2:
+    def __getitem__(self, index: Tuple[int, int]) -> 'CheckerBoard.Field':
+        try:
             return self.board[index[0]][index[1]]
-        else:
-            raise TypeError(f"expected int or (int, int), got {type(index)}")
+        except TypeError:
+            raise TypeError(f"expected (int, int), got {type(index)}")
 
     def __setitem__(self, index: Tuple[int, int], val : T):
-        self.board[index[0]][index[1]] = val
+        self.board[index[0]][index[1]].set(val)
 
     def all_fields(self) -> Iterable[Tuple[Tuple[int, int], T]]:
         return (((i, j), self.board[i][j]) for j in range(self.width) for i in range(self.height))
+
+    def coords_to_field_id(self, coords : Tuple[int, int]):
+        return f"{coords[0]},{coords[1]}"
 
     @classmethod
     def get_size(cls) -> int:

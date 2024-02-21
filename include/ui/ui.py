@@ -18,6 +18,8 @@ class Html:
             else: # we can un-nest Html's within Html's
                 total_content += html.content
         return Html(*total_content)
+    def wrap_to_one_element(self):
+        return div(self)
 
 class HtmlElement(Html):
     def __init__(self, tagName, *children, **attrs):
@@ -32,6 +34,8 @@ class HtmlElement(Html):
         result += super().__str__()
         result += f'</{self.tagName}>'
         return result
+    def wrap_to_one_element(self):
+        return self
 
 class HtmlElementMeta(type):
     @staticmethod

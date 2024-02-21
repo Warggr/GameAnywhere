@@ -3,11 +3,11 @@ from pathlib import Path
 sys.path.append( str( Path(__file__).parent.parent.parent.parent) )
 
 from game_anywhere.include.core import TurnBasedGame, SimpleGameSummary
-from game_anywhere.include.components import Component, CheckerBoard
+from game_anywhere.include.components import Component, CheckerBoard, ComponentSlot, ComponentSlotProperty
 from enum import Enum, auto
 from typing import Optional, List, Any, Tuple
 
-class ChessPiece:
+class ChessPiece(Component):
     class Type(Enum):
         ROOK = 0
         KNIGHT = 1
@@ -22,6 +22,7 @@ class ChessPiece:
         WHITE = False
 
     def __init__(self, color : 'ChessPiece.Color', type: 'ChessPiece.Type'):
+        super().__init__()
         self.color = color
         self.type = type
 
@@ -34,30 +35,17 @@ class ChessPiece:
             code += BLACK_OFFSET
         return chr(code)
 
-class ChessField(Component):
-    def __init__(self, piece : Optional[ChessPiece] = None):
-        super().__init__()
-        self.piece = piece
-    def empty(self) -> bool:
-        return self.piece is None
-    def html(self):
-        if self.piece:
-            content = self.piece.html()
-        else:
-            content = ''
-        return f'<div id="{self.id}">' + content + '</div>'
-
-ChessBoard = CheckerBoard.specialize(height=8, width=8, CellType=ChessField)
+ChessBoard = CheckerBoard.specialize(height=8, width=8, CellType=ChessPiece)
 
 def full_chessboard() -> ChessBoard:
-    board = ChessBoard()
+    board = ChessBoard(fill=lambda: None)
     for i, color in enumerate([ 'WHITE', 'BLACK' ]):
         color = ChessPiece.Color[color]
         for j, type in enumerate([ 'ROOK', 'KNIGHT', 'BISHOP', 'QUEEN', 'KING', 'BISHOP', 'KNIGHT', 'ROOK' ]):
             type = ChessPiece.Type[type]
-            board[j, i*7].piece = ChessPiece(color, type)
+            board[j, i*7].content = ChessPiece(color, type)
         for j in range(8):
-            board[j, 1 + i*5].piece = ChessPiece(color, ChessPiece.Type.PAWN)
+            board[j, 1 + i*5].content = ChessPiece(color, ChessPiece.Type.PAWN)
     return board
 
 class ChessCoordinates(tuple[int, int]):
@@ -110,6 +98,8 @@ DIAGONAL_DIRECTIONS = [(i, j) for i in (-1, 1) for j in (-1, 1)]
 class Chess(TurnBasedGame):
     SummaryType = SimpleGameSummary
 
+    board = ComponentSlotProperty()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.board = full_chessboard()
@@ -128,18 +118,18 @@ class Chess(TurnBasedGame):
         return self.color_of(self.get_current_agent_id())
 
     def go_straight(self, position : ChessCoordinates, direction : Tuple[int, int], color : ChessPiece.Color) -> List[ChessCoordinates]:
-        assert self.board[position].piece and self.board[position].piece.color == color
+        assert self.board[position].content and self.board[position].content.color == color
         possibilities = []
         while True:
             position = position.try_add(direction)
-            if position and (self.board[position].empty() or self.board[position].piece.color != color):
+            if position and (self.board[position].empty() or self.board[position].content.color != color):
                 possibilities.append(position)
-            if not position or self.board[position].piece:
+            if not position or self.board[position].content:
                 break
         return possibilities
 
     def possible_movements(self, piece : ChessPiece, position : ChessCoordinates) -> List[ChessCoordinates]:
-        assert self.board[position].piece == piece
+        assert self.board[position].content == piece
         possibilities = []
         if piece.type == ChessPiece.Type.PAWN:
             forward = (1 if piece.color == ChessPiece.Color.WHITE else -1)
@@ -154,7 +144,7 @@ class Chess(TurnBasedGame):
                 field_at_diag = position.try_add((side, forward))
                 if field_at_diag:
                     if (
-                        (self.board[field_at_diag].piece and self.board[field_at_diag].piece.color != piece.color) or
+                        (self.board[field_at_diag].content and self.board[field_at_diag].content.color != piece.color) or
                         self.last_field_moved_through_for_en_passant == field_at_diag
                     ):
                         possibilities.append(field_at_diag)
@@ -170,7 +160,7 @@ class Chess(TurnBasedGame):
         elif piece.type == ChessPiece.Type.KING:
             for direction in CARDINAL_DIRECTIONS + DIAGONAL_DIRECTIONS:
                 next_position = position.try_add(direction)
-                if next_position and (self.board[next_position].empty() or self.board[next_position].piece.color != piece.color):
+                if next_position and (self.board[next_position].empty() or self.board[next_position].content.color != piece.color):
                     possibilities.append(next_position)
             # TODO castling
         elif piece.type == ChessPiece.Type.KNIGHT:
@@ -178,7 +168,7 @@ class Chess(TurnBasedGame):
                 for short in [-1, 1]:
                     for direction in [(long, short), (short, long)]:
                         next_position = position.try_add(direction)
-                        if next_position and (self.board[next_position].empty() or self.board[next_position].piece.color != piece.color):
+                        if next_position and (self.board[next_position].empty() or self.board[next_position].content.color != piece.color):
                             possibilities.append(next_position)
         # TODO do not allow the king to be in check
         return possibilities
@@ -187,12 +177,12 @@ class Chess(TurnBasedGame):
         if len(previous_choices) == 0:
              return [ ChessCoordinates(coords)
                         for coords, field in self.board.all_fields()
-                        if field.piece is not None
-                            and field.piece.color == self.current_color()
+                        if field.content is not None
+                            and field.content.color == self.current_color()
                     ]
 
         field_chosen: Tuple[int, int] = previous_choices[0]
-        piece_chosen = self.board[field_chosen].piece
+        piece_chosen = self.board[field_chosen].content
         assert piece_chosen.color == self.current_color()
 
         if len(previous_choices) == 1:
@@ -207,17 +197,17 @@ class Chess(TurnBasedGame):
         stopping_coords : ChessCoordinates = choices[1]
         # TODO: assert that the move is valid
         starting_field = self.board[starting_coords]
-        piece = starting_field.piece
-        starting_field.piece = None
+        piece = starting_field.content
+        starting_field.content = None
         assert piece.color == self.current_color()
 
         captured = None
-        if self.board[stopping_coords].piece:
-            captured = self.board[stopping_coords].piece
+        if self.board[stopping_coords].content:
+            captured = self.board[stopping_coords].content
             assert captured.color != self.current_color()
             self.captured.append(captured)
 
-        self.board[stopping_coords].piece = piece
+        self.board[stopping_coords].content = piece
 
         if piece.type == ChessPiece.Type.PAWN and abs(stopping_coords[1] - starting_coords[1]) == 2:
             self.last_field_moved_through_for_en_passant = starting_coords + (0, (stopping_coords[1] - starting_coords[1]) / 2)
@@ -234,15 +224,12 @@ class Chess(TurnBasedGame):
             options = self.all_options(partial_choices)
             if options is None:
                 break
-            chosen_option = self.get_current_agent().choose_one_component([ self.board[coords] for coords in options ], options)
+            chosen_option = self.get_current_agent().choose_one_component_slot([ self.board[coords] for coords in options ], options)
             # TODO allow undoing a move
             partial_choices.append(chosen_option)
             print(partial_choices)
 
         move = self.apply_move(partial_choices)
-
-        for agent in self.agents:
-            agent.update([ { 'replace' : self.board[move.start_coords] }, { 'replace' : self.board[move.stop_coords] } ])
 
         if any([ piece.type == ChessPiece.Type.KING for piece in self.captured ]):
             return SimpleGameSummary(winner=self.get_current_agent_id())

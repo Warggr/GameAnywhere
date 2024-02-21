@@ -22,5 +22,5 @@ class Agent(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def choose_one_component(self, components : List['Component'], indices : List[T]) -> T:
-        raise NotImplementedError()
+    def choose_one_component_slot(self, components : List['ComponentSlot'], indices : List[T]) -> T:
+        ...
