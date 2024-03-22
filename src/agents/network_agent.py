@@ -10,10 +10,11 @@ class NetworkAgent(Agent):
         def start_initialization(self, agent_id : 'AgentId', context : Context):
             if 'server_room' not in context:
                 if Server._instance is None:
-                    server = Server.create_instance()
+                    server = Server()
+                    context['server'] = server
                     context['exit_stack'].enter_context(server)
                 else:
-                    server = Server._instance
+                    server = context['server']
                 _room_id, room = server.new_room()
                 context['server_room'] = room
                 # context['exit_stack'].enter_context(room)

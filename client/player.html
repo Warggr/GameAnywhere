@@ -10,7 +10,7 @@
 <body>
 <div>
 	<span>Status:</span><span id="connection-status">Not connected</span>
-	<form onsubmit="connectToServer(); return false;">
+	<form onsubmit="connectToServer(document.getElementById('serverUrl').value); return false;">
 		<h2>Server connection</h2>
 		<label for="serverUrl">Server address</label>
 		<input type="text" id="serverUrl"/>
@@ -18,7 +18,7 @@
 		<input type="text" value="0" id="playerId"/>
 		<label for="roomId">Room ID</label>
 		<input type="text" id="roomId"/>
-		<!--<button type="submit">Join room</button>-->
+		<button type="submit">Join room</button>
 	</form>
 </div>
 <div id="screen" style="background-color: black; color: white; min-height: 80vh; min-width: 50vw;"></div>

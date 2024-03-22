@@ -14,11 +14,11 @@ class Context(dict):
 class AgentDescriptor(ABC):
     @abstractmethod
     def start_initialization(self, id : 'AgentId', context : Context) -> AgentPromise:
-        raise NotImplementedError()
+        ...
 
     @abstractmethod
     def await_initialization(self, promise : AgentPromise) -> Agent:
-        raise NotImplementedError()
+        ...
 
 GameType = TypeVar('GameType', bound='Game')
 

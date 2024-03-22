@@ -93,7 +93,7 @@ class Server(AbstractContextManager, AsyncResource):
         if on_start is not None:
             on_start()
         self.app.on_shutdown.append( self.on_shutdown ) # we can't do this after shutdown because the loop will no longer exist
-        web.run_app(self.app, loop=self.loop, *args, **kwargs)
+        web.run_app(self.app, loop=self.loop, handle_signals=False, *args, **kwargs) # can't handle signals when the server runs in another thread
         print('Server thread ending now')
 
     async def on_shutdown(self, app):

@@ -9,7 +9,7 @@ from typing import Optional, List, Any, Tuple
 
 class ChessPiece(Component):
     class Type(Enum):
-        ROOK = 0
+        ROOK = 0 # Rook, Knight, and Bishop have to be in that order
         KNIGHT = 1
         BISHOP = 2
         # Here we use `auto()` to indicate that we don't care about their specific values.

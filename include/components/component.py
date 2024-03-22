@@ -100,7 +100,6 @@ class ComponentSlotProperty:
         ComponentSlotProperty.components[id] = self
 
     def __set_name__(self, owner : Type[ComponentOrGame], name):
-        print(f"Calling __set_name__ with {name=}")
         self.private_name = '_' + name
 
     def __get__(self, obj : ComponentOrGame, objtype=None):
