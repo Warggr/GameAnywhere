@@ -23,8 +23,9 @@ class HttpControlledServer(Server):
         ])
 
     async def http_create_room(self, request : web.Request) -> web.Response:
+        default_description = { "agents": ["network", "network"] }
         try:
-            game_description = parse_game_descriptor(await request.json(), self.available_games)
+            game_description = parse_game_descriptor(await request.json(), self.available_games, default_description)
         except (KeyError, json.JSONDecodeError) as err:
             raise web.HTTPBadRequest(text=repr(err))
         room_id, room = self.new_room(room=GameRoom(game_description, server=self))

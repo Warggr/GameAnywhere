@@ -67,4 +67,5 @@ class TicTacToe(TurnBasedGame):
         return None
 
 if __name__ == "__main__":
-    run_game(TicTacToe, sys.argv);
+    from game_anywhere.include import run_game
+    run_game(TicTacToe)

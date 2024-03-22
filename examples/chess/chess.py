@@ -237,3 +237,7 @@ class Chess(TurnBasedGame):
     def html(self):
         # TODO add alternate black/white styling
         return super().html()
+
+if __name__ == "__main__":
+    from game_anywhere.include import run_game
+    run_game(Chess)

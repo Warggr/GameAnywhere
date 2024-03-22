@@ -37,3 +37,6 @@ class GameDescriptor(Generic[GameType]):
             agents.append( agent.await_initialization(promises[i]) )
 
         return agents
+
+    def create_game(self) -> GameType:
+        return self.GameType(self.agents_descriptors)

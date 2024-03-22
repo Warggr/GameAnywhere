@@ -9,8 +9,7 @@ class GameRoom(ServerRoom):
     def __init__(self, game_descriptor : 'GameDescriptor', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.first_step = True
-        self.GameClass : Type['Game'] = game_descriptor.GameType
-        self.game = self.GameClass()
+        self.game = game_descriptor.create_game()
         self.game_thread = Thread(target=self.run_game_thread, args=(game_descriptor,))
         self.game_thread.start()
 
