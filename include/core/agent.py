@@ -24,3 +24,11 @@ class Agent(ABC):
     @abstractmethod
     def choose_one_component_slot(self, components : List['ComponentSlot'], indices : List[T]) -> T:
         ...
+
+    @abstractmethod
+    def text_choice(self, options: List[str]) -> str:
+        ...
+
+    @abstractmethod
+    def int_choice(self, min: int|None=0, max: int|None = None) -> int:
+        ...

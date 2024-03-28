@@ -22,6 +22,7 @@
 	</form>
 </div>
 <div id="screen" style="background-color: black; color: white; min-height: 80vh; min-width: 50vw;"></div>
+<div id="controlPanel" hidden></div>
 </body>
 <script>
 	function getServerUrl(){ return document.getElementById('serverUrl').value; }
@@ -54,19 +55,46 @@
 			console.log(data, data.type);
 
 			if(data.type == "choice"){
-				let slots = data.slots.map(id => document.getElementById(id));
-				let eventListener = event => {
-					const chosenComponent = event.target;
+				if(data.slots){
+					let slots = data.slots.map(id => document.getElementById(id));
+					let eventListener = event => {
+						const chosenComponent = event.target;
+						slots.forEach(c => {
+							c.removeEventListener('click', eventListener);
+							c.classList.remove('clickable');
+						});
+						socket.send(chosenComponent.id);
+					}
 					slots.forEach(c => {
-						c.removeEventListener('click', eventListener);
-						c.classList.remove('clickable');
+						c.addEventListener('click', eventListener);
+						c.classList.add('clickable');
 					});
-					socket.send(chosenComponent.id);
 				}
-				slots.forEach(c => {
-					c.addEventListener('click', eventListener);
-					c.classList.add('clickable');
-				});
+				else if(data.schema){
+					if(data.schema.enum){
+						controlPanel.hidden = false;
+						let choiceElements = data.schema.enum.map(option => {
+							let element = document.createElement('button');
+							element.classList.add('clickable');
+							element.textContent = option;
+							controlPanel.appendChild(element);
+							return element;
+						});
+						let eventListener = event => {
+							const chosenOption = event.target.textContent;
+							controlPanel.replaceChildren();
+							controlPanel.hidden = true;
+							socket.send(chosenOption);
+						}
+						choiceElements.forEach(el => el.addEventListener('click', eventListener));
+					}
+					else if(data.schema.type == "integer"){
+						let input = document.createElement('input');
+						input.type = "number";
+					}
+					else console.warn("Unrecognized server message: unrecognized schema:", data.schema);
+				}
+				else console.warn("Unrecognized server message: unrecognized choice type:", data);
 			}
 			else if(Array.isArray(data)){
 				const tmp = document.createElement('div');
@@ -74,6 +102,7 @@
 					document.getElementById(diff.id).innerHTML = diff.newHTML;
 				}
 			}
+			else console.warn("Unrecognized server message: unknown type:", data);
 		}
 	}
 

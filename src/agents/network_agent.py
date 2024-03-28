@@ -49,20 +49,32 @@ class NetworkAgent(Agent):
 
     # override
     def get_2D_choice(self, dimensions):
-        return tuple( self.get_integer(min=0, max=dim-1) for dim in dimensions )
+        return tuple( self.int_choice(min=0, max=dim-1) for dim in dimensions )
+
+    def choose_one_component_slot(self, components : List['Component'], indices : List[T]) -> T:
+        return self.choose_one(components, indices)
 
     # override
-    def choose_one_component_slot(self, slots : List['ComponentSlot'], indices : List[T]) -> T:
-        ids = { slots[i].get_address() : indices[i] for i in range(len(slots)) }
-        self.session.send_sync({ 'type': 'choice', 'slots': list(ids.keys()) })
+    def choose_one(self, components : List['Component'], indices : List[T], special_options=[]) -> T:
+        self.session.send_sync({ 'type': 'choice', 'components': [ component.id for component in components ], 'special_options': special_options })
+        ids = { components[i].id : indices[i] for i in range(len(components)) }
         while True:
             chosen_id = self.session.get_sync()
             if chosen_id in ids:
                 return ids[chosen_id]
+            elif chosen_id in special_options:
+                return chosen_id
             else:
                 self.session.send_sync({ 'type': 'error', 'message': 'Invalid choice, please try again!' })
 
-    def get_integer(self, min=None, max=None) -> int:
+    # override
+    def int_choice(self, min: int|None = 0, max: int|None = None) -> int:
+        jsonSchema = {'type': 'integer' }
+        if min is not None:
+            jsonSchema['minimum'] = min
+        if max is not None:
+            jsonSchema['maximum'] = max
+        self.session.send_sync({ 'type': 'choice', 'schema': jsonSchema })
         while True:
             integer = self.session.get_sync()
             print("(game) parsing", repr(integer))
@@ -75,5 +87,16 @@ class NetworkAgent(Agent):
                     assert integer <= max, f"Please choose a number higher than {max}"
                 return integer
             except (ValueError, AssertionError) as err:
-                self.session.send_sync(repr(err))
+                self.session.send_sync({ 'type': 'error', 'message': repr(err) })
                 continue
+
+    # override
+    def text_choice(self, options: List[str]) -> str:
+        jsonSchema = { 'type': 'string', 'enum': options }
+        self.session.send_sync({ 'type': 'choice', 'schema': jsonSchema })
+        while True:
+            option = self.session.get_sync()
+            if option not in options:
+                self.session.send_sync({'type': 'error', 'message': f'value {option} not allowed'})
+            else:
+                return option
