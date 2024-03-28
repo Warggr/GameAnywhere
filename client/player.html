@@ -6,6 +6,8 @@
 	<script>'use strict';</script>
     <title>Play | GameAnywhere</title>
     <link rel="stylesheet" href="css/main_index.css">
+    <script src="wizard/wizard.js"></script>
+    <link rel="stylesheet" href="wizard/wizard-robe.css">
 </head>
 <body>
 <div>
@@ -71,28 +73,14 @@
 					});
 				}
 				else if(data.schema){
-					if(data.schema.enum){
-						controlPanel.hidden = false;
-						let choiceElements = data.schema.enum.map(option => {
-							let element = document.createElement('button');
-							element.classList.add('clickable');
-							element.textContent = option;
-							controlPanel.appendChild(element);
-							return element;
-						});
-						let eventListener = event => {
-							const chosenOption = event.target.textContent;
-							controlPanel.replaceChildren();
-							controlPanel.hidden = true;
-							socket.send(chosenOption);
-						}
-						choiceElements.forEach(el => el.addEventListener('click', eventListener));
-					}
-					else if(data.schema.type == "integer"){
-						let input = document.createElement('input');
-						input.type = "number";
-					}
-					else console.warn("Unrecognized server message: unrecognized schema:", data.schema);
+					let formContent = makeWord(data.schema);
+					let form = document.createElement('form');
+					form.appendChild(formContent);
+					let submitButton = document.createElement('button'); submitButton.type = "submit"; submitButton.textContent = "Submit"; submitButton.classList.add('clickable');
+					form.appendChild(submitButton);
+					form.onsubmit = event => { event.preventDefault(); let answer = readWord(formContent); socket.send(answer); controlPanel.removeChild(form); controlPanel.hidden = true; }
+					controlPanel.appendChild(form);
+					controlPanel.hidden = false;
 				}
 				else console.warn("Unrecognized server message: unrecognized choice type:", data);
 			}
