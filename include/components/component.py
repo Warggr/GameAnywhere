@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from game_anywhere.include.ui import Html
 from itertools import count
 from typing import Optional, Dict, Type
+from .utils import html as to_html
 
 ComponentId = str
 
@@ -21,7 +22,19 @@ class ComponentOrGame(ABC):
     def get_slot_address(self) -> str:
         ...
 
-class Component(ABC):
+    def html(self) -> Html:
+        result = Html()
+        for attrname, attr in self.__dict__.items(): # TODO: it would be more efficient if games provided a list of their slots themselves
+            if attrname == 'slot': continue
+            # print("Checking attr", attrname, end='...')
+            if isinstance(attr, ComponentSlot):
+                #print('A ComponentSlot with html', attr.html())
+                result += attr.html()
+            else:
+                pass #print('Not a slot')
+        return result
+
+class Component(ComponentOrGame):
     class NotAttachedToComponentTree(Exception):
         pass
 
@@ -36,16 +49,19 @@ class Component(ABC):
     def get_slot_address(self):
         return self.slot.get_address()
 
-    @abstractmethod
-    def html(self) -> Html:
-        ...
+ComponentTreeNode = any
 
 class ComponentSlot:
-    def __init__(self, id, parent : ComponentOrGame, content : Optional[Component] = None):
+    def __init__(
+        self, id : str, parent : ComponentOrGame, content : Optional[ComponentTreeNode] = None,
+        hidden : bool = False, owner_id : Optional[int] = None
+    ):
         self.id = id
         self.parent = parent
+        self.hidden = hidden
+        self.owner_id = owner_id
         self._content = content
-        if content is not None:
+        if isinstance(content, Component):
             content.slot = self
 
     def get_address(self):
@@ -54,35 +70,34 @@ class ComponentSlot:
     def get_game(self) -> 'Game':
         return self.parent.get_game()
 
-    @property
-    def content(self):
+    def get(self):
         return self._content
 
-    @content.setter
-    def content(self, content : Component):
-        # assert isinstance(content, Component), type(content).__mro__
+    def set(self, content : any):
         self._content = content
-        if content is not None:
+        if isinstance(content, Component):
             content.slot = self
         try:
             game = self.get_game()
-            game.log_component_update(self.get_address(), content)
+            game.log_component_update(self.get_address(), { 'new_value': content }, hidden=self.hidden, owner_id=self.owner_id)
         except Component.NotAttachedToComponentTree:
             # No need to update the clients then
             pass
+
+    @property
+    def content(self):
+        return self.get()
+
+    @content.setter
+    def content(self, content : ComponentTreeNode):
+        self.set(content)
 
     def empty(self) -> bool:
         return self._content is None
 
     def html(self) -> Html:
-        if self._content is None:
-            html = ''
-        else:
-            html = self._content.html()
-        html = Html(html)
-        if not isinstance(html, Html):
-            html = Html(html)
-        html = html.wrap_to_one_element()
+        html = to_html(self._content)
+        html = Html(html).wrap_to_one_element()
         html.attrs['id'] = self.get_address()
         return html
 
@@ -103,12 +118,41 @@ class ComponentSlotProperty:
         self.private_name = '_' + name
 
     def __get__(self, obj : ComponentOrGame, objtype=None):
-        return getattr(obj, self.private_name).content
+        return getattr(obj, self.private_name).get()
 
-    def __set__(self, obj : ComponentOrGame, value : Component):
+    def __set__(self, obj : ComponentOrGame, value : any):
         if not hasattr(obj, self.private_name):
             setattr(obj, self.private_name, ComponentSlot(self.id, obj, value))
-            assert value.slot == getattr(obj, self.private_name)
         else:
-            getattr(obj, self.private_name).content = value
+            getattr(obj, self.private_name).set(value)
+        if isinstance(value, Component):
+            assert value.slot == getattr(obj, self.private_name)
+
+"""
+PerPlayer(
+    **kwargs
+)
+is a shorthand for
+ComponentSlot(component=List(
+    Component( **kwargs ),
+    Component( **kwargs ),
+    ...
+))
+"""
+class PerPlayer(ComponentSlotProperty):
+    class INIT: pass # Sentinel value
+
+    def __init__(self, id : Optional[ComponentId] = None, **kwargs):
+        super().__init__(id)
+        self.ComponentClass = type.__new__(type, 'PerPlayerComponent(' + ','.join(kwargs.keys()) + ')', (Component,), kwargs)
+
+    def __set__(self, obj : 'Game', value : any):
+        if value is PerPlayer.INIT:
+            from .list import List
+            per_player = [ self.ComponentClass() for _ in obj.agents ]
+            for_all_players = List(per_player)
+            slot = ComponentSlot(self.id, obj, for_all_players)
+            setattr(obj, self.private_name, slot)
+        else:
+            getattr(obj, self.private_name).set(value)
             assert value.slot == getattr(obj, self.private_name)

@@ -1,8 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from abc import ABC, abstractmethod
 from .agent import Agent, AgentId
-from ..ui import Html
-from ..components import ComponentSlot
 from ..components.component import ComponentOrGame
 
 class GameSummary(ABC):
@@ -36,21 +34,13 @@ class Game(ComponentOrGame): # ComponentOrGame is an ABC, so indirectly Game is 
     def get_slot_address(self):
         return ''
 
-    def log_component_update(self, address, new_value : 'Component'):
-        for agent in self.agents:
-            agent.update([{ 'id': address, 'new_value': new_value }])
+    def log_component_update(self, address, data : Dict[str,Any], hidden : bool = False, owner_id : Optional[int] = None):
+        for agent_id, agent in enumerate(self.agents):
+            if hidden and owner_id != agent_id:
+                agent.update([{ 'id': address, 'hidden': True }])
+            if not hidden or owner_id == agent_id:
+                agent.update([{ 'id': address, **data }])
 
     @abstractmethod
     def play_game(self) -> GameSummary:
         ...
-
-    def html(self) -> Html:
-        result = Html()
-        for attrname, attr in self.__dict__.items(): # TODO: it would be more efficient if games provided a list of their slots themselves
-            print("Checking attr", attrname, end='...')
-            if isinstance(attr, ComponentSlot):
-                print('A ComponentSlot with html', attr.html())
-                result += attr.html()
-            else:
-                print('Not a slot')
-        return result

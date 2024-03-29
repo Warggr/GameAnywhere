@@ -1,4 +1,5 @@
 from game_anywhere.include.core import Agent
+from game_anywhere.include.components.utils import html
 from .descriptors import AgentDescriptor, Context
 from ..network import Server, ServerRoom
 from ..network.spectator import Session
@@ -39,13 +40,18 @@ class NetworkAgent(Agent):
     # override
     def update(self, diffs : List[Any]):
         def serialize_diff(diff):
-            if True: # TODO multiple types of diffs
+            if 'new_value' in diff:
                 return {
                     'id': diff['id'],
-                    'newHTML': str(diff['new_value'].html()) if diff['new_value'] is not None else ''
+                    'newHTML': str(html(diff['new_value'])),
+                }
+            elif 'append' in diff:
+                return {
+                    'id': diff['id'],
+                    'append': str(html(diff['append'])),
                 }
             else:
-                return diff
+                raise NotImplemented('Unrecognized diff type: ' + str(diff))
         self.session.send_sync( list(map(serialize_diff, diffs)) )
 
     # override

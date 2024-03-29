@@ -9,12 +9,17 @@ from game_anywhere.src.network.router import heartbeat
 from aiohttp import web, http
 from chess import Chess
 from tic_tac_toe import TicTacToe
+from poker import Poker
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--port', default=8080, dest='port', type=int)
 args = parser.parse_args()
 
-available_games={ "TicTacToe": TicTacToe, "Chess": Chess }
+available_games={
+    "TicTacToe": TicTacToe,
+    "Chess": Chess,
+    "Poker": Poker,
+}
 
 HttpControlledServer(available_games)\
     .add_client(heartbeat)\

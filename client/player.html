@@ -88,7 +88,13 @@
 			else if(Array.isArray(data)){
 				const tmp = document.createElement('div');
 				for(let diff of data){
-					document.getElementById(diff.id).innerHTML = diff.newHTML;
+					if(diff.newHTML){
+						document.getElementById(diff.id).innerHTML = diff.newHTML;
+					} else if(diff.append) {
+						let DOMConstructionSite = document.createElement('div');
+						DOMConstructionSite.innerHTML = diff.append; // TODO: find a more elegant way of parsing HTML
+						document.getElementById(diff.id).append(DOMConstructionSite.firstChild);
+					}
 				}
 			}
 			else console.warn("Unrecognized server message: unknown type:", data);
