@@ -58,17 +58,17 @@
 			console.log(data, data.type);
 
 			if(data.type == "choice"){
-				if(data.components){
-					let components = data.components.map(id => document.getElementById(id));
+				if(data.slots){
+					let slots = data.slots.map(id => document.getElementById(id));
 					let eventListener = event => {
 						const chosenComponent = event.target;
-						components.forEach(c => {
+						slots.forEach(c => {
 							c.removeEventListener('click', eventListener);
 							c.classList.remove('clickable');
 						});
 						socket.send(chosenComponent.id);
 					}
-					components.forEach(c => {
+					slots.forEach(c => {
 						c.addEventListener('click', eventListener);
 						c.classList.add('clickable');
 					});

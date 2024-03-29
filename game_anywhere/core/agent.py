@@ -1,9 +1,10 @@
-from typing import Tuple, List, Any, TypeVar
+from typing import Tuple, List, Any, TypeVar, Union, Optional
 from abc import ABC, abstractmethod
 
 AgentId = int
 
 T = TypeVar('T')
+U = TypeVar('U')
 
 class Agent(ABC):
     class Surrendered(Exception):
@@ -22,7 +23,7 @@ class Agent(ABC):
         ...
 
     @abstractmethod
-    def choose_one_component_slot(self, components : List['ComponentSlot'], indices : List[T]) -> T:
+    def choose_one_component_slot(self, slots : List['ComponentSlot'], indices : Optional[List[T]] = None, special_options:List[U]=[]) -> Union[T,U]:
         ...
 
     @abstractmethod

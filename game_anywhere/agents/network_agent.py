@@ -3,7 +3,7 @@ from game_anywhere.components.utils import html
 from .descriptors import AgentDescriptor, Context
 from ..network import Server, ServerRoom
 from ..network.spectator import Session
-from typing import List, Any, TypeVar, Callable
+from typing import List, Any, TypeVar, Callable, Optional
 
 T = TypeVar('T')
 
@@ -58,18 +58,17 @@ class NetworkAgent(Agent):
     def get_2D_choice(self, dimensions):
         return tuple( self.int_choice(min=0, max=dim-1) for dim in dimensions )
 
-    def choose_one_component_slot(self, components : List['Component'], indices : List[T]) -> T:
-        return self.choose_one(components, indices)
-
     class InvalidAnswer(Exception):
         def __init__(self, message):
             super().__init__()
             self.message = message
 
     # override
-    def choose_one(self, components : List['Component'], indices : List[T], special_options=[]) -> T:
-        question = { 'type': 'choice', 'components': [ component.id for component in components ], 'special_options': special_options }
-        ids = { components[i].id : indices[i] for i in range(len(components)) }
+    def choose_one_component_slot(self, slots : List['ComponentSlot'], indices : Optional[List[T]] = None, special_options=[]) -> T:
+        if not indices:
+            indices = slots
+        question = { 'type': 'choice', 'slots': [ slot.get_address() for slot in slots ], 'special_options': special_options }
+        ids = { slot.get_address() : index for slot, index in zip(slots, indices) }
         def _validation(answer : str):
             if answer in ids:
                 return ids[answer]

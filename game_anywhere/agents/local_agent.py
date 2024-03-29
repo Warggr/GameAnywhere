@@ -1,6 +1,7 @@
 from game_anywhere.core import Agent
 from .descriptors import AgentDescriptor
-from typing import Optional, List, TypeVar, Any
+from typing import Optional, List, TypeVar, Any, Union
+from itertools import chain
 
 T = TypeVar('T')
 
@@ -55,11 +56,15 @@ class HumanAgent(Agent):
         return indices[i]
 
     # override
-    def choose_one_component_slot(self, slots : List['ComponentSlot'], indices : List[T]) -> T:
-        for i, slot in enumerate(slots):
-            print(f"[{i+1}]", slot)
-        i = self.get_integer(min=1, max=len(slots)) - 1
-        return indices[i]
+    def choose_one_component_slot(self, slots : List['ComponentSlot'], indices : Optional[List[T]] = None, special_options=[]):
+        for i, option in enumerate(chain(slots, special_options)):
+            print(f"[{i+1}]", option)
+        i = self.get_integer(min=1, max=len(slots)+len(special_options)) - 1
+        if i < len(indices):
+            return indices[i]
+        else:
+            return special_options[i - len(indices)]
+
     # override
     def text_choice(self, options: List[str]) -> str:
         return self.choose_one(options, options)

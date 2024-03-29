@@ -224,10 +224,14 @@ class Chess(TurnBasedGame):
             options = self.all_options(partial_choices)
             if options is None:
                 break
-            chosen_option = self.get_current_agent().choose_one_component_slot([ self.board[coords] for coords in options ], options)
-            # TODO allow undoing a move
-            partial_choices.append(chosen_option)
-            print(partial_choices)
+            special_options = []
+            if len(partial_choices) != 0:
+                special_options=['Back']
+            chosen_option = self.get_current_agent().choose_one_component_slot([ self.board[coords] for coords in options ], options, special_options)
+            if chosen_option == "Back":
+                partial_choices.pop()
+            else:
+                partial_choices.append(chosen_option)
 
         move = self.apply_move(partial_choices)
 
