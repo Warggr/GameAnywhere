@@ -48,6 +48,7 @@
 		socket.onopen = (event) => {
 			connectionStatusDom.textContent = 'Connected';
 			initialized = false;
+			socket.send('?'); // In case we just reconnected and the server is waiting for us to answer a question
 		};
 		socket.onclose = (event) => { connectionStatusDom.textContent = 'Not connected'; };
 		socket.onerror = console.error;

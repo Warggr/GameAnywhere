@@ -1,7 +1,8 @@
 from game_anywhere.include.core import Agent
 from .descriptors import AgentDescriptor, Context
 from ..network import Server, ServerRoom
-from typing import List, Any, TypeVar
+from ..network.spectator import Session
+from typing import List, Any, TypeVar, Callable
 
 T = TypeVar('T')
 
@@ -28,7 +29,7 @@ class NetworkAgent(Agent):
             session.reconnect_sync()
             return NetworkAgent(session)
 
-    def __init__(self, session: 'Session'):
+    def __init__(self, session: Session):
         self.session = session
 
     # override
@@ -54,49 +55,64 @@ class NetworkAgent(Agent):
     def choose_one_component_slot(self, components : List['Component'], indices : List[T]) -> T:
         return self.choose_one(components, indices)
 
+    class InvalidAnswer(Exception):
+        def __init__(self, message):
+            super().__init__()
+            self.message = message
+
     # override
     def choose_one(self, components : List['Component'], indices : List[T], special_options=[]) -> T:
-        self.session.send_sync({ 'type': 'choice', 'components': [ component.id for component in components ], 'special_options': special_options })
+        question = { 'type': 'choice', 'components': [ component.id for component in components ], 'special_options': special_options }
         ids = { components[i].id : indices[i] for i in range(len(components)) }
-        while True:
-            chosen_id = self.session.get_sync()
-            if chosen_id in ids:
-                return ids[chosen_id]
-            elif chosen_id in special_options:
-                return chosen_id
+        def _validation(answer : str):
+            if answer in ids:
+                return ids[answer]
+            elif answer in special_options:
+                return answer
             else:
-                self.session.send_sync({ 'type': 'error', 'message': 'Invalid choice, please try again!' })
+                raise NetworkAgent.InvalidAnswer('Invalid choice, please try again!')
+        return self.question_with_validation(question, _validation)
 
     # override
     def int_choice(self, min: int|None = 0, max: int|None = None) -> int:
-        jsonSchema = {'type': 'integer' }
+        jsonSchema = { 'type': 'integer' }
         if min is not None:
             jsonSchema['minimum'] = min
         if max is not None:
             jsonSchema['maximum'] = max
-        self.session.send_sync({ 'type': 'choice', 'schema': jsonSchema })
-        while True:
-            integer = self.session.get_sync()
-            print("(game) parsing", repr(integer))
+
+        def _validation(answer : str):
             try:
-                assert integer.isdigit()
-                integer = int(integer)
+                assert answer.isdigit()
+                integer = int(answer)
                 if min is not None:
                     assert integer >= min, f"Please choose a number higher than {min}"
                 if max is not None:
                     assert integer <= max, f"Please choose a number higher than {max}"
                 return integer
             except (ValueError, AssertionError) as err:
-                self.session.send_sync({ 'type': 'error', 'message': repr(err) })
-                continue
+                raise NetworkAgent.InvalidAnswer(repr(err))
+        return self.question_with_validation({ 'type': 'choice', 'schema': jsonSchema }, _validation)
 
     # override
     def text_choice(self, options: List[str]) -> str:
         jsonSchema = { 'type': 'string', 'enum': options }
-        self.session.send_sync({ 'type': 'choice', 'schema': jsonSchema })
+        def _validation(answer : str):
+            if answer not in options:
+                raise NetworkAgent.InvalidAnswer(f'value {answer} not allowed')
+            return answer
+        return self.question_with_validation({ 'type': 'choice', 'schema': jsonSchema }, _validation)
+
+    def question_with_validation(self, question : Any, validation : Callable[str, T]) -> T:
         while True:
-            option = self.session.get_sync()
-            if option not in options:
-                self.session.send_sync({'type': 'error', 'message': f'value {option} not allowed'})
-            else:
-                return option
+            print('(network agent) sending question')
+            self.session.send_sync(question)
+            answer = self.session.get_sync()
+            if answer == Session.CLIENT_LOST_TRACK_MESSAGE:
+                continue # goto beginning_of_while_loop # resend question
+            try:
+                answer = validation(answer)
+            except NetworkAgent.InvalidAnswer as err:
+                self.session.send_sync({ 'type': 'error', 'message': err.message })
+                continue # goto beginning_of_while_loop
+            return answer

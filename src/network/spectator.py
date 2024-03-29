@@ -100,11 +100,15 @@ class Spectator:
 
                 # Add to queue
                 with self.protect_reading_queue:
-                    self.reading_queue.append(msg.data)
-                    self.signal_reading_queue.notify()
+                    # CLIENT_LOST_TRACK will be answered by the 'Not listening', no need to propagate it
+                    if not self.listening and msg.data == Session.CLIENT_LOST_TRACK_MESSAGE:
+                        pass
+                    else:
+                        self.reading_queue.append(msg.data)
+                        self.signal_reading_queue.notify()
 
                 if not self.listening:
-                    await self.ws.send_json("Not listening")
+                    await self.ws.send_json("!Not listening")
 
             elif msg.type == aiohttp.WSMsgType.ERROR:
                 print(self, "ws connection closed with exception", self.ws.exception())
@@ -172,6 +176,8 @@ A Session is like a Spectator, but can reconnect if the connection was lost.
 """
 class Session(Spectator):
     TIMEOUT_SECONDS = 3 * 60
+
+    CLIENT_LOST_TRACK_MESSAGE = '?'
 
     class TimeoutException(Exception):
         pass
