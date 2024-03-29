@@ -41,7 +41,7 @@
 		connectionStatusDom.textContent = 'Connecting...';
 		if(window.WebSocket === undefined) {
 			connectionStatusDom.textContent = 'WebSockets not supported!';
-			return;
+			throw new Error('WebSockets not supported!');
 		}
 
 		socket = new WebSocket('ws://' + serverAddress + '/r/' + roomNr + '/ws/' + teamNr);
@@ -57,17 +57,17 @@
 			console.log(data, data.type);
 
 			if(data.type == "choice"){
-				if(data.slots){
-					let slots = data.slots.map(id => document.getElementById(id));
+				if(data.components){
+					let components = data.components.map(id => document.getElementById(id));
 					let eventListener = event => {
 						const chosenComponent = event.target;
-						slots.forEach(c => {
+						components.forEach(c => {
 							c.removeEventListener('click', eventListener);
 							c.classList.remove('clickable');
 						});
 						socket.send(chosenComponent.id);
 					}
-					slots.forEach(c => {
+					components.forEach(c => {
 						c.addEventListener('click', eventListener);
 						c.classList.add('clickable');
 					});
