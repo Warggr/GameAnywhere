@@ -2,7 +2,7 @@ from .room import ServerRoom
 from ..agents.descriptors import Context
 from threading import Thread
 from aiohttp import web
-from typing import Type
+from typing import Type, List
 import asyncio
 
 class GameRoom(ServerRoom):
@@ -10,12 +10,13 @@ class GameRoom(ServerRoom):
         super().__init__(*args, **kwargs)
         self.first_step = True
         self.game = game_descriptor.create_game()
-        self.game_thread = Thread(target=self.run_game_thread, args=(game_descriptor,))
+        agent_promises : List['AgentPromise'] = game_descriptor.start_initialization( Context(server_room=self) )
+        self.game_thread = Thread(target=self.run_game_thread, args=(game_descriptor,agent_promises))
         self.game_thread.start()
 
-    def run_game_thread(self, game_descriptor : 'GameDescriptor'):
+    def run_game_thread(self, game_descriptor : 'GameDescriptor', agent_promises : List['AgentPromise']):
         print('Starting game thread, waiting for agents…')
-        self.game.agents = game_descriptor.create_agents( Context(server_room=self) )
+        self.game.agents = game_descriptor.await_initialization( agent_promises )
         print('…Agents connected')
         self.game.play_game()
         print('Game ended, interrupting agents')

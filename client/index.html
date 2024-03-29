@@ -16,7 +16,8 @@
     <div class="indexMainDiv">
         <span id="connection-status"></span>
         <div id="status-rooms"></div>
-        <form action="javascript:void(0);">
+        <button onclick="loadRooms()">Reload</button>
+        <form action="javascript:createNewRoom();">
             <select id="gameType">
                 <script> fetch('/room', {method: 'OPTIONS'}).then(res => res.json()).then(json => json.enum.forEach(val => {
                     let optionDOM = document.createElement('option');
@@ -26,7 +27,7 @@
                 }));
                 </script>
             </select>
-            <button onclick="createNewRoom()">Start a new game</button>
+            <button type="submit">Start a new game</button>
         </form>
         <form method="get" action="player.html">
             <input type="text" name="room"/>
@@ -40,27 +41,42 @@
             fetch('/room', { method: 'POST', body: JSON.stringify({"game": gameType }) }).then(loadRooms);
         }
         const roomsRoot = ReactDOM.createRoot(document.getElementById('status-rooms'));
+        var knownRooms;
+        // TODO: move to an actual front-end reactive framework instead of just using React for the convenience syntax
+        function renderRooms(rooms){
+            if(rooms.length == 0) roomsRoot.render('(no rooms)');
+            else roomsRoot.render(rooms.map(room =>
+                e('div', {key:room[0]}, [
+                    e('h3', {key:'h3'}, 'Room ' + room[0]),
+                    e('a', {key:'a', href: `player.html?room=${room[0]}`}, 'Watch'),
+                    e('p', {key:'p'}, room[1].spectators + ' spectators'),
+                    e('div', {key:'div'}, Object.entries(room[1].seats).map(seat =>
+                        e('span', {key:seat[0]},
+                            seat[1] == "state.FREE"
+                            ? e('a', {href:`player.html?room=${room[0]}&seat=${Number(seat[0])}`}, 'Join')
+                            : e('p', {}, seat[1])
+                        )
+                    ))
+                ])
+            ));
+        }
         function loadRooms(){
             fetch('/room/list').then(response => response.json()).then(rooms => {
                 rooms = Object.entries(rooms);
-                if(rooms.length == 0) roomsRoot.render('(no rooms)');
-                else roomsRoot.render(rooms.map(room =>
-                    e('div', {key:room[0]}, [
-                        e('h3', {key:'h3'}, 'Room ' + room[0]),
-                        e('a', {key:'a', href: `player.html?room=${room[0]}`}, 'Watch'),
-                        e('p', {key:'p'}, room[1].spectators + ' spectators'),
-                        e('div', {key:'div'}, Object.entries(room[1].seats).map(seat =>
-                            e('span', {key:seat[0]},
-                                seat[1] == "state.FREE"
-                                ? e('a', {href:`player.html?room=${room[0]}&seat=${Number(seat[0])}`}, 'Join')
-                                : e('p', {}, seat[1])
-                            )
-                        ))
-                    ])
-                ));
+                knownRooms = rooms;
+                console.warn(`Set knownRooms to ${rooms}`)
+                renderRooms(rooms);
             });
         }
         loadRooms();
+        const sseSource = new EventSource('/room/list/watch');
+        sseSource.onmessage = msg => {
+            let data = JSON.parse(msg.data);
+            let room = data['add'];
+            knownRooms.push([ room.key, room.value ]);
+            console.warn(`Set knownRooms to ${knownRooms} after getting value ${msg.data}`);
+            renderRooms(knownRooms);
+        }
     </script>
 </body>
 </html>
