@@ -1,5 +1,5 @@
-from game_anywhere.include.core import Agent
-from game_anywhere.include.components.utils import html
+from game_anywhere.core import Agent
+from game_anywhere.components.utils import html
 from .descriptors import AgentDescriptor, Context
 from ..network import Server, ServerRoom
 from ..network.spectator import Session

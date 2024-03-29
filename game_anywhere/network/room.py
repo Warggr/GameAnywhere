@@ -1,4 +1,4 @@
-from game_anywhere.include.core.agent import AgentId
+from game_anywhere.core.agent import AgentId
 from .spectator import Session, Spectator
 from itertools import chain
 from typing import Iterable, Dict, List, Awaitable, Optional

@@ -3,7 +3,7 @@ from aiohttp import web
 from aiohttp import http
 from aiohttp_sse import sse_response, EventSourceResponse
 from .server import Server
-from game_anywhere.src.agents.parse_descriptors import parse_game_descriptor
+from game_anywhere.agents.parse_descriptors import parse_game_descriptor
 from .game_room import GameRoom
 import json
 from typing import Dict, List

@@ -2,7 +2,7 @@ from typing import TypeVar, Generic, Optional, Iterable
 from typing import List as typing__List
 from abc import ABC
 from .component import Component, ComponentSlot
-from game_anywhere.include.ui import Html, div, style
+from game_anywhere.ui import Html, div, style
 
 T = TypeVar('T', bound=Component)
 

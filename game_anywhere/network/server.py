@@ -71,6 +71,7 @@ class Server(AbstractContextManager, AsyncResource):
         self.app.add_subapp('/r/', subapp)
 
     def __enter__(self):
+        print('(server) __enter__')
         event_loop_started = Semaphore(0)
         self.serverThread = Thread(
             target=self.nt_start,
@@ -81,6 +82,7 @@ class Server(AbstractContextManager, AsyncResource):
         return self
 
     def __exit__(self, type, value, traceback):
+        print('(server) __exit__')
         self.close()
 
     def __del__(self):

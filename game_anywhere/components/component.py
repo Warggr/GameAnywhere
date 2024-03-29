@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from game_anywhere.include.ui import Html
+from game_anywhere.ui import Html
 from itertools import count
 from typing import Optional, Dict, Type
 from .utils import html as to_html

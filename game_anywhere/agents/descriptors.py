@@ -1,5 +1,5 @@
 import asyncio
-from game_anywhere.include.core.agent import Agent
+from game_anywhere.core.agent import Agent
 from abc import abstractmethod, ABC
 from typing import List, Any, TypeVar, Type, Generic
 from contextlib import ExitStack

@@ -2,7 +2,7 @@ import aiohttp
 import asyncio
 from aiohttp import web
 from enum import Enum, unique
-from game_anywhere.include.core.agent import AgentId
+from game_anywhere.core.agent import AgentId
 from typing import Optional, Any, List, Awaitable
 from threading import Condition, Lock
 

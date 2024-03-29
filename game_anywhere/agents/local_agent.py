@@ -1,4 +1,4 @@
-from game_anywhere.include.core import Agent
+from game_anywhere.core import Agent
 from .descriptors import AgentDescriptor
 from typing import Optional, List, TypeVar, Any
 

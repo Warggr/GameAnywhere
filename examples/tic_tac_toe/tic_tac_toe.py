@@ -4,11 +4,11 @@ sys.path.append( str( Path(__file__).parent.parent.parent.parent) )
 
 from typing import Tuple, Union
 
-from game_anywhere.include import run_game
-from game_anywhere.include.core.game import AgentId
-from game_anywhere.include.ui import HtmlElement, div
-from game_anywhere.include.core import TurnBasedGame, SimpleGameSummary
-from game_anywhere.include.components import Component, CheckerBoard, ComponentSlotProperty
+from game_anywhere import run_game
+from game_anywhere.core.game import AgentId
+from game_anywhere.ui import HtmlElement, div
+from game_anywhere.core import TurnBasedGame, SimpleGameSummary
+from game_anywhere.components import Component, CheckerBoard, ComponentSlotProperty
 
 class TicTacToeMark(Component):
     def __init__(self, player : AgentId):
@@ -67,5 +67,5 @@ class TicTacToe(TurnBasedGame):
         return None
 
 if __name__ == "__main__":
-    from game_anywhere.include import run_game
+    from game_anywhere import run_game
     run_game(TicTacToe)

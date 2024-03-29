@@ -1,7 +1,7 @@
 from typing import TypeVar, Generic, Type, Union, List, Tuple, Callable, Iterable, Optional
 from abc import ABC
 from .component import Component, ComponentSlot
-from game_anywhere.include.ui import Html, div, style
+from game_anywhere.ui import Html, div, style
 
 class Board(Component):
     # TODO: a board that's as general as possible

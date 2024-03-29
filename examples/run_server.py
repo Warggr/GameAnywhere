@@ -1,11 +1,11 @@
 import sys
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.append( str(PROJECT_ROOT.parent) )
+sys.path.append( str(PROJECT_ROOT) )
 
 import argparse
-from game_anywhere.src.network.http_controlled_server import HttpControlledServer
-from game_anywhere.src.network.router import heartbeat
+from game_anywhere.network.http_controlled_server import HttpControlledServer
+from game_anywhere.network.router import heartbeat
 from aiohttp import web, http
 from chess import Chess
 from tic_tac_toe import TicTacToe

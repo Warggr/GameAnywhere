@@ -1,9 +1,9 @@
 import sys
 from pathlib import Path
-sys.path.append( str( Path(__file__).parent.parent.parent.parent) )
+sys.path.append( str( Path(__file__).parent.parent.parent) )
 
-from game_anywhere.include.core import TurnBasedGame, SimpleGameSummary
-from game_anywhere.include.components import Component, CheckerBoard, ComponentSlot, ComponentSlotProperty
+from game_anywhere.core import TurnBasedGame, SimpleGameSummary
+from game_anywhere.components import Component, CheckerBoard, ComponentSlot, ComponentSlotProperty
 from enum import Enum, auto
 from typing import Optional, List, Any, Tuple
 
@@ -239,5 +239,5 @@ class Chess(TurnBasedGame):
         return super().html()
 
 if __name__ == "__main__":
-    from game_anywhere.include import run_game
+    from game_anywhere import run_game
     run_game(Chess)
