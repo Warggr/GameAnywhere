@@ -6,7 +6,8 @@ import json
 from tempfile import TemporaryDirectory
 import os
 from abc import abstractmethod
-
+import asyncio
+from ..core.agent import ChatStream
 
 T = TypeVar("T")
 
@@ -95,6 +96,38 @@ class TextAgent(Agent):
         for di in diff:
             self._write(di)
 
+    def chat_stream(self, loop: asyncio.AbstractEventLoop) -> ChatStream:
+        from queue import Queue
+
+        # TODO: Optimization: there might be a way of asynchronously watching multiple files
+        class Stream(ChatStream):
+            def __init__(self, parent: TextAgent):
+                self.parent = parent
+                self.original_read = parent._read
+                parent._read = self._read
+
+                self.input_queue = Queue()
+                self.parent._write('You have entered a chat room. Lines starting with `/` will be forwarded to the chat.')
+            def close(self):
+                self.parent._read = self.original_read
+                self.reading_task.cancel()
+            async def __anext__(self) -> str:
+                # This spawns a new thread (or whatever the default policy of asyncio for executors is)
+                # which waits for original_read
+                while True:
+                    # TODO: this is often an input() call and can't be interrupted - we have to wait until the user writes something
+                    self.reading_task = loop.run_in_executor(None, self.original_read) # Schedule a new read
+                    message = await self.reading_task
+                    if message.startswith('/'):
+                        return message[1:]
+                    else:
+                        self.input_queue.put(message)
+            def _read(self, message: str|None = None) -> str:
+                if message is not None:
+                    self.parent._write(message)
+                return self.input_queue.get()
+
+        return Stream(self)
 
 class HumanAgent(TextAgent):
     class Descriptor(AgentDescriptor):
@@ -102,7 +135,7 @@ class HumanAgent(TextAgent):
             pass
 
         def await_initialization(self, promise) -> "HumanAgent":
-            return HumanAgent()
+            return HumanAgent('Bob')
 
     def _write(*objects, **kwargs):
         print(*objects, **kwargs)
@@ -152,6 +185,7 @@ class PipeAgent(TextAgent):
             return PipeAgent(infile, outfile)
 
     def __init__(self, infile: TextIO, outfile: TextIO):
+        super().__init__('Pipe user')
         self.infile = infile
         self.outfile = outfile
 
@@ -161,7 +195,7 @@ class PipeAgent(TextAgent):
     def _read(self, message: str | None = None) -> str:
         if message is not None:
             self._write(message)
-        read = self.infile.readline()
+        read = self.infile.readline().strip()
         if read == "":
             raise self.Disconnected()
         return read

@@ -7,6 +7,17 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
+class ChatStream:
+    def __aiter__(self):
+        return self
+
+    @abstractmethod
+    async def __anext__(self) -> str: ...
+
+    @abstractmethod
+    def close(self): ...
+
+
 class Agent(ABC):
     class Surrendered(Exception):
         pass
@@ -34,3 +45,6 @@ class Agent(ABC):
 
     @abstractmethod
     def int_choice(self, min: int | None = 0, max: int | None = None) -> int: ...
+
+    @abstractmethod
+    def chat_stream(self, event_loop: "asyncio.AbstractEventLoop") -> ChatStream: ...
