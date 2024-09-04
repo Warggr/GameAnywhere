@@ -1,10 +1,10 @@
 from typing import TypeVar, Generic, Optional, Iterable
-from typing import List as typing__List
 from abc import ABC
 from .component import Component, ComponentSlot
 from game_anywhere.ui import Html, div, style
 
-T = TypeVar('T', bound=Component)
+T = TypeVar("T", bound=Component)
+
 
 class List(Component, Generic[T]):
     def __init__(self, *args):
@@ -25,13 +25,13 @@ class List(Component, Generic[T]):
 
     # list interface methods - the most basic ones
 
-    def append(self, value : Component):
+    def append(self, value: Component):
         slot = ComponentSlot(id=str(len(self.slots)), content=value, parent=self)
         self.slots.append(slot)
         # log update, see ComponentSlot.set()
         try:
             game = self.get_game()
-            game.log_component_update(self.get_slot_address(), { 'append': slot })
+            game.log_component_update(self.get_slot_address(), {"append": slot})
         except Component.NotAttachedToComponentTree:
             pass
 
@@ -47,13 +47,13 @@ class List(Component, Generic[T]):
         # When iterating, we can't replace one value. So just dealing with components and ignoring slots is appropriate here
         return (slot._content for slot in self.slots)
 
-    def __add__(self, other_list : typing__List[Component]):
+    def __add__(self, other_list : list[Component]):
         copy = self.__copy__()
         for i in other_list:
             copy.append(i)
         return copy
 
-    def extend(self, values_iter : Iterable[Component]):
+    def extend(self, values_iter: Iterable[Component]):
         for i in values_iter:
             self.append(i)
 
@@ -62,5 +62,5 @@ class List(Component, Generic[T]):
     def __copy__(self):
         copy = type(self)()
         copy.__dict__.update(self.__dict__)
-        copy.slot = None # copy shouldn't be attached to the component tree
+        copy.slot = None  # copy shouldn't be attached to the component tree
         return copy

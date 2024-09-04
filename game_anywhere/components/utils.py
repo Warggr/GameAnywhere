@@ -2,9 +2,11 @@
 Returns an HTML representation of the object.
 Semantics are similar to e.g. the str() function, which returns a str representation
 """
-def html(obj) -> 'Html':
+
+
+def html(obj) -> "Html":
     if obj is None:
-        html = ''
+        html = ""
     else:
         try:
             html = obj.html()

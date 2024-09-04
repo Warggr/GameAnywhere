@@ -1,35 +1,36 @@
-from typing import Tuple, List, Any, TypeVar, Union, Optional
+from typing import Any, TypeVar, Union, Optional
 from abc import ABC, abstractmethod
 
 AgentId = int
 
-T = TypeVar('T')
-U = TypeVar('U')
+T = TypeVar("T")
+U = TypeVar("U")
+
 
 class Agent(ABC):
     class Surrendered(Exception):
         pass
 
     @abstractmethod
-    def message(self, message: str) -> None:
-        ...
+    def message(self, message: str) -> None: ...
+
 
     @abstractmethod
-    def update(self, diff : List[Any]):
-        ...
+    def update(self, diff: list[Any]): ...
 
     @abstractmethod
-    def get_2D_choice(self, dimensions: Tuple[int, int]) -> Tuple[int, int]:
-        ...
+    def get_2D_choice(self, dimensions: tuple[int, int]) -> tuple[int, int]: ...
 
     @abstractmethod
-    def choose_one_component_slot(self, slots : List['ComponentSlot'], indices : Optional[List[T]] = None, special_options:List[U]=[]) -> Union[T,U]:
-        ...
+    def choose_one_component_slot(
+        self,
+        slots: list["ComponentSlot"],
+        indices: Optional[list[T]] = None,
+        special_options: list[U] = [],
+    ) -> Union[T, U]: ...
 
     @abstractmethod
-    def text_choice(self, options: List[str]) -> str:
-        ...
+    def text_choice(self, options: list[str]) -> str: ...
 
     @abstractmethod
-    def int_choice(self, min: int|None=0, max: int|None = None) -> int:
-        ...
+    def int_choice(self, min: int | None = 0, max: int | None = None) -> int: ...

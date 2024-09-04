@@ -1,8 +1,9 @@
 import sys
 from pathlib import Path
-sys.path.append( str( Path(__file__).parent.parent.parent.parent) )
 
-from typing import Tuple, Union
+sys.path.append(str(Path(__file__).parent.parent.parent.parent))
+
+from typing import Union
 
 from game_anywhere import run_game
 from game_anywhere.core.game import AgentId
@@ -10,24 +11,35 @@ from game_anywhere.ui import HtmlElement, div
 from game_anywhere.core import TurnBasedGame, SimpleGameSummary
 from game_anywhere.components import Component, CheckerBoard, ComponentSlotProperty
 
+
 class TicTacToeMark(Component):
-    def __init__(self, player : AgentId):
+    def __init__(self, player: AgentId):
         super().__init__()
         self.player = player
 
     def html(self):
-        return 'X' if self.player==0 else 'O'
+        return "X" if self.player == 0 else "O"
+
 
 BOARD_SIZE = 3
 
-TicTacToeBoard = CheckerBoard.specialize(height=BOARD_SIZE, width=BOARD_SIZE, CellType = TicTacToeMark)
+TicTacToeBoard = CheckerBoard.specialize(
+    height=BOARD_SIZE, width=BOARD_SIZE, CellType=TicTacToeMark
+)
 
-def hasRow(player: AgentId, board: TicTacToeBoard, start: Tuple[int, int], step: Tuple[int, int]):
+
+def hasRow(
+    player: AgentId,
+    board: TicTacToeBoard,
+    start: tuple[int, int],
+    step: tuple[int, int],
+):
     for i in range(BOARD_SIZE):
         if board[start].empty() or board[start].content.player != player:
             return False
-        start = [start[i] + step[i] for i in range(2) ]
+        start = [start[i] + step[i] for i in range(2)]
     return True
+
 
 class TicTacToe(TurnBasedGame):
     SummaryType = SimpleGameSummary
@@ -44,28 +56,30 @@ class TicTacToe(TurnBasedGame):
         if self.get_current_turn() == TOTAL_MOVES:
             return SimpleGameSummary(SimpleGameSummary.NO_WINNER)
 
-        fields = [ field for _, field in self.board.all_fields() if field.empty() ]
+        fields = [field for _, field in self.board.all_fields() if field.empty()]
         field = self.get_current_agent().choose_one_component_slot(fields, fields)
-        field.content = TicTacToeMark( self.get_current_agent_index() )
+        field.content = TicTacToeMark(self.get_current_agent_index())
 
-        #check rows
+        # check rows
         for row in range(BOARD_SIZE):
-            if hasRow( self.get_current_agent_index(), self.board, (row, 0), (0, 1)):
+            if hasRow(self.get_current_agent_index(), self.board, (row, 0), (0, 1)):
                 return SimpleGameSummary(self.get_current_agent_id())
 
-        #check rows
+        # check rows
         for col in range(BOARD_SIZE):
-            if hasRow( self.get_current_agent_index(), self.board, (0, col), (1, 0)):
+            if hasRow(self.get_current_agent_index(), self.board, (0, col), (1, 0)):
                 return SimpleGameSummary(self.get_current_agent_id())
 
-        #check diagonals
-        if hasRow( self.get_current_agent_index(), self.board, (0, 0), (1, 1)):
-            return SimpleGameSummary( self.get_current_agent_id() )
-        if hasRow( self.get_current_agent_index(), self.board, (0, BOARD_SIZE-1), (1, -1)):
-            return SimpleGameSummary( self.get_current_agent_id() )
+        # check diagonals
+        if hasRow(self.get_current_agent_index(), self.board, (0, 0), (1, 1)):
+            return SimpleGameSummary(self.get_current_agent_id())
+        if hasRow(self.get_current_agent_index(), self.board, (0, BOARD_SIZE - 1), (1, -1)):
+            return SimpleGameSummary(self.get_current_agent_id())
 
         return None
 
+
 if __name__ == "__main__":
     from game_anywhere import run_game
+
     run_game(TicTacToe)

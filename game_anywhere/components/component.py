@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from game_anywhere.ui import Html
 from itertools import count
-from typing import Optional, Dict, Type
+from typing import Optional, Type
 from .utils import html as to_html
 
 ComponentId = str
+
 
 # TODO find a better name
 class ComponentOrGame(ABC):
@@ -15,17 +16,21 @@ class ComponentOrGame(ABC):
     """
 
     @abstractmethod
-    def get_game(self) -> 'Game':
-        ...
+    def get_game(self) -> "Game": ...
 
     @abstractmethod
-    def get_slot_address(self) -> str:
-        ...
+    def get_slot_address(self) -> str: ...
 
     def html(self) -> Html:
         result = Html()
-        for attrname, attr in self.__dict__.items(): # TODO: it would be more efficient if games provided a list of their slots themselves
-            if attrname == 'slot': continue
+        for (
+            attrname,
+            attr,
+        ) in (
+            self.__dict__.items()
+        ):  # TODO: it would be more efficient if games provided a list of their slots themselves
+            if attrname == "slot":
+                continue
             # print("Checking attr", attrname, end='...')
             if isinstance(attr, ComponentSlot):
                 #print('A ComponentSlot with html', attr.html())
@@ -34,12 +39,13 @@ class ComponentOrGame(ABC):
                 pass #print('Not a slot')
         return result
 
+
 class Component(ComponentOrGame):
     class NotAttachedToComponentTree(Exception):
         pass
 
     def __init__(self):
-        self.slot : Optional['ComponentSlot'] = None
+        self.slot: Optional["ComponentSlot"] = None
 
     def get_game(self):
         if self.slot is None:
@@ -49,12 +55,18 @@ class Component(ComponentOrGame):
     def get_slot_address(self):
         return self.slot.get_address()
 
+
 ComponentTreeNode = any
+
 
 class ComponentSlot:
     def __init__(
-        self, id : str, parent : ComponentOrGame, content : Optional[ComponentTreeNode] = None,
-        hidden : bool = False, owner_id : Optional[int] = None
+        self,
+        id: str,
+        parent: ComponentOrGame,
+        content: Optional[ComponentTreeNode] = None,
+        hidden: bool = False,
+        owner_id: Optional[int] = None,
     ):
         self.id = id
         self.parent = parent
@@ -65,21 +77,26 @@ class ComponentSlot:
             content.slot = self
 
     def get_address(self):
-        return self.parent.get_slot_address() + '/' + self.id
+        return self.parent.get_slot_address() + "/" + self.id
 
-    def get_game(self) -> 'Game':
+    def get_game(self) -> "Game":
         return self.parent.get_game()
 
     def get(self):
         return self._content
 
-    def set(self, content : any):
+    def set(self, content: any):
         self._content = content
         if isinstance(content, Component):
             content.slot = self
         try:
             game = self.get_game()
-            game.log_component_update(self.get_address(), { 'new_value': content }, hidden=self.hidden, owner_id=self.owner_id)
+            game.log_component_update(
+                self.get_address(),
+                {"new_value": content},
+                hidden=self.hidden,
+                owner_id=self.owner_id,
+            )
         except Component.NotAttachedToComponentTree:
             # No need to update the clients then
             pass
@@ -89,7 +106,7 @@ class ComponentSlot:
         return self.get()
 
     @content.setter
-    def content(self, content : ComponentTreeNode):
+    def content(self, content: ComponentTreeNode):
         self.set(content)
 
     def empty(self) -> bool:
@@ -98,31 +115,39 @@ class ComponentSlot:
     def html(self) -> Html:
         html = to_html(self._content)
         html = Html(html).wrap_to_one_element()
-        html.attrs['id'] = self.get_address()
+        html.attrs["id"] = self.get_address()
         return html
+
 
 class ComponentSlotProperty:
     _next_id = count()
-    components : Dict[ComponentId, 'Component'] = {}
+    components: dict[ComponentId, "Component"] = {}
 
-    def __init__(self, id : Optional[ComponentId] = None):
+    def __init__(self, id: Optional[ComponentId] = None):
         if id is None:
-            while (id := hex(next(ComponentSlotProperty._next_id))[2:]) in ComponentSlotProperty.components:
+            while (
+                id := hex(next(ComponentSlotProperty._next_id))[2:]
+            ) in ComponentSlotProperty.components:
                 pass
         else:
             assert id not in ComponentSlotProperty.components
         self.id = id
         ComponentSlotProperty.components[id] = self
 
-    def __set_name__(self, owner : Type[ComponentOrGame], name):
-        self.private_name = '_' + name
 
-    def __get__(self, obj : ComponentOrGame, objtype=None):
+    def __set_name__(self, owner: Type[ComponentOrGame], name):
+        self.private_name = "_" + name
+
+    def __get__(self, obj: ComponentOrGame, objtype=None):
         return getattr(obj, self.private_name).get()
 
-    def __set__(self, obj : ComponentOrGame, value : any):
+    def __set__(self, obj: ComponentOrGame, value: any):
         if not hasattr(obj, self.private_name):
-            setattr(obj, self.private_name, ComponentSlot(self.id, obj, value))
+            setattr(
+                obj,
+                self.private_name,
+                ComponentSlot(self.id, obj, value),
+            )
         else:
             getattr(obj, self.private_name).set(value)
         if isinstance(value, Component):
@@ -139,17 +164,21 @@ ComponentSlot(component=List(
     ...
 ))
 """
+
+
 class PerPlayer(ComponentSlotProperty):
-    class INIT: pass # Sentinel value
+    class INIT:
+        pass  # Sentinel value
 
     def __init__(self, id : Optional[ComponentId] = None, **kwargs):
         super().__init__(id)
         self.ComponentClass = type.__new__(type, 'PerPlayerComponent(' + ','.join(kwargs.keys()) + ')', (Component,), kwargs)
 
-    def __set__(self, obj : 'Game', value : any):
+    def __set__(self, obj: "Game", value: any):
         if value is PerPlayer.INIT:
             from .list import List
-            per_player = [ self.ComponentClass() for _ in obj.agents ]
+
+            per_player = [self.ComponentClass() for _ in obj.agents]
             for_all_players = List(per_player)
             slot = ComponentSlot(self.id, obj, for_all_players)
             setattr(obj, self.private_name, slot)
