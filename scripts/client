@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+
+TMPDIR=$1
+CLIENT_ID=$2
+
+cat $TMPDIR/$CLIENT_ID.out | sed 's/^/[server]: /g' &
+cat > $TMPDIR/$CLIENT_ID.in

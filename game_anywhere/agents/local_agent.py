@@ -1,36 +1,43 @@
 from game_anywhere.core import Agent
 from .descriptors import AgentDescriptor
-from typing import Optional, TypeVar, Any, Union
+from typing import Optional, TypeVar, Any, TextIO
 from itertools import chain
+import json
+from tempfile import TemporaryDirectory
+import os
+from abc import abstractmethod
+
 
 T = TypeVar("T")
 
 
-class HumanAgent(Agent):
-    class Descriptor(AgentDescriptor):
-        def start_initialization(self, id: "AgentId", context):
-            pass
+class TextAgent(Agent):
+    """
+    An agent that writes to, and reads from, a text terminal.
+    Mostly for debugging purposes.
+    """
 
-        def await_initialization(self, promise) -> "HumanAgent":
-            return HumanAgent()
+    @abstractmethod
+    def _write(*objects, sep=' ', end='\n'): ...
+
+    @abstractmethod
+    def _read(self, message: str | None = None) -> str: ...
 
     def message(self, message):
-        print(message)
+        self._write(message)
 
-    @staticmethod
-    def get_value(constructor, message=None):
+    def _get_value(self, constructor, message=None):
         if message is None:
             message = f"Enter a value of type {constructor}"
         while True:
-            raw_result: str = input(message + ":")
+            raw_result: str = self._read(message + ":")
             try:
                 return constructor(raw_result)
             except ValueError as err:
-                print(err)
-                print("Please try again.")
+                self._write(err)
+                self._write("Please try again.")
 
-    @staticmethod
-    def get_integer(min=None, max=None, message=None):
+    def _get_integer(self, min=None, max=None, message=None):
         def _suitable_int(st):
             i = int(st)
             if i < min or max < i:
@@ -39,16 +46,17 @@ class HumanAgent(Agent):
 
         if message is None:
             message = f"Enter a value between {min} and {max}"
-        return HumanAgent.get_value(_suitable_int, message)
+        return self._get_value(_suitable_int, message)
 
     # override
     def int_choice(self, min: Optional[int] = 0, max: Optional[int] = None) -> int:
-        return self.get_integer(min, max)
+        return self._get_integer(min, max)
+
 
     # override
     def get_2D_choice(self, dimensions):
         return tuple(
-            self.get_integer(
+            self._get_integer(
                 min=0,
                 max=dim - 1,
                 message=f"[dim {i}/{len(dimensions)}] Enter a value between {0} and {dim-1}",
@@ -58,7 +66,7 @@ class HumanAgent(Agent):
 
     def choose_one(self, descriptions: list[Any], indices: list[T]) -> T:
         for i, description in enumerate(descriptions):
-            print(f"[{i+1}]", description)
+            self._write(f"[{i+1}]", description)
         i = self.int_choice(min=1, max=len(descriptions)) - 1
         return indices[i]
 
@@ -70,8 +78,8 @@ class HumanAgent(Agent):
         special_options=[],
     ):
         for i, option in enumerate(chain(slots, special_options)):
-            print(f"[{i+1}]", option)
-        i = self.get_integer(min=1, max=len(slots) + len(special_options)) - 1
+            self._write(f"[{i+1}]", option)
+        i = self._get_integer(min=1, max=len(slots) + len(special_options)) - 1
         if i < len(indices):
             return indices[i]
         else:
@@ -83,6 +91,77 @@ class HumanAgent(Agent):
 
     # override
     def update(self, diff: list[Any]):
-        print("Some things were updated:")
+        self._write("Some things were updated:")
         for di in diff:
-            print(di)
+            self._write(di)
+
+
+class HumanAgent(TextAgent):
+    class Descriptor(AgentDescriptor):
+        def start_initialization(self, id: "AgentId", context):
+            pass
+
+        def await_initialization(self, promise) -> "HumanAgent":
+            return HumanAgent()
+
+    def _write(*objects, **kwargs):
+        print(*objects, **kwargs)
+
+    def _read(self, message: str | None = None) -> str:
+        if message is not None:
+            return input(message)
+        else:
+            return input()
+
+
+class PipeAgent(TextAgent):
+    class Disconnected(Exception):
+        pass
+
+    class Descriptor(AgentDescriptor):
+        def start_initialization(
+            self, id: "AgentId", context
+        ) -> tuple[str, str, "Context"]:
+            if "tmp_dir" not in context:
+                tmpdir = TemporaryDirectory()
+                context["tmp_dir"] = tmpdir
+                context["exit_stack"].push(tmpdir)
+                print("Pipes are in", tmpdir.name)
+
+            def open_pipe(name) -> str:
+                tmp_file = os.path.join(context["tmp_dir"].name, name)
+                os.mkfifo(tmp_file)
+                context["exit_stack"].push(
+                    lambda: os.unlink(tmp_file)
+                )  # delete file on exit
+                return tmp_file
+
+            infile = open_pipe(str(id) + ".in")
+            outfile = open_pipe(str(id) + ".out")
+            return infile, outfile, context
+
+        def await_initialization(
+            self, promise: tuple[str, str, "Context"]
+        ) -> "TextAgent":
+            infile, outfile, context = promise
+            outfile = open(outfile, "a")
+            infile = open(infile, "r")
+            # ! The client must first read from the .out pipe and then open the .in pipe for writing!
+            context["exit_stack"].push(outfile)  # close file on exit
+            context["exit_stack"].push(infile)
+            return PipeAgent(infile, outfile)
+
+    def __init__(self, infile: TextIO, outfile: TextIO):
+        self.infile = infile
+        self.outfile = outfile
+
+    def _write(self, *objects, **kwargs):
+        print(*objects, **kwargs, file=self.outfile, flush=True)
+
+    def _read(self, message: str | None = None) -> str:
+        if message is not None:
+            self._write(message)
+        read = self.infile.readline()
+        if read == "":
+            raise self.Disconnected()
+        return read

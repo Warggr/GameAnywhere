@@ -1,7 +1,7 @@
 from typing import Any
 from .descriptors import AgentDescriptor, GameDescriptor
 
-from .local_agent import HumanAgent
+from .local_agent import HumanAgent, PipeAgent
 from .network_agent import NetworkAgent
 
 json = Any
@@ -11,6 +11,7 @@ def parse_agent_descriptions(args: list[str]) -> list[AgentDescriptor]:
     agent_types = {
         "network": NetworkAgent,
         "human": HumanAgent,
+        "pipe": PipeAgent,
     }
     return [agent_types[arg].Descriptor() for arg in args]
 
