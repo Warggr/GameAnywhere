@@ -31,6 +31,12 @@ class Game(
             None for _ in range(len(agent_descriptions))
         ]
 
+    @classmethod
+    def parse_config(cls, config: str) -> dict[str, Any]:
+        breakpoint()
+        """ Override this to accept configuration options """
+        raise NotImplementedError(f'{cls.__name__} does not accept configuration options')
+
     # override
     def get_game(self):
         return self
