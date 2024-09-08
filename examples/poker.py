@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from game_anywhere import run_game
+from game_anywhere.run_game import run_game
 from game_anywhere.core import Game, GameSummary
 from game_anywhere.components import Component, ComponentSlotProperty, PerPlayer, List
 from game_anywhere.components.traditional.cards import Deck, PokerCard, fiftytwo_cards
@@ -285,6 +285,6 @@ class PokerHand:
 
 
 if __name__ == "__main__":
-    from game_anywhere import run_game
+    from game_anywhere.run_game import run_game
 
     run_game(Poker)

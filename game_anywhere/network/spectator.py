@@ -3,7 +3,7 @@ import asyncio
 from aiohttp import web
 from enum import Enum, unique
 from game_anywhere.core.agent import AgentId
-from typing import Optional, Any, Awaitable
+from typing import Optional, Any, Awaitable, Callable
 from threading import Condition, Lock
 
 """
@@ -46,6 +46,10 @@ class Spectator:
 
         self.run_handle: Optional[asyncio.Task] = None
         self.ws: Optional[aiohttp.web.WebSocketResponse] = None
+
+        # Called on each message received. If it returns True, the message is ignored
+        # It's an ugly special case to make chatting work.
+        self.message_interceptor: Optional[Callable[[str], bool]] = None
 
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
@@ -104,6 +108,9 @@ class Spectator:
         async for msg in self.ws:
             if msg.type == aiohttp.WSMsgType.TEXT:
                 print(self, "Read message:", msg.data)
+
+                if self.message_interceptor is not None and self.message_interceptor(msg.data):
+                    continue
 
                 # Add to queue
                 with self.protect_reading_queue:
@@ -180,6 +187,16 @@ class Spectator:
         print("(main) Got message", retVal)
         return retVal
 
+    class Chat:
+        def __init__(self, parent: "Spectator", on_message: Callable[[str], bool]):
+            self.parent = parent
+            self.on_message = on_message
+        def __enter__(self):
+            assert self.parent.message_interceptor is None
+            self.parent.message_interceptor = self.on_message
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            assert self.parent.message_interceptor is self.on_message
+            self.parent.message_interceptor = None
 
 """
 A Session is like a Spectator, but can reconnect if the connection was lost.

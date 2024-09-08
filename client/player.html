@@ -23,7 +23,10 @@
 		<button type="submit">Join room</button>
 	</form>
 </div>
-<div id="screen" style="background-color: black; color: white; min-height: 80vh; min-width: 50vw;"></div>
+<div id="screen" style="background-color: black; color: white; min-height: 80vh; min-width: 50vw; display: inline"></div>
+<div id="logPanel" style="display: inline; background-color: gray;">
+	<form id="chatInput" onsubmit="sendChatLine(this); return false;" hidden><input type="text"/><button type="submit">Send</button></form>
+</div>
 <div id="controlPanel" hidden></div>
 </body>
 <script>
@@ -85,6 +88,16 @@
 				}
 				else console.warn("Unrecognized server message: unrecognized choice type:", data);
 			}
+			else if(data.type === "chatcontrol"){
+				if(data.set === "on") {
+					chatInput.hidden = false;
+				} else {
+					chatInput.hidden = true;
+				}
+			}
+			else if(data.type === "message"){
+				addLogLine(`<b>${data.sender}: </b>${data.text}`);
+			}
 			else if(Array.isArray(data)){
 				const tmp = document.createElement('div');
 				for(let diff of data){
@@ -106,5 +119,16 @@
 	const playerId = urlParams.get('seat'); document.getElementById('playerId').value = playerId || '';
 	const serverUrl = urlParams.get('serverUrl') || window.location.host;
 	if(roomId) connectToServer(serverUrl);
+
+	function sendChatLine(form) {
+		let line = form.firstChild.value;
+		socket.send('/' + line);
+		addLogLine('<b>You: </b>' + line)
+	}
+	function addLogLine(line){
+		let newLine = document.createElement('span');
+		newLine.innerHTML = line;
+		logPanel.appendChild(newLine);
+	}
 </script>
 </html>

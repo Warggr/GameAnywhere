@@ -309,6 +309,6 @@ class Chess(TurnBasedGame):
 
 
 if __name__ == "__main__":
-    from game_anywhere import run_game
+    from game_anywhere.run_game import run_game
 
     run_game(Chess)

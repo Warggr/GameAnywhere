@@ -21,7 +21,7 @@ class Chat:
             async for message in messages:
                 for player in self.players:
                     if player is not sender:
-                        player.message(sender.name + '/: ' + message)
+                        player.message(message, sender=sender.name)
         except CancelledError:
             messages.close()
 

@@ -1,9 +1,12 @@
 from game_anywhere.core import Agent
 from game_anywhere.components.utils import html
+from game_anywhere.core.agent import ChatStream
+
 from .descriptors import AgentDescriptor, Context
 from ..network import Server, ServerRoom
-from ..network.spectator import Session
+from ..network.spectator import Session, Spectator
 from typing import Any, TypeVar, Callable, Optional
+import asyncio
 
 T = TypeVar("T")
 
@@ -32,11 +35,12 @@ class NetworkAgent(Agent):
             return NetworkAgent(session)
 
     def __init__(self, session: Session):
+        super().__init__("Network agent")
         self.session = session
 
     # override
-    def message(self, message) -> None:
-        self.session.send_sync(message)
+    def message(self, message, **kwargs) -> None:
+        self.session.send_sync({"type": "message", "text": message, **kwargs})
 
     # override
     def update(self, diffs: list[Any]):
@@ -143,3 +147,31 @@ class NetworkAgent(Agent):
                 self.session.send_sync({"type": "error", "message": err.message})
                 continue  # goto beginning_of_while_loop
             return answer
+
+    def chat_stream(self, event_loop: asyncio.AbstractEventLoop) -> ChatStream:
+        return NetworkChatStream(event_loop, self.session)
+
+
+class NetworkChatStream(ChatStream):
+    def __init__(self, loop: asyncio.AbstractEventLoop, spectator: Spectator):
+        self.queue = asyncio.Queue()
+        self.loop = loop
+        self.session = spectator
+        self.impl = Spectator.Chat(spectator, on_message=self.on_message)
+        self.impl.__enter__()
+        self.session.send_sync({"type": "chatcontrol", "set": "on", "message": "Start chatting..."})
+
+    # Called on the network thread
+    def on_message(self, message: str) -> bool:
+        if message.startswith('/'):
+            self.loop.call_soon_threadsafe(lambda: self.queue.put_nowait(message[1:]))
+            return True
+        else:
+            return False
+
+    def close(self):
+        self.impl.__exit__(None, None, None)
+        self.session.send_sync({"type": "chatcontrol", "set": "off"})
+
+    async def __anext__(self) -> str:
+        return await self.queue.get()

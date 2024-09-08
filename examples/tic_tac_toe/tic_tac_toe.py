@@ -5,7 +5,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from typing import Union
 
-from game_anywhere import run_game
+from game_anywhere.run_game import run_game
 from game_anywhere.core.game import AgentId
 from game_anywhere.ui import HtmlElement, div
 from game_anywhere.core import TurnBasedGame, SimpleGameSummary
@@ -80,6 +80,6 @@ class TicTacToe(TurnBasedGame):
 
 
 if __name__ == "__main__":
-    from game_anywhere import run_game
+    from game_anywhere.run_game import run_game
 
     run_game(TicTacToe)
