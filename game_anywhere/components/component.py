@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from game_anywhere.ui import Html
 from itertools import count
-from typing import Optional, Type
-from .utils import html as to_html
+from typing import Optional, Type, Any
+from .utils import html as to_html, mask
 
 ComponentId = str
 
@@ -21,7 +21,7 @@ class ComponentOrGame(ABC):
     @abstractmethod
     def get_slot_address(self) -> str: ...
 
-    def html(self) -> Html:
+    def html(self, viewer_id=None) -> Html:
         result = Html()
         for (
             attrname,
@@ -34,7 +34,7 @@ class ComponentOrGame(ABC):
             # print("Checking attr", attrname, end='...')
             if isinstance(attr, ComponentSlot):
                 #print('A ComponentSlot with html', attr.html())
-                result += attr.html()
+                result += attr.html(viewer_id=viewer_id)
             else:
                 pass #print('Not a slot')
         return result
@@ -55,6 +55,8 @@ class Component(ComponentOrGame):
     def get_slot_address(self):
         return self.slot.get_address()
 
+    def reveal(self, *args, **kwargs):
+        self.slot.reveal(*args, **kwargs)
 
 ComponentTreeNode = any
 
@@ -101,6 +103,16 @@ class ComponentSlot:
             # No need to update the clients then
             pass
 
+    def reveal(self, to: int|None = None):
+        try:
+            game = self.get_game()
+        except Component.NotAttachedToComponentTree:
+            return
+        if to is not None:
+            game.log_component_update(self.get_address(), {"new_value": self._content}, hidden=True, owner_id=to)
+        else:
+            game.log_component_update(self.get_address(), {"new_value": self._content}, hidden=False)
+
     @property
     def content(self):
         return self.get()
@@ -112,8 +124,11 @@ class ComponentSlot:
     def empty(self) -> bool:
         return self._content is None
 
-    def html(self) -> Html:
-        html = to_html(self._content)
+    def html(self, viewer_id=None) -> Html:
+        if self.hidden and viewer_id != self.owner_id:
+            html = mask(self._content)
+        else:
+            html = to_html(self._content, viewer_id=viewer_id)
         html = Html(html).wrap_to_one_element()
         html.attrs["id"] = self.get_address()
         return html
@@ -153,20 +168,42 @@ class ComponentSlotProperty:
         if isinstance(value, Component):
             assert value.slot == getattr(obj, self.private_name)
 
-"""
-PerPlayer(
-    **kwargs
-)
-is a shorthand for
-ComponentSlot(component=List(
-    Component( **kwargs ),
-    Component( **kwargs ),
-    ...
-))
-"""
+
+class PerPlayerComponent(Component):
+    """
+    PerPlayer(
+        **kwargs
+    )
+    is a shorthand for
+    ComponentSlot(component=List(
+        Component( **kwargs ),
+        Component( **kwargs ),
+        ...
+    ))
+    """
+
+    def __init__(self, owner: "Agent", owner_id: "AgentId", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.owner = owner
+        self.owner_id = owner_id
+    def __str__(self):
+        return f'Board of player {self.owner.name}'
+    def html(self, viewer_id=None) -> Html:
+        print(f'return HTML with {viewer_id=}')
+        html = super().html(viewer_id)
+        owner = self.owner.name
+        if self.owner_id == viewer_id:
+            owner += ' (you)'
+        return tag.h2(owner) + html
 
 
 class PerPlayer(ComponentSlotProperty):
+    """
+    Usage: use this as an attribute of the class
+    then before you use this, you need to write once
+    ` game.attr = PerPlayer.INIT `. Then you can do e.g. game.attr[0] = ...
+    """
+
     class INIT:
         pass  # Sentinel value
 
@@ -178,8 +215,10 @@ class PerPlayer(ComponentSlotProperty):
         if value is PerPlayer.INIT:
             from .list import List
 
-            per_player = [self.ComponentClass() for _ in obj.agents]
+            per_player = [self.componentClass(owner=agent, owner_id=i) for i, agent in enumerate(obj.agents)]
             for_all_players = List(per_player)
+            for agent_id, slot in enumerate(for_all_players.slots):
+                slot.owner_id = agent_id
             slot = ComponentSlot(self.id, obj, for_all_players)
             setattr(obj, self.private_name, slot)
         else:

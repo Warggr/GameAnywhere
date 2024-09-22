@@ -160,7 +160,7 @@
 		const teamNr = document.getElementById('playerId').value || 'watch';
 		const roomNr = document.getElementById('roomId').value;
 
-		fetch('http://' + serverAddress + '/r/' + roomNr + '/html').then(async content => {document.getElementById('screen').innerHTML = await content.text();});
+		fetch('http://' + serverAddress + '/r/' + roomNr + '/html?seat=' + teamNr).then(async content => {document.getElementById('screen').innerHTML = await content.text();});
 
 		connectionStatusDom.textContent = 'Connecting...';
 		if(window.WebSocket === undefined) {

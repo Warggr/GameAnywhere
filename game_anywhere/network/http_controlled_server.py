@@ -27,6 +27,7 @@ class HttpControlledServer(Server):
                 web.get("/room/list", self.http_get_rooms),
                 web.get("/room/list/watch", self.http_watch_rooms),
                 web.options("/room", self.http_options_create_room),
+                web.post("/login", self.http_login),
             ]
         )
         self.event_queues: list[Queue] = []
@@ -72,6 +73,11 @@ class HttpControlledServer(Server):
         return web.json_response(
             {"enum": list(self.available_games.keys())}, headers={"Allow": "POST"}
         )
+
+    async def http_login(self, request: web.Request) -> web.Response:
+        login_data = await request.json()
+        username = login_data['username']
+        return web.Response(status=http.HTTPStatus.NO_CONTENT, headers={'Set-Cookie': f'username={username}'})
 
     def log_event(self, data):
         for queue in self.event_queues:

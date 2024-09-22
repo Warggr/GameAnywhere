@@ -19,6 +19,15 @@
         </button>
 
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <form id="login-form" class="form-inline my-2 my-lg-0" action="javascript:login()">
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" class="form-control mr-sm-2"/>
+                <button type="submit" class="btn btn-outline-success my-2 my-sm-0">Login</button>
+            </form>
+            <form id="logout-form" class="form-inline my-2 my-lg-0" action="javascript:logout()" hidden>
+                <p>Logged in as <span id="display-username"></span></p>
+                <button type="submit">Log out</button>
+            </form>
         </div>
     </nav>
     <div class="indexMainDiv">
@@ -44,6 +53,28 @@
         </form>
     </div>
     <script>
+        function toggleLogin(username) {
+            document.getElementById('login-form').hidden = (username !== undefined);
+            document.getElementById('logout-form').hidden = (username === undefined);
+            if(username !== undefined){
+                document.getElementById('display-username').textContent = username;
+            }
+        }
+        function login() {
+            let username_form = document.getElementById('username').value;
+            fetch('/login', { method: 'POST', body: JSON.stringify({"username": username_form})}).then((_response) => {
+                toggleLogin(username_form);
+            })
+        }
+        function logout() {
+            document.cookie = "username=; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure";
+            toggleLogin(undefined);
+        }
+        const username = document.cookie.split("; ")
+            .find((row) => row.startsWith("username"))?.split("=")[1];
+        if(username != null) {
+            toggleLogin(username);
+        }
         function createNewRoom(){
             const gameType = document.getElementById('gameType').value;
             fetch('/room', { method: 'POST', body: JSON.stringify({"game": gameType }) }).then(loadRooms);

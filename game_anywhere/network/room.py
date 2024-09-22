@@ -7,6 +7,7 @@ import asyncio
 from .async_resource import AsyncResource
 
 SeatId = int
+Username = str
 
 
 class ServerRoom(AsyncResource):
@@ -20,6 +21,7 @@ class ServerRoom(AsyncResource):
         )
         self.spectators: list[Spectator] = []
         self.sessions: dict[SeatId, Session] = {}
+        self.session_id_to_username: dict[SeatId, Username] = {}
 
     def __del__(self):
         # as part of their closing, all sessions should have set themselves to FREE and all spectators should have deleted themselves
@@ -96,6 +98,15 @@ class ServerRoom(AsyncResource):
             session = self.sessions[session_id]
         except (KeyError, ValueError):
             raise web.HTTPNotFound(text="No such session expected")
+
+        if session_id in self.session_id_to_username:
+            if request.cookies.get('username', None) != self.session_id_to_username[session_id]:
+                raise web.HTTPForbidden(text="Session already taken")
+        else:
+            try:
+                self.session_id_to_username[session_id] = request.cookies['username']
+            except KeyError:
+                pass
 
         # this is done on the network thread, which is single-threaded.
         # There can be no race condition between reading session.state and claiming the session

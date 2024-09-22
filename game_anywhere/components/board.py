@@ -72,7 +72,7 @@ class CheckerBoard(Board, Generic[T]):
     def get_dimensions(cls) -> tuple[int, int]:
         return cls.height, cls.width
 
-    def html(self) -> Html:
+    def html(self, viewer_id=None) -> Html:
         return Html(
             div(
                 *(field.html() for _, field in self.all_fields()),

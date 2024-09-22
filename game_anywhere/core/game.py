@@ -2,6 +2,8 @@ from typing import Optional, Any
 from abc import ABC, abstractmethod
 from .agent import Agent, AgentId
 from ..components.component import ComponentOrGame
+from ..components.utils import mask
+
 
 class GameSummary(ABC):
     NO_WINNER = 0
@@ -52,11 +54,17 @@ class Game(
         hidden: bool = False,
         owner_id: Optional[int] = None,
     ):
+        update = {"id": address, **data}
+        if hidden:
+            masked_update = {"id": address, **data, "hidden": True}
+            for key in ["new_value", "append"]:
+                if key in data:
+                    masked_update[key] = mask(masked_update[key])
         for agent_id, agent in enumerate(self.agents):
             if hidden and owner_id != agent_id:
-                agent.update([{ 'id': address, 'hidden': True }])
+                agent.update([masked_update])
             if not hidden or owner_id == agent_id:
-                agent.update([{ 'id': address, **data }])
+                agent.update([update])
 
     @abstractmethod
     def play_game(self) -> GameSummary: ...

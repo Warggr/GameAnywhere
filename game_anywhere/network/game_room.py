@@ -53,4 +53,14 @@ class GameRoom(ServerRoom):
         return router
 
     async def http_get_html_view(self, request: web.Request) -> web.Response:
-        return web.Response(body=str(self.game.html()), content_type='text/html')
+        username = request.cookies['username']
+        session_id = request.query['seat']
+        if session_id == 'watch':
+            viewer_id = None
+        else:
+            session_id = int(session_id)
+            if session_id in self.session_id_to_username and self.session_id_to_username[session_id] != username:
+                raise web.HTTPForbidden(text="Session not owned by authenticated user")
+            viewer_id = session_id
+        html = self.game.html(viewer_id=viewer_id)
+        return web.Response(body=str(html), content_type="text/html")

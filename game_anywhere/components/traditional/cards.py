@@ -97,7 +97,7 @@ class Deck(Generic[T], Component):
     def draw(self) -> T:
         return self.cards.pop()
 
-    def html(self) -> Html:
+    def html(self, viewer_id=None) -> Html:
         return div("Deck with", len(self.cards), "cards")
 
 

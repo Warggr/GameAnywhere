@@ -1,16 +1,17 @@
 from typing import TypeVar, Generic, Optional, Iterable
 from abc import ABC
 from .component import Component, ComponentSlot
-from game_anywhere.ui import Html, div, style
+from .utils import mask, html
 
 T = TypeVar("T", bound=Component)
 
 
 class List(Component, Generic[T]):
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         components = list(*args)
+        self.kwargs = kwargs
         slots = [
-            ComponentSlot(id=str(i), content=component, parent=self)
+            ComponentSlot(id=str(i), content=component, parent=self, **self.kwargs)
             for i, component in enumerate(components)
         ]
         self.slots = slots
@@ -18,15 +19,19 @@ class List(Component, Generic[T]):
 
     # Component interface methods
 
-    def html(self) -> Html:
-        return Html(
-            *(field.html() for field in self.slots)
-        )
+    def html(self, viewer_id=None) -> Html:
+        hidden = self.kwargs.get("hidden", False)
+        owner_id = self.kwargs.get("owner_id", None)
+        if hidden and viewer_id != owner_id:
+            function = mask
+        else:
+            function = html
+        return Html(*(function(field, viewer_id=viewer_id) for field in self.slots))
 
     # list interface methods - the most basic ones
 
     def append(self, value: Component):
-        slot = ComponentSlot(id=str(len(self.slots)), content=value, parent=self)
+        slot = ComponentSlot(id=str(len(self.slots)), parent=self, **self.kwargs)
         self.slots.append(slot)
         # log update, see ComponentSlot.set()
         try:
@@ -34,6 +39,9 @@ class List(Component, Generic[T]):
             game.log_component_update(self.get_slot_address(), {"append": slot})
         except Component.NotAttachedToComponentTree:
             pass
+        # set slot content separately, so that the slot can decide itself how it wants to log the update event (and take e.g. the hidden flag into account).
+        # TODO: there might be a cleaner way of doing this
+        slot.set(value)
 
     def __getitem__(self, index):
         return self.slots[index].get()
