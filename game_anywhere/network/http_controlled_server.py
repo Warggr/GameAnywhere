@@ -33,7 +33,7 @@ class HttpControlledServer(Server):
         self.event_queues: list[Queue] = []
 
     async def http_create_room(self, request: web.Request) -> web.Response:
-        default_description = {"agents": ["network", "network"]}
+        default_description = {"agents": "network"}
         try:
             game_description = parse_game_descriptor(
                 await request.json(), self.available_games, default_description

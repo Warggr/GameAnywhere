@@ -25,10 +25,13 @@ GameType = TypeVar("GameType", bound="Game")
 
 class GameDescriptor(Generic[GameType]):
     def __init__(
-        self, GameType: Type[GameType], agents_descriptors: list[AgentDescriptor]
+        self, GameType: Type[GameType], agents_descriptors: list[AgentDescriptor]|AgentDescriptor,
+        *game_args, **game_kwargs
     ):
         self.GameType = GameType
         self.agents_descriptors = agents_descriptors
+        self.game_args = game_args
+        self.game_kwargs = game_kwargs
 
     def start_initialization(self, context) -> list[AgentPromise]:
         return [
@@ -48,4 +51,8 @@ class GameDescriptor(Generic[GameType]):
         return agents
 
     def create_game(self) -> GameType:
-        return self.GameType(self.agents_descriptors)
+        game = self.GameType(self.agents_descriptors, *self.game_args, **self.game_kwargs)
+        if type(self.agents_descriptors) is not list:
+            #  sorry for the code duplication with subclasses of Agent
+            self.agents_descriptors = [self.agents_descriptors] * len(game.agents)
+        return game

@@ -10,8 +10,8 @@ agent_types = {
     "pipe": PipeAgent,
 }
 
-def parse_agent_descriptions(args: list[str]) -> list[AgentDescriptor]:
-    return [agent_types[arg].Descriptor() for arg in args]
+def parse_agent_description(descr: str) -> AgentDescriptor:
+    return agent_types[descr].Descriptor()
 
 
 def parse_game_descriptor(
@@ -21,4 +21,12 @@ def parse_game_descriptor(
         **obj, **defaults
     )  # TODO: this is intended to be a recursive dictionary merge
     GameType = available_games[obj["game"]]
-    return GameDescriptor(GameType, parse_agent_descriptions(obj["agents"]))
+    args = {}
+    if obj["args"]:
+        print(obj["args"].split(' '))
+        args = GameType.parse_config(obj["args"].split(' ')) # imitating a command line
+    if type(obj["agents"]) == list:
+        agent_descriptions = [parse_agent_description(agent) for agent in obj["agents"]]
+    else:
+        agent_descriptions = parse_agent_description(obj["agents"])
+    return GameDescriptor(GameType, agent_descriptions, **args)

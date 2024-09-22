@@ -3,7 +3,8 @@ from game_anywhere.components.utils import html
 from game_anywhere.core.agent import ChatStream
 
 from .descriptors import AgentDescriptor, Context
-from ..network import Server, ServerRoom
+from ..network import Server
+from ..network.game_room import BaseGameRoom
 from ..network.spectator import Session, Spectator
 from typing import Any, TypeVar, Callable, Optional
 import asyncio
@@ -16,12 +17,17 @@ class NetworkAgent(Agent):
         def start_initialization(self, agent_id: "AgentId", context: Context):
             if "server_room" not in context:
                 if Server._instance is None:
-                    server = Server()
+                    server = Server(RoomClass=BaseGameRoom)
                     context["server"] = server
                     context["exit_stack"].enter_context(server)
                 else:
                     server = context["server"]
-                _room_id, room = server.new_room()
+                if "game" in context:
+                    _room_id, room = server.new_room(
+                        BaseGameRoom(game=context["game"], server=server)
+                    )
+                else:
+                    _room_id, room = server.new_room()
                 context["server_room"] = room
                 # context['exit_stack'].enter_context(room)
             else:

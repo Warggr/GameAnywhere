@@ -1,4 +1,4 @@
-from game_anywhere.agents import parse_agent_descriptions, agent_types
+from game_anywhere.agents import parse_agent_description, agent_types
 from game_anywhere.agents.descriptors import Context
 from .core.game import Game, GameSummary
 import argparse
@@ -17,19 +17,21 @@ def run_game(GameType: type[Game], *args, **kwargs) -> GameSummary:
             parser.error(str(err))
     else:
         game_config = {}
-    agent_descriptions = parse_agent_descriptions(cmdline_args.agent_types)
-    game = GameType(agent_descriptions, **game_config)
-    context = Context()
 
-    promises = [
-        desc.start_initialization(i, context)
-        for i, desc in enumerate(agent_descriptions)
-    ]
-    agents = [
-        desc.await_initialization(promises[i])
-        for i, desc in enumerate(agent_descriptions)
-    ]
+    agent_descriptions = [parse_agent_description(arg) for arg in cmdline_args.agent_types]
 
-    game.agents = agents
+    with GameType(agent_descriptions, *args, **game_config, **kwargs) as game:
+        context = Context(game=game)
 
-    return game.play_game()
+        promises = [
+            desc.start_initialization(i, context)
+            for i, desc in enumerate(agent_descriptions)
+        ]
+        agents = [
+            desc.await_initialization(promises[i])
+            for i, desc in enumerate(agent_descriptions)
+        ]
+
+        game.set_agents(agents)
+
+        return game.play_game()

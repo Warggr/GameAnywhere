@@ -4,11 +4,45 @@ from threading import Thread
 from aiohttp import web
 import asyncio
 
-class GameRoom(ServerRoom):
-    def __init__(self, game_descriptor : 'GameDescriptor', *args, **kwargs):
+
+class BaseGameRoom(ServerRoom):
+    def __init__(self, game: "Game", *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.game = game
+
+    # override
+    @classmethod
+    def http_interface(cls, *args, **kwargs):
+        router = super().http_interface(*args, **kwargs)
+        router.add_routes(
+            [
+                # see @class Server for an explanation of parameter {roomId}
+                web.get(r"/{roomId:\d+}/html", cls.http_get_html_view),
+            ]
+        )
+        return router
+
+    async def http_get_html_view(self, request: web.Request) -> web.Response:
+        username = request.cookies['username']
+        session_id = request.query['seat']
+        if session_id == 'watch':
+            viewer_id = None
+        else:
+            session_id = int(session_id)
+            if session_id in self.session_id_to_username and self.session_id_to_username[session_id] != username:
+                raise web.HTTPForbidden(text="Session not owned by authenticated user")
+            viewer_id = session_id
+        html = self.game.html(viewer_id=viewer_id)
+        return web.Response(body=str(html), content_type="text/html")
+
+
+class GameRoom(BaseGameRoom):
+    """Provides its own game, which is launched on another thread from a GameDescriptor"""
+
+    def __init__(self, game_descriptor: "GameDescriptor", *args, **kwargs):
         self.first_step = True
         self.game = game_descriptor.create_game()
+        super().__init__(*args, game=self.game, **kwargs)
         agent_promises: list["AgentPromise"] = game_descriptor.start_initialization(
             Context(server_room=self)
         )
@@ -21,7 +55,7 @@ class GameRoom(ServerRoom):
         self, game_descriptor: "GameDescriptor", agent_promises: list["AgentPromise"]
     ):
         print("Starting game thread, waiting for agents…")
-        self.game.agents = game_descriptor.await_initialization(agent_promises)
+        self.game.set_agents(game_descriptor.await_initialization(agent_promises))
         print("…Agents connected")
         self.game.play_game()
         print("Game ended, interrupting agents")
@@ -41,26 +75,3 @@ class GameRoom(ServerRoom):
             print("Game thread ended")
         except Exception:
             print("Game thread ended with an exception")
-
-    # override
-    @classmethod
-    def http_interface(cls, *args, **kwargs):
-        router = super().http_interface(*args, **kwargs)
-        router.add_routes([
-            # see @class Server for an explanation of parameter {roomId}
-            web.get(r'/{roomId:\d+}/html', cls.http_get_html_view),
-        ])
-        return router
-
-    async def http_get_html_view(self, request: web.Request) -> web.Response:
-        username = request.cookies['username']
-        session_id = request.query['seat']
-        if session_id == 'watch':
-            viewer_id = None
-        else:
-            session_id = int(session_id)
-            if session_id in self.session_id_to_username and self.session_id_to_username[session_id] != username:
-                raise web.HTTPForbidden(text="Session not owned by authenticated user")
-            viewer_id = session_id
-        html = self.game.html(viewer_id=viewer_id)
-        return web.Response(body=str(html), content_type="text/html")
