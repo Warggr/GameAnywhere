@@ -1,34 +1,155 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<script>'use strict';</script>
-    <title>Play | GameAnywhere</title>
-    <link rel="stylesheet" href="css/main_index.css">
-    <script src="wizard/wizard.js"></script>
-    <link rel="stylesheet" href="wizard/wizard-robe.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Play | GameAnywhere</title>
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    h2 {
+      color: #333;
+    }
+
+    .container {
+      display: flex;
+      justify-content: space-around;
+      padding: 20px;
+    }
+
+    .status-bar {
+      background-color: #333;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      max-width: 300px;
+    }
+
+    form label {
+      margin: 10px 0 5px;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #screen {
+      background-color: black;
+      color: white;
+      min-height: 80vh;
+      min-width: 50vw;
+      padding: 10px;
+      margin-right: 10px;
+    }
+
+    #logPanel {
+      background-color: #f8f9fa;
+      padding: 10px;
+      max-width: 300px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #chatInput input[type="text"] {
+      width: 200px;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    #chatInput button {
+      padding: 8px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    #chatInput button:hover {
+      background-color: #218838;
+    }
+
+    .log-message {
+      display: block;
+      margin-top: 5px;
+    }
+
+    .clickable {
+      cursor: pointer;
+      background-color: greenyellow !important;
+      padding: 5px;
+      border-radius: 4px;
+    }
+  </style>
 </head>
+
 <body>
-<div>
-	<span>Status:</span><span id="connection-status">Not connected</span>
-	<form onsubmit="connectToServer(document.getElementById('serverUrl').value); return false;">
-		<h2>Server connection</h2>
-		<label for="serverUrl">Server address</label>
-		<input type="text" id="serverUrl"/>
-		<label for="playerId">Seat number</label>
-		<input type="text" value="0" id="playerId"/>
-		<label for="roomId">Room ID</label>
-		<input type="text" id="roomId"/>
-		<button type="submit">Join room</button>
-	</form>
-</div>
-<div id="screen" style="background-color: black; color: white; min-height: 80vh; min-width: 50vw; display: inline"></div>
-<div id="logPanel" style="display: inline; background-color: gray;">
-	<form id="chatInput" onsubmit="sendChatLine(this); return false;" hidden><input type="text"/><button type="submit">Send</button></form>
-</div>
-<div id="controlPanel" hidden></div>
-</body>
+  <div class="status-bar">
+    <span>Status: </span><span id="connection-status">Connected</span>
+  </div>
+
+  <div class="container">
+    <!-- Server Connection Form -->
+    <form onsubmit="connectToServer(document.getElementById('serverUrl').value); return false;">
+      <h2>Server Connection</h2>
+      <label for="serverUrl">Server address</label>
+      <input type="text" id="serverUrl" placeholder="Enter server address">
+      <label for="playerId">Seat number</label>
+      <input type="text" id="playerId" value="0">
+      <label for="roomId">Room ID</label>
+      <input type="text" id="roomId" placeholder="Enter room ID">
+      <button type="submit">Join room</button>
+    </form>
+
+    <!-- Screen Panel -->
+    <div id="screen">Game screen content goes here...</div>
+
+    <!-- Chat Log and Input -->
+    <div id="logPanel">
+      <form id="chatInput" onsubmit="sendChatLine(this); return false;">
+        <input type="text" placeholder="Type a message...">
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="controlPanel" hidden></div>
 <script>
 	function getServerUrl(){ return document.getElementById('serverUrl').value; }
 	var socket = undefined;
@@ -131,4 +252,5 @@
 		logPanel.appendChild(newLine);
 	}
 </script>
+</body>
 </html>
