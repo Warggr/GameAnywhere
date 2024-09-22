@@ -22,9 +22,11 @@ class Agent(ABC):
     class Surrendered(Exception):
         pass
 
-    @abstractmethod
-    def message(self, message: str) -> None: ...
+    def __init__(self, name: str):
+        self.name = name
 
+    @abstractmethod
+    def message(self, message: str, **kwargs) -> None: ...
 
     @abstractmethod
     def update(self, diff: list[Any]): ...

@@ -139,7 +139,7 @@ class NetworkAgent(Agent):
 
 
     def question_with_validation(
-        self, question: Any, validation: Callable[str, T]
+        self, question: Any, validation: Callable[[str], T]
     ) -> T:
         while True:
             print("(network agent) sending question")

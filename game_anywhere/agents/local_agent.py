@@ -24,7 +24,12 @@ class TextAgent(Agent):
     @abstractmethod
     def _read(self, message: str | None = None) -> str: ...
 
-    def message(self, message):
+    def message(self, message, **kwargs):
+        for k, v in kwargs.items():
+            if k == 'sender':
+                message = f'*{v}*: {message}'
+            else:
+                message = f'[{k}={v}] {message}'
         self._write(message)
 
     def _get_value(self, constructor, message=None):
@@ -78,6 +83,8 @@ class TextAgent(Agent):
         indices: Optional[list[T]] = None,
         special_options=[],
     ):
+        if indices is None:
+            indices = slots
         for i, option in enumerate(chain(slots, special_options)):
             self._write(f"[{i+1}]", option)
         i = self._get_integer(min=1, max=len(slots) + len(special_options)) - 1
@@ -182,10 +189,12 @@ class PipeAgent(TextAgent):
             # ! The client must first read from the .out pipe and then open the .in pipe for writing!
             context["exit_stack"].push(outfile)  # close file on exit
             context["exit_stack"].push(infile)
-            return PipeAgent(infile, outfile)
+            print('Enter your name:', file=outfile, flush=True)
+            name = infile.readline().strip()
+            return PipeAgent(infile, outfile, name)
 
-    def __init__(self, infile: TextIO, outfile: TextIO):
-        super().__init__('Pipe user')
+    def __init__(self, infile: TextIO, outfile: TextIO, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.infile = infile
         self.outfile = outfile
 

@@ -27,12 +27,8 @@ class ComponentOrGame(ABC):
         for attrname, attr in self.__dict__.items():
             if attrname == "slot":
                 continue
-            # print("Checking attr", attrname, end='...')
             if isinstance(attr, ComponentSlot):
-                #print('A ComponentSlot with html', attr.html())
                 result += attr.html(viewer_id=viewer_id)
-            else:
-                pass #print('Not a slot')
         return result
 
 
@@ -129,10 +125,13 @@ class ComponentSlot:
         html.attrs["id"] = self.get_address()
         return html
 
+    def __str__(self):
+        return 'slot[' + (str(self._content) if self._content is not None else '(empty)') + ']'
+
 
 class ComponentSlotProperty:
     _next_id = count()
-    components: dict[ComponentId, "Component"] = {}
+    components: dict[ComponentId, Component] = {}
 
     def __init__(self, id: Optional[ComponentId] = None):
         if id is None:

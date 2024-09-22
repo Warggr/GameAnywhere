@@ -55,6 +55,10 @@ class Game(ComponentOrGame):
     def get_slot_address(self):
         return ""
 
+    def message(self, *args, **kwargs):
+        for agent in self.agents:
+            agent.message(*args, **kwargs)
+
     def log_component_update(
         self,
         address,
@@ -80,3 +84,9 @@ class Game(ComponentOrGame):
 
     @abstractmethod
     def play_game(self) -> GameSummary: ...
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, extype, exvalue, traceback):
+        pass

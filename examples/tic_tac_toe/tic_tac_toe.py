@@ -1,13 +1,6 @@
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).parent.parent.parent.parent))
-
 from typing import Union
 
-from game_anywhere.run_game import run_game
 from game_anywhere.core.game import AgentId
-from game_anywhere.ui import HtmlElement, div
 from game_anywhere.core import TurnBasedGame, SimpleGameSummary
 from game_anywhere.components import Component, CheckerBoard, ComponentSlotProperty
 
@@ -17,8 +10,8 @@ class TicTacToeMark(Component):
         super().__init__()
         self.player = player
 
-    def html(self):
-        return "X" if self.player == 0 else "O"
+    def html(self, **kwargs):
+        return '<svg><text textlength="100%">' + ("X" if self.player == 0 else "O") + '</text></svg>'
 
 
 BOARD_SIZE = 3

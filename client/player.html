@@ -203,7 +203,13 @@
 					form.appendChild(formContent);
 					let submitButton = document.createElement('button'); submitButton.type = "submit"; submitButton.textContent = "Submit"; submitButton.classList.add('clickable');
 					form.appendChild(submitButton);
-					form.onsubmit = event => { event.preventDefault(); let answer = readWord(formContent); socket.send(answer); controlPanel.removeChild(form); controlPanel.hidden = true; }
+					form.onsubmit = event => {
+						event.preventDefault();
+						let answer = readWord(formContent);
+						socket.send(JSON.stringify(answer));
+						controlPanel.removeChild(form);
+						controlPanel.hidden = true;
+					}
 					controlPanel.appendChild(form);
 					controlPanel.hidden = false;
 				}
@@ -249,6 +255,7 @@
 	function addLogLine(line){
 		let newLine = document.createElement('span');
 		newLine.innerHTML = line;
+		newLine.classList.append('log-message');
 		logPanel.appendChild(newLine);
 	}
 </script>
