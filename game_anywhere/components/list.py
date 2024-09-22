@@ -1,5 +1,6 @@
-from typing import TypeVar, Generic, Optional, Iterable
-from abc import ABC
+from typing import TypeVar, Generic, Iterable
+
+from game_anywhere.ui import Html
 from .component import Component, ComponentSlot
 from .utils import mask, html
 
@@ -55,11 +56,9 @@ class List(Component, Generic[T]):
         # When iterating, we can't replace one value. So just dealing with components and ignoring slots is appropriate here
         return (slot._content for slot in self.slots)
 
-    def __add__(self, other_list : list[Component]):
-        copy = self.__copy__()
+    def __iadd__(self, other_list: list[Component]):
         for i in other_list:
-            copy.append(i)
-        return copy
+            self.append(i)
 
     def extend(self, values_iter: Iterable[Component]):
         for i in values_iter:

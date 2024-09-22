@@ -23,22 +23,22 @@ class Html:
         return Html(*total_content)
 
     def wrap_to_one_element(self):
-        return div(self)
+        return tag.div(self)
 
 
 class HtmlElement(Html):
-    def __init__(self, tagName, *children, **attrs):
+    def __init__(self, tag_name, *children, **attrs):
         super().__init__(*children)
-        self.tagName = tagName
+        self.tag_name = tag_name
         self.attrs = attrs
 
     def __str__(self):
-        result = f"<{self.tagName}"
+        result = f"<{self.tag_name}"
         for key, value in self.attrs.items():
             result += f' {key}="{value}"'
         result += ">"
         result += super().__str__()
-        result += f"</{self.tagName}>"
+        result += f"</{self.tag_name}>"
         return result
 
     def wrap_to_one_element(self):
@@ -46,27 +46,27 @@ class HtmlElement(Html):
 
 
 class HtmlElementMeta(type):
+    _tags: dict[str, type["HtmlElement"]] = {}
+
     @staticmethod
-    def _wrap_init(init, tagName):
+    def _wrap_init(init, tag_name):
         @functools.wraps(init)
         def _new_init(self, *args, **kwargs):
-            init(self, tagName, *args, **kwargs)
+            init(self, tag_name, *args, **kwargs)
 
         return _new_init
 
-    def __new__(cls, name, parents, attrs):
-        if HtmlElement not in parents:
-            parents = (HtmlElement, *parents)
-        new_subclass = type.__new__(cls, name, parents, attrs)
-        new_subclass.__init__ = HtmlElementMeta._wrap_init(
-            new_subclass.__init__, tagName=name
-        )
-        return new_subclass
+    def __getattr__(cls, attrname) -> type[HtmlElement]:
+        try:
+            return HtmlElementMeta._tags[attrname]
+        except KeyError:
+            tag_class = type.__new__(type, attrname, (HtmlElement,), {})
+            tag_class.__init__ = HtmlElementMeta._wrap_init(
+                tag_class.__init__, tag_name=attrname
+            )
+            return tag_class
 
 
-class div(metaclass=HtmlElementMeta):
-    pass
-
-
-class style(metaclass=HtmlElementMeta):
+class tag(metaclass=HtmlElementMeta):
+    """ Used as a namespace. Use e.g. tag.div(...), tag.h2(...) """
     pass

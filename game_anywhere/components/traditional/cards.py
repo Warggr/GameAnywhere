@@ -2,7 +2,7 @@ from enum import Enum, unique, auto
 from typing import Iterable, TypeVar, Generic, Any
 import random
 from ..component import Component
-from ...ui import Html, div
+from ...ui import Html, tag
 
 
 class PokerCard(Component):
@@ -78,7 +78,9 @@ class PokerCard(Component):
             - 1
         )
 
-    def html(self) -> Html:
+    HIDDEN_HTML = "🂠"
+
+    def html(self, viewer_id=None) -> Html:
         return str(self)
 
 
@@ -98,7 +100,7 @@ class Deck(Generic[T], Component):
         return self.cards.pop()
 
     def html(self, viewer_id=None) -> Html:
-        return div("Deck with", len(self.cards), "cards")
+        return tag.div("Deck with", len(self.cards), "cards")
 
 
 def fiftytwo_cards() -> Iterable[PokerCard]:

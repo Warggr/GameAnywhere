@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from game_anywhere.ui import Html
+from game_anywhere.ui import Html, tag
 from itertools import count
 from typing import Optional, Type, Any
 from .utils import html as to_html, mask
@@ -23,12 +23,8 @@ class ComponentOrGame(ABC):
 
     def html(self, viewer_id=None) -> Html:
         result = Html()
-        for (
-            attrname,
-            attr,
-        ) in (
-            self.__dict__.items()
-        ):  # TODO: it would be more efficient if games provided a list of their slots themselves
+        # TODO: it would be more efficient if games provided a list of their slots themselves
+        for attrname, attr in self.__dict__.items():
             if attrname == "slot":
                 continue
             # print("Checking attr", attrname, end='...')

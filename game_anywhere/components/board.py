@@ -2,14 +2,12 @@ from typing import (
     TypeVar,
     Generic,
     Type,
-    Union,
     Callable,
     Iterable,
-    Optional,
 )
-from abc import ABC
+
 from .component import Component, ComponentSlot
-from game_anywhere.ui import Html, div, style
+from game_anywhere.ui import Html, tag
 
 
 class Board(Component):
@@ -74,14 +72,15 @@ class CheckerBoard(Board, Generic[T]):
 
     def html(self, viewer_id=None) -> Html:
         return Html(
-            div(
+            tag.div(
                 *(field.html() for _, field in self.all_fields()),
                 **{
                     "class": "checkerboard",
                     "style": f"grid-template-rows: repeat({self.width}, 1fr); grid-template-columns: repeat({self.height}, 1fr)",
                 },
             ),
-            style(
-                ".checkerboard{display:grid;width:100%;height:100%;background-color:red;gap:10px;} .checkerboard div{background-color:white;color:black;border:2px solid;aspect-ratio:1;}"
+            tag.style(
+                ".checkerboard{display:grid;width:100%;height:100%;background-color:red;gap:10px;}" +
+                " .checkerboard div{background-color:white;color:black;border:2px solid;aspect-ratio:1;}"
             ),
         )
