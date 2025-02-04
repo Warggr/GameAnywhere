@@ -23,12 +23,18 @@ class BaseGameRoom(ServerRoom):
         return router
 
     async def http_get_html_view(self, request: web.Request) -> web.Response:
-        username = request.cookies['username']
-        session_id = request.query['seat']
+        try:
+            username = self.get_request_username(request)
+            session_id = request.query['seat']
+        except KeyError as err:
+            raise web.HTTPUnauthorized(text=f"Please provide a username and seat (missing: {err})")
         if session_id == 'watch':
             viewer_id = None
         else:
-            session_id = int(session_id)
+            try:
+                session_id = int(session_id)
+            except ValueError:
+                raise web.HTTPBadRequest(text="Session is not an integer")
             if session_id in self.session_id_to_username and self.session_id_to_username[session_id] != username:
                 raise web.HTTPForbidden(text="Session not owned by authenticated user")
             viewer_id = session_id

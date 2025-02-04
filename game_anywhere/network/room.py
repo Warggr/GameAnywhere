@@ -14,6 +14,13 @@ class ServerRoom(AsyncResource):
     class CouldntConnect(Exception):
         pass
 
+    @staticmethod
+    def get_request_username(request: web.Request) -> str:
+        try:
+            return request.cookies['username']
+        except KeyError:
+            return request.query['username'] + ' (Guest)'
+
     def __init__(self, server: "Server", greeter_message="Welcome to the room!"):
         self.server = server
         self.greeter_message = (
@@ -100,13 +107,10 @@ class ServerRoom(AsyncResource):
             raise web.HTTPNotFound(text="No such session expected")
 
         if session_id in self.session_id_to_username:
-            if request.cookies.get('username', None) != self.session_id_to_username[session_id]:
+            if self.get_request_username(request) != self.session_id_to_username[session_id]:
                 raise web.HTTPForbidden(text="Session already taken")
         else:
-            try:
-                self.session_id_to_username[session_id] = request.cookies['username']
-            except KeyError:
-                pass
+            self.session_id_to_username[session_id] = self.get_request_username(request)
 
         # this is done on the network thread, which is single-threaded.
         # There can be no race condition between reading session.state and claiming the session

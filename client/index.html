@@ -68,7 +68,7 @@
             })
         }
         function logout() {
-            document.cookie = "username=; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure";
+            document.cookie = "username=; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure; Path=/";
             toggleLogin(undefined);
         }
         const username = document.cookie.split("; ")

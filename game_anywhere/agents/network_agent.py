@@ -41,7 +41,8 @@ class NetworkAgent(Agent):
             return NetworkAgent(session)
 
     def __init__(self, session: Session):
-        super().__init__("Network agent")
+        username = session.room.session_id_to_username[session.id]
+        super().__init__(username)
         self.session = session
 
     # override

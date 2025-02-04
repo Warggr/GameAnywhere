@@ -121,7 +121,7 @@
 
 <body>
   <div class="status-bar">
-    <span>Status: </span><span id="connection-status">Connected</span>
+    <span>Status: </span><span id="connection-status">Connected</span> as <span id="username"></span>
   </div>
 
   <div class="container">
@@ -155,12 +155,14 @@
 	var socket = undefined;
 	var currentStep = 0;
 	var connectionStatusDom = document.getElementById('connection-status');
+	var usernameInCookies = false;
 
 	const connectToServer = serverAddress => {
 		const teamNr = document.getElementById('playerId').value || 'watch';
 		const roomNr = document.getElementById('roomId').value;
 
-		fetch('http://' + serverAddress + '/r/' + roomNr + '/html?seat=' + teamNr).then(async content => {document.getElementById('screen').innerHTML = await content.text();});
+		fetch('http://' + serverAddress + '/r/' + roomNr + '/html?seat=' + teamNr + (usernameInCookies ? "" : "&username=" + username))
+                .then(async content => {document.getElementById('screen').innerHTML = await content.text();});
 
 		connectionStatusDom.textContent = 'Connecting...';
 		if(window.WebSocket === undefined) {
@@ -168,7 +170,7 @@
 			throw new Error('WebSockets not supported!');
 		}
 
-		socket = new WebSocket('ws://' + serverAddress + '/r/' + roomNr + '/ws/' + teamNr);
+		socket = new WebSocket('ws://' + serverAddress + '/r/' + roomNr + '/ws/' + teamNr + (usernameInCookies ? "" : "?username=" + username));
 		socket.onopen = (event) => {
 			connectionStatusDom.textContent = 'Connected';
 			initialized = false;
@@ -245,6 +247,17 @@
 	const roomId = urlParams.get('room'); document.getElementById('roomId').value = roomId || '';
 	const playerId = urlParams.get('seat'); document.getElementById('playerId').value = playerId || '';
 	const serverUrl = urlParams.get('serverUrl') || window.location.host;
+	let username = urlParams.get('username');
+	if(username === null) {
+		if (document.cookie.split("; ").map(cookie => cookie.split('=')[0]).includes('username')) {
+			username = document.cookie.split("; ").find(cookie => cookie.split('=')[0] === 'username').split('=')[1];
+			usernameInCookies = true;
+		} else {
+			username = "guest" + Math.round(Math.random() * 100);
+			window.history.pushState(null, null, window.location + (urlParams.size === 0 ? '?' : '&') + 'username=' + username); // Make a page reload keep the guestId
+		}
+	}
+	document.getElementById('username').innerText = username;
 	if(roomId) connectToServer(serverUrl);
 
 	function sendChatLine(form) {
