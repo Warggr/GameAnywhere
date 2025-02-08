@@ -2,7 +2,7 @@ from typing import Optional, Any, NoReturn, Union
 from abc import ABC, abstractmethod
 from .agent import Agent, AgentId
 from ..components.component import ComponentOrGame
-from ..components.utils import mask
+from ..components.utils import html
 
 
 class GameSummary(ABC):
@@ -69,17 +69,14 @@ class Game(ComponentOrGame):
         hidden: bool = False,
         owner_id: Optional[int] = None,
     ):
-        update = {"id": address, **data}
-        if hidden:
-            masked_update = {"id": address, **data, "hidden": True}
+        if self.agents[0] is None:
+            return # Return early if the agents are not initialized yet
+        for agent_id, agent in enumerate(self.agents):
+            masked_update = {"id": address, **data}
             for key in ["new_value", "append"]:
                 if key in data:
-                    masked_update[key] = mask(masked_update[key])
-        for agent_id, agent in enumerate(self.agents):
-            if hidden and owner_id != agent_id:
-                agent.update([masked_update])
-            if not hidden or owner_id == agent_id:
-                agent.update([update])
+                    masked_update[key] = html(masked_update[key], viewer_id=agent_id)
+            agent.update([masked_update])
 
     # Subclasses might override this if they need to be notified once the real agents are available
     # TODO: this is ugly, most overrides do not actually require the agents to be loaded

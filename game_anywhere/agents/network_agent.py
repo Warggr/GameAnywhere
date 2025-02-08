@@ -55,12 +55,12 @@ class NetworkAgent(Agent):
             if "new_value" in diff:
                 return {
                     "id": diff["id"],
-                    "newHTML": str(html(diff["new_value"])),
+                    "newHTML": str(diff["new_value"]),
                 }
             elif "append" in diff:
                 return {
                     "id": diff["id"],
-                    "append": str(html(diff["append"])),
+                    "append": str(diff["append"]),
                 }
             else:
                 raise NotImplementedError("Unrecognized diff type: " + str(diff))

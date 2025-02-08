@@ -33,7 +33,7 @@ class ChessPiece(Component):
         self.color = color
         self.type = type
 
-    def html(self):
+    def html(self, viewer_id=None):
         UNICODE_ICONS = {
             "KING": "♔",
             "QUEEN": "♕",
@@ -303,9 +303,9 @@ class Chess(TurnBasedGame):
         if any([piece.type == ChessPiece.Type.KING for piece in self.captured]):
             return SimpleGameSummary(winner=self.get_current_agent_id())
 
-    def html(self):
+    def html(self, *args, **kwargs):
         # TODO add alternate black/white styling
-        return super().html()
+        return super().html(*args, **kwargs)
 
 
 if __name__ == "__main__":

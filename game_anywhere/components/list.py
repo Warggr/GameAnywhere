@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, Iterable
+from typing import TypeVar, Generic, Iterable, Generator
 
 from game_anywhere.ui import Html
 from .component import Component, ComponentSlot

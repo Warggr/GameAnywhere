@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from game_anywhere.ui import Html, tag
+from game_anywhere.ui import Html, HtmlElement, tag
 from itertools import count
-from typing import Optional, Type, Any
+from typing import Optional, Type, Any, Generator
 from .utils import html as to_html, mask
 
 ComponentId = str
@@ -22,15 +22,19 @@ class ComponentOrGame(ABC):
     def get_slot_address(self) -> str: ...
 
     def html(self, viewer_id=None) -> Html:
+        print(f'Getting html for {self} with {viewer_id=}')
         result = Html()
-        # TODO: it would be more efficient if games provided a list of their slots themselves
+        for slotname, slot in self._slots():
+            result += slot.html(viewer_id=viewer_id)
+        return result
+
+    # TODO: it would be more efficient if games provided a list of their slots themselves
+    def _slots(self) -> Generator[tuple[str, "ComponentSlot"]]:
         for attrname, attr in self.__dict__.items():
             if attrname == "slot":
                 continue
             if isinstance(attr, ComponentSlot):
-                result += attr.html(viewer_id=viewer_id)
-        return result
-
+                yield attrname, attr
 
 class Component(ComponentOrGame):
     class NotAttachedToComponentTree(Exception):
@@ -70,9 +74,9 @@ class WeakComponentSlot:
         self.parent = parent
         self.hidden = hidden
         self.owner_id = owner_id
-        self._content = content
-        if isinstance(content, Component):
-            content.slot = self
+        self._content = None
+        if content:
+            self.set(content)
 
     def get_address(self):
         return self.parent.get_slot_address() + "/" + self.id
@@ -87,6 +91,9 @@ class WeakComponentSlot:
         self._content = content
         if isinstance(content, Component):
             content.slot = self
+        # Re-enforce owner ID inheritance
+        if self.owner_id is not None:
+            self.set_owner_id(self.owner_id)
         try:
             game = self.get_game()
             game.log_component_update(
@@ -120,11 +127,21 @@ class WeakComponentSlot:
     def empty(self) -> bool:
         return self._content is None
 
-    def html(self, viewer_id=None) -> Html:
-        if self.hidden and viewer_id != self.owner_id:
-            html = mask(self._content)
-        else:
+    def set_owner_id(self, owner_id: int):
+        """ Owner IDs are inherited down the component tree by default, so this is a recursive method """
+        self.owner_id = owner_id
+        if type(self._content) is Component:
+            for child in self._content._slots():
+                child.set_owner_id(owner_id)
+
+    def can_be_seen_by(self, viewer_id=None):
+        return not self.hidden or viewer_id == self.owner_id
+
+    def html(self, viewer_id=None) -> HtmlElement:
+        if self.can_be_seen_by(viewer_id):
             html = to_html(self._content, viewer_id=viewer_id)
+        else:
+            html = mask(self._content)
         html = Html(html).wrap_to_one_element()
         html.attrs["id"] = self.get_address()
         return html
@@ -204,11 +221,11 @@ class PerPlayerComponent(Component):
     def __init__(self, owner: "Agent", owner_id: "AgentId", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.owner = owner
+        assert self.owner is not None
         self.owner_id = owner_id
     def __str__(self):
         return f'Board of player {self.owner.name}'
     def html(self, viewer_id=None) -> Html:
-        print(f'return HTML with {viewer_id=}')
         html = super().html(viewer_id)
         owner = self.owner.name
         if self.owner_id == viewer_id:
@@ -226,9 +243,28 @@ class PerPlayer(ComponentSlotProperty):
     class INIT:
         pass  # Sentinel value
 
-    def __init__(self, id : Optional[ComponentId] = None, **kwargs):
+    def __init__(
+        self,
+        componentClass: type[PerPlayerComponent] | None = None,
+        /,
+        id: Optional[ComponentId] = None,
+        **kwargs,
+    ):
         super().__init__(id)
-        self.ComponentClass = type.__new__(type, 'PerPlayerComponent(' + ','.join(kwargs.keys()) + ')', (Component,), kwargs)
+        if componentClass is None:
+            componentClass = type.__new__(
+                type,
+                "PerPlayerComponent[" + ",".join(kwargs.keys()) + "]",
+                (PerPlayerComponent,),
+                kwargs,
+            )
+        else:
+            assert len(kwargs) == 0, (
+                "Keyword arguments "
+                + ", ".join(kwargs.keys())
+                + " ignored when componentClass is provided"
+            )
+        self.componentClass = componentClass
 
     def __set__(self, obj: "Game", value: any):
         if value is PerPlayer.INIT:
@@ -237,7 +273,7 @@ class PerPlayer(ComponentSlotProperty):
             per_player = [self.componentClass(owner=agent, owner_id=i) for i, agent in enumerate(obj.agents)]
             for_all_players = List(per_player)
             for agent_id, slot in enumerate(for_all_players.slots):
-                slot.owner_id = agent_id
+                slot.set_owner_id(agent_id)
             slot = ComponentSlot(self.id, obj, for_all_players)
             setattr(obj, self.private_name, slot)
             # Notify the client that we just created another slot.
