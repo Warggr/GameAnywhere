@@ -7,12 +7,49 @@ from ..network import Server
 from ..network.game_room import BaseGameRoom
 from ..network.spectator import Session, Spectator
 from typing import Any, TypeVar, Callable, Optional
+import json
 import asyncio
+from abc import ABC, abstractmethod
 
 T = TypeVar("T")
+Json = Any
+
+class JsonSchemaAgentMixin(ABC):
+    class InvalidAnswer(Exception):
+        def __init__(self, message):
+            super().__init__()
+            self.message = message
+
+    @abstractmethod
+    def question_with_validation(self, question: Json, validation: Callable[[Any], bool]):
+        ...
+
+    # override
+    def int_choice(self, min: int | None = 0, max: int | None = None) -> int:
+        jsonSchema = {"type": "integer"}
+        if min is not None:
+            jsonSchema["minimum"] = min
+        if max is not None:
+            jsonSchema["maximum"] = max
+
+        def _validation(answer: str):
+            try:
+                assert answer.isdigit()
+                integer = int(answer)
+                if min is not None:
+                    assert integer >= min, f"Please choose a number higher than {min}"
+                if max is not None:
+                    assert integer <= max, f"Please choose a number higher than {max}"
+                return integer
+            except (ValueError, AssertionError) as err:
+                raise self.InvalidAnswer(repr(err))
+
+        return self.question_with_validation(
+            {"type": "choice", "schema": jsonSchema}, _validation
+        )
 
 
-class NetworkAgent(Agent):
+class NetworkAgent(JsonSchemaAgentMixin, Agent):
     class Descriptor(AgentDescriptor):
         def start_initialization(self, agent_id: "AgentId", context: Context):
             if "server_room" not in context:
@@ -68,20 +105,12 @@ class NetworkAgent(Agent):
         self.session.send_sync(list(map(serialize_diff, diffs)))
 
     # override
-    def get_2D_choice(self, dimensions):
-        return tuple(self.int_choice(min=0, max=dim - 1) for dim in dimensions)
-
-    class InvalidAnswer(Exception):
-        def __init__(self, message):
-            super().__init__()
-            self.message = message
-
-    # override
     def choose_one_component_slot(
         self,
         slots: list["ComponentSlot"],
         indices: Optional[list[T]] = None,
         special_options=[],
+        message: Optional[str] = None,
     ) -> T:
         if not indices:
             indices = slots
@@ -90,6 +119,8 @@ class NetworkAgent(Agent):
             "slots": [slot.get_address() for slot in slots],
             "special_options": special_options,
         }
+        if message is not None:
+            question["message"] = message
         ids = {slot.get_address(): index for slot, index in zip(slots, indices)}
 
         def _validation(answer: str):
@@ -103,41 +134,32 @@ class NetworkAgent(Agent):
         return self.question_with_validation(question, _validation)
 
     # override
-    def int_choice(self, min: int | None = 0, max: int | None = None) -> int:
-        jsonSchema = {"type": "integer"}
-        if min is not None:
-            jsonSchema["minimum"] = min
-        if max is not None:
-            jsonSchema["maximum"] = max
+    def text_choice(self, options: list[str]) -> str:
+        jsonSchema = {"type": "string", "enum": options}
 
         def _validation(answer: str):
-            try:
-                assert answer.isdigit()
-                integer = int(answer)
-                if min is not None:
-                    assert integer >= min, f"Please choose a number higher than {min}"
-                if max is not None:
-                    assert integer <= max, f"Please choose a number higher than {max}"
-                return integer
-            except (ValueError, AssertionError) as err:
-                raise NetworkAgent.InvalidAnswer(repr(err))
+            assert answer.startswith('"') and answer.endswith('"') # answer should be JSON text
+            answer = answer[1:-1]
+
+            if answer not in options:
+                raise NetworkAgent.InvalidAnswer(f"value {answer} not allowed")
+            return answer
 
         return self.question_with_validation(
             {"type": "choice", "schema": jsonSchema}, _validation
         )
 
     # override
-    def text_choice(self, options: list[str]) -> str:
-        jsonSchema = {"type": "string", "enum": options}
-
+    def query(self, query):
         def _validation(answer: str):
-            if answer not in options:
-                raise NetworkAgent.InvalidAnswer(f"value {answer} not allowed")
-            return answer
-        return self.question_with_validation(
-            {"type": "choice", "schema": jsonSchema}, _validation
-        )
+            try:
+                return json.loads(answer)
+            except json.decoder.JSONDecodeError as err:
+                raise self.InvalidAnswer(str(err))
 
+        return self.question_with_validation(
+            {"type": "choice", "schema": query}, _validation
+        )
 
     def question_with_validation(
         self, question: Any, validation: Callable[[str], T]

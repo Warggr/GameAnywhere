@@ -58,6 +58,9 @@ class TextAgent(Agent):
     def int_choice(self, min: Optional[int] = 0, max: Optional[int] = None) -> int:
         return self._get_integer(min, max)
 
+    # override
+    def query(self, query):
+        return json.loads(self._read(f"Please answer the query: {query}"))
 
     # override
     def get_2D_choice(self, dimensions):
