@@ -45,15 +45,19 @@ class Component(ComponentOrGame):
         return self.slot.parent.get_game()
 
     def get_slot_address(self):
+        if self.slot is None:
+            return "(detached)"
         return self.slot.get_address()
 
     def reveal(self, *args, **kwargs):
         self.slot.reveal(*args, **kwargs)
 
-ComponentTreeNode = any
+
+""" Typically, ComponentTreeNodes are Components. But we also support raw values, e.g. booleans. """
+ComponentTreeNode = Any
 
 
-class ComponentSlot:
+class WeakComponentSlot:
     def __init__(
         self,
         id: str,
@@ -79,7 +83,7 @@ class ComponentSlot:
     def get(self):
         return self._content
 
-    def set(self, content: any):
+    def set(self, content: ComponentTreeNode):
         self._content = content
         if isinstance(content, Component):
             content.slot = self
@@ -129,11 +133,22 @@ class ComponentSlot:
         return 'slot[' + (str(self._content) if self._content is not None else '(empty)') + ']'
 
 
+class Pointer(WeakComponentSlot):
+    pass
+
+
+class ComponentSlot(WeakComponentSlot):
+    def set(self, content: ComponentTreeNode):
+        super().set(content)
+        if isinstance(content, Component):
+            content.slot = self
+
+
 class ComponentSlotProperty:
     _next_id = count()
     components: dict[ComponentId, Component] = {}
 
-    def __init__(self, id: Optional[ComponentId] = None):
+    def __init__(self, id: Optional[ComponentId] = None, slotType: type[WeakComponentSlot]=ComponentSlot, *args, **kwargs):
         if id is None:
             while (
                 id := hex(next(ComponentSlotProperty._next_id))[2:]
@@ -144,23 +159,32 @@ class ComponentSlotProperty:
         self.id = id
         ComponentSlotProperty.components[id] = self
 
+        self.SlotType = slotType
+        self.args = args
+        self.kwargs = kwargs
 
     def __set_name__(self, owner: Type[ComponentOrGame], name):
         self.private_name = "_" + name
 
     def __get__(self, obj: ComponentOrGame, objtype=None):
+        if not hasattr(obj, self.private_name):
+            setattr(obj, self.private_name, self.SlotType(self.id, obj, *self.args, **self.kwargs))
         return getattr(obj, self.private_name).get()
 
     def __set__(self, obj: ComponentOrGame, value: any):
         if not hasattr(obj, self.private_name):
-            setattr(
-                obj,
-                self.private_name,
-                ComponentSlot(self.id, obj, value),
-            )
+            kwargs = self.kwargs
+            if 'owner_id' not in self.kwargs and isinstance(obj, Component):
+                kwargs['owner_id'] = obj.slot.owner_id
+            slot = self.SlotType(self.id, obj, value, *self.args, **kwargs)
+            setattr(obj, self.private_name, slot)
+            try:
+                obj.get_game().log_component_update(obj.get_slot_address(), {"append": slot})
+            except Component.NotAttachedToComponentTree:
+                pass
         else:
             getattr(obj, self.private_name).set(value)
-        if isinstance(value, Component):
+        if isinstance(value, Component) and self.SlotType == ComponentSlot:
             assert value.slot == getattr(obj, self.private_name)
 
 
@@ -216,6 +240,8 @@ class PerPlayer(ComponentSlotProperty):
                 slot.owner_id = agent_id
             slot = ComponentSlot(self.id, obj, for_all_players)
             setattr(obj, self.private_name, slot)
+            # Notify the client that we just created another slot.
+            obj.log_component_update("screen", {"append": slot})
         else:
             getattr(obj, self.private_name).set(value)
             assert value.slot == getattr(obj, self.private_name)

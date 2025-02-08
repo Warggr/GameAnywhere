@@ -160,6 +160,8 @@ class NetworkAgent(Agent):
 
 
 class NetworkChatStream(ChatStream):
+    CHAT_CHARACTER = '<'
+
     def __init__(self, loop: asyncio.AbstractEventLoop, spectator: Spectator):
         self.queue = asyncio.Queue()
         self.loop = loop
@@ -170,7 +172,7 @@ class NetworkChatStream(ChatStream):
 
     # Called on the network thread
     def on_message(self, message: str) -> bool:
-        if message.startswith('/'):
+        if message.startswith(self.CHAT_CHARACTER):
             self.loop.call_soon_threadsafe(lambda: self.queue.put_nowait(message[1:]))
             return True
         else:

@@ -22,7 +22,7 @@ class Html:
                 total_content += html.content
         return Html(*total_content)
 
-    def wrap_to_one_element(self):
+    def wrap_to_one_element(self) -> 'HtmlElement':
         return tag.div(self)
 
 

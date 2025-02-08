@@ -43,9 +43,12 @@ class Game(ComponentOrGame):
         return 2
 
     @classmethod
-    def parse_config(cls, config: str) -> dict[str, Any]|NoReturn:
+    def parse_config(cls, config: list[str]) -> dict[str, Any]|NoReturn:
         """ Override this to accept configuration options """
-        raise NotImplementedError(f'{cls.__name__} does not accept configuration options')
+        if len(config) == 0:
+            return {}
+        else:
+            raise NotImplementedError(f'{cls.__name__} does not accept configuration options')
 
     # override
     def get_game(self):
@@ -79,6 +82,7 @@ class Game(ComponentOrGame):
                 agent.update([update])
 
     # Subclasses might override this if they need to be notified once the real agents are available
+    # TODO: this is ugly, most overrides do not actually require the agents to be loaded
     def set_agents(self, agents: list[Agent]):
         self.agents = agents
 
@@ -90,3 +94,7 @@ class Game(ComponentOrGame):
 
     def __exit__(self, extype, exvalue, traceback):
         pass
+
+# TODO: possible improvements:
+# Game could detect automatically when Components exist as class properties
+# and translate them to ComponentSlotProperties

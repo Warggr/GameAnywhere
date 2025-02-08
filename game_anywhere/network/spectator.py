@@ -67,7 +67,7 @@ class Spectator:
     # this is not necessary here since we have actual coroutines instead of callbacks
     async def on_connect(
         self, request: web.Request, websocket: web.WebSocketResponse
-    ) -> Awaitable[None]:
+    ) -> Awaitable[web.WebSocketResponse]:
         assert self.state == Spectator.state.FREE
         self.state = Spectator.state.CLAIMED
         self.ws = websocket

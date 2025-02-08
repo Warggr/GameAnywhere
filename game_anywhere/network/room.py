@@ -32,6 +32,9 @@ class ServerRoom(AsyncResource):
 
     def __del__(self):
         # as part of their closing, all sessions should have set themselves to FREE and all spectators should have deleted themselves
+        if not hasattr(self, 'spectators') and not hasattr(self, 'sessions'):
+            # Maybe the object is not even initialized yet
+            return
         assert len(self.spectators) == 0
         for session in self.sessions.values():
             assert session.state in [

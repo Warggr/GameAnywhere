@@ -79,7 +79,11 @@
         function createNewRoom(){
             const gameType = document.getElementById('gameType').value;
             const gameArgs = document.getElementById('gameType').nextElementSibling.value;
-            fetch('/room', { method: 'POST', body: JSON.stringify({"game": gameType, "args": gameArgs}) }).then(loadRooms);
+            fetch('/room', { method: 'POST', body: JSON.stringify({"game": gameType, "args": gameArgs}) })
+                .then(async response => { if(response.status >= 400) { throw new Error(await response.text()); } })
+                .then(loadRooms)
+                .catch(errorPopup)
+            ;
         }
         const roomsRoot = ReactDOM.createRoot(document.getElementById('status-rooms'));
         var knownRooms;
@@ -117,6 +121,9 @@
             knownRooms.push([ room.key, room.value ]);
             console.warn(`Set knownRooms to ${knownRooms} after getting value ${msg.data}`);
             renderRooms(knownRooms);
+        }
+        function errorPopup(message) {
+            alert(message);
         }
     </script>
 </body>

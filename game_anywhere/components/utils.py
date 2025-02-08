@@ -18,9 +18,10 @@ def html(obj, *args, **kwargs) -> "Html":
     return html
 
 
-def mask(obj: Any) -> "Html":
+def mask(obj: Any, *_args, **_kwargs) -> "Html":
     """
     Returns a masked HTML representation of the object.
+    *args, **kwargs are accepted so the signature is compatible with html().
     """
     try:
         html = obj.HIDDEN_HTML

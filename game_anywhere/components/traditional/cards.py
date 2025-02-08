@@ -96,8 +96,13 @@ class Deck(Generic[T], Component):
     def shuffle(self):
         random.shuffle(self.cards)
 
-    def draw(self) -> T:
-        return self.cards.pop()
+    def draw(self, n=1) -> T:
+        if n == 1:
+            return self.cards.pop()
+        else:
+            cards_drawn = self.cards[-n:]
+            self.cards = self.cards[:-n]
+            return cards_drawn
 
     def html(self, viewer_id=None) -> Html:
         return tag.div("Deck with", len(self.cards), "cards")

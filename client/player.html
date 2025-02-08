@@ -116,7 +116,13 @@
       padding: 5px;
       border-radius: 4px;
     }
+
+    [hidden]{
+      display: none; /* Ensure that hidden elements are not displayed, even if they have e.g. display: flex */
+    }
   </style>
+  <script src="wizard/wizard.js"></script>
+  <link href="wizard/wizard-robe.css" rel="stylesheet"/>
 </head>
 
 <body>
@@ -142,7 +148,7 @@
 
     <!-- Chat Log and Input -->
     <div id="logPanel">
-      <form id="chatInput" onsubmit="sendChatLine(this); return false;">
+      <form id="chatInput" hidden onsubmit="sendChatLine(this); return false;">
         <input type="text" placeholder="Type a message...">
         <button type="submit">Send</button>
       </form>
@@ -151,9 +157,9 @@
 
   <div id="controlPanel" hidden></div>
 <script>
-	function getServerUrl(){ return document.getElementById('serverUrl').value; }
+	const CHAT_CHARACTER = '<';
+
 	var socket = undefined;
-	var currentStep = 0;
 	var connectionStatusDom = document.getElementById('connection-status');
 	var usernameInCookies = false;
 
@@ -183,21 +189,29 @@
 			const data = JSON.parse(event.data);
 			console.log(data, data.type);
 
-			if(data.type == "choice"){
+			if(data.type === "choice"){
+				if(data.message){
+					controlPanel.hidden = false;
+					const banner = document.createElement('span');
+					banner.innerText = data.message;
+					controlPanel.appendChild(banner);
+				}
 				if(data.slots){
 					let slots = data.slots.map(id => document.getElementById(id));
 					let eventListener = event => {
+						console.log(event);
 						const chosenComponent = event.target;
 						slots.forEach(c => {
 							c.removeEventListener('click', eventListener);
 							c.classList.remove('clickable');
 						});
-						socket.send(chosenComponent.id);
-					}
-					slots.forEach(c => {
-						c.addEventListener('click', eventListener);
-						c.classList.add('clickable');
-					});
+						if(chosenComponent.id.startsWith(CHAT_CHARACTER)) { console.warn('Warning: sent data starts with /, the chat character'); }
+							socket.send(chosenComponent.id);
+						}
+						slots.forEach(c => {
+							c.addEventListener('click', eventListener);
+							c.classList.add('clickable');
+						});
 				}
 				else if(data.schema){
 					let formContent = makeWord(data.schema);
@@ -208,6 +222,7 @@
 					form.onsubmit = event => {
 						event.preventDefault();
 						let answer = readWord(formContent);
+						if(JSON.stringify(answer).startsWith(CHAT_CHARACTER)){ console.warn("Sent content will be interpreted as chat message"); }
 						socket.send(JSON.stringify(answer));
 						controlPanel.removeChild(form);
 						controlPanel.hidden = true;
@@ -261,14 +276,14 @@
 	if(roomId) connectToServer(serverUrl);
 
 	function sendChatLine(form) {
-		let line = form.firstChild.value;
-		socket.send('/' + line);
+		let line = form.firstElementChild.value;
+		socket.send(CHAT_CHARACTER + line);
 		addLogLine('<b>You: </b>' + line)
 	}
 	function addLogLine(line){
 		let newLine = document.createElement('span');
 		newLine.innerHTML = line;
-		newLine.classList.append('log-message');
+		newLine.classList.add('log-message');
 		logPanel.appendChild(newLine);
 	}
 </script>

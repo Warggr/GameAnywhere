@@ -8,26 +8,24 @@ T = TypeVar("T", bound=Component)
 
 
 class List(Component, Generic[T]):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, slotClass: type[ComponentSlot] = ComponentSlot, **kwargs):
+        super().__init__()
         components = list(*args)
         self.kwargs = kwargs
         slots = [
-            ComponentSlot(id=str(i), content=component, parent=self, **self.kwargs)
+            slotClass(id=str(i), content=component, parent=self, **self.kwargs)
             for i, component in enumerate(components)
         ]
         self.slots = slots
-        super().__init__()
 
     # Component interface methods
 
+    def _slots(self) -> Generator[tuple[str, "ComponentSlot"]]:
+        for i, slot in enumerate(self.slots):
+            yield f"@[{i}]", slot
+
     def html(self, viewer_id=None) -> Html:
-        hidden = self.kwargs.get("hidden", False)
-        owner_id = self.kwargs.get("owner_id", None)
-        if hidden and viewer_id != owner_id:
-            function = mask
-        else:
-            function = html
-        return Html(*(function(field, viewer_id=viewer_id) for field in self.slots))
+        return Html(*[slot.html(viewer_id=viewer_id) for slot in self.slots])
 
     # list interface methods - the most basic ones
 
@@ -59,6 +57,7 @@ class List(Component, Generic[T]):
     def __iadd__(self, other_list: list[Component]):
         for i in other_list:
             self.append(i)
+        return self
 
     def extend(self, values_iter: Iterable[Component]):
         for i in values_iter:

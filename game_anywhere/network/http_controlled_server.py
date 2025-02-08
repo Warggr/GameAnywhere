@@ -6,6 +6,8 @@ from .server import Server
 from game_anywhere.agents.parse_descriptors import parse_game_descriptor
 from .game_room import GameRoom
 import json
+import traceback
+import sys
 
 
 def json_encode_server_room(room: "ServerRoom"):
@@ -40,7 +42,11 @@ class HttpControlledServer(Server):
             )
         except (KeyError, json.JSONDecodeError) as err:
             raise web.HTTPBadRequest(text=repr(err))
-        room_id, room = self.new_room(room=GameRoom(game_description, server=self))
+        try:
+            room_id, room = self.new_room(room=GameRoom(game_description, server=self))
+        except Exception as ex:
+            traceback.print_exception(ex, file=sys.stderr)
+            raise web.HTTPBadRequest(text=str(ex))
         self.log_event(
             json.dumps(
                 {"add": {"key": room_id, "value": room}},

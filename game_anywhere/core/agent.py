@@ -40,6 +40,7 @@ class Agent(ABC):
         slots: list["ComponentSlot"],
         indices: Optional[list[T]] = None,
         special_options: list[U] = [],
+        message: str|None = None,
     ) -> Union[T, U]: ...
 
     @abstractmethod

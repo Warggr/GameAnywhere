@@ -1,5 +1,6 @@
 from typing import Union
 from .game import Game, GameSummary, AgentId
+from abc import abstractmethod
 
 
 class TurnBasedGame(Game):
@@ -14,8 +15,9 @@ class TurnBasedGame(Game):
                 return winner
             self.totalTurn += 1
 
+    @abstractmethod
     def turn(self) -> Union[None, GameSummary]:
-        raise NotImplementedError()
+        ...
 
     def get_current_agent_index(self) -> int:
         return self.totalTurn % len(self.agents)
