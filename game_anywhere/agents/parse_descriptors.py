@@ -23,7 +23,6 @@ def parse_game_descriptor(
     GameType = available_games[obj["game"]]
     args = {}
     if obj["args"]:
-        print(obj["args"].split(' '))
         args = GameType.parse_config(obj["args"].split(' ')) # imitating a command line
     if type(obj["agents"]) == list:
         agent_descriptions = [parse_agent_description(agent) for agent in obj["agents"]]

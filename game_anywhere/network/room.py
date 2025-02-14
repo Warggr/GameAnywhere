@@ -96,13 +96,11 @@ class ServerRoom(AsyncResource):
         return router
 
     async def nt_add_spectator(self, request: web.Request):
-        print("Adding spectator…")
         spectator = Spectator(self)
         self.spectators.append(spectator)
         return await self.nt_handle_websocket(request, spectator)
 
     async def nt_connect_session(self, request: web.Request):
-        print("Connecting session…")
         try:
             session_id = SeatId(request.match_info["seat"])
             session = self.sessions[session_id]
@@ -122,7 +120,6 @@ class ServerRoom(AsyncResource):
         return await self.nt_handle_websocket(request, session)
 
     async def nt_handle_websocket(self, request: web.Request, spectator: Spectator):
-        print("Handling websocket…")
         ws = web.WebSocketResponse()
         try:
             await spectator.on_connect(request, ws)

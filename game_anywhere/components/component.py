@@ -36,7 +36,6 @@ class ComponentOrGame(ABC):
         ...
 
     def html(self, viewer_id=None) -> Html:
-        print(f'Getting html for {self} with {viewer_id=}')
         result = Html()
         for slotname, slot in self.get_slots():
             result += slot.html(viewer_id=viewer_id)

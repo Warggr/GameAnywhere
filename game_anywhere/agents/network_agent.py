@@ -69,7 +69,6 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
                 # context['exit_stack'].enter_context(room)
             else:
                 room = context["server_room"]
-            print("Creating session on room")
             session = room.create_session(agent_id)
             return session
 
@@ -165,7 +164,6 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
         self, question: Any, validation: Callable[[str], T]
     ) -> T:
         while True:
-            print("(network agent) sending question")
             self.session.send_sync(question)
             answer = self.session.get_sync()
             if answer == Session.CLIENT_LOST_TRACK_MESSAGE:

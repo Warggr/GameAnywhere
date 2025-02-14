@@ -78,7 +78,6 @@ class Server(AbstractContextManager, AsyncResource):
         self.app.add_subapp("/r/", subapp)
 
     def __enter__(self):
-        print("(server) __enter__")
         event_loop_started = Semaphore(0)
         self.serverThread = Thread(
             target=self.nt_start,
@@ -91,7 +90,6 @@ class Server(AbstractContextManager, AsyncResource):
         return self
 
     def __exit__(self, type, value, traceback):
-        print("(server) __exit__")
         self.close()
 
     def __del__(self):
@@ -109,7 +107,6 @@ class Server(AbstractContextManager, AsyncResource):
         web.run_app(
             self.app, loop=self.loop, handle_signals=False, *args, **kwargs
         )  # can't handle signals when the server runs in another thread
-        print("Server thread ending now")
 
     async def on_shutdown(self, app):
         await self.interrupt_and_close()
@@ -125,12 +122,10 @@ class Server(AbstractContextManager, AsyncResource):
         raise GracefulExit()
 
     def nt_interrupt(self):
-        print("(server) nt_interrupt")
         for room in self.rooms.values():
             room.nt_interrupt()
 
     def close(self):
-        print("(server) close")
         self.loop.call_soon_threadsafe(self.interrupt_and_close())
         self.loop.stop()
         self.serverThread.join()

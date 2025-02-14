@@ -60,24 +60,24 @@ class GameRoom(BaseGameRoom):
     def run_game_thread(
         self, game_descriptor: "GameDescriptor", agent_promises: list["AgentPromise"]
     ):
-        print("Starting game thread, waiting for agents…")
+        # print("Starting game thread, waiting for agents…")
         self.game.set_agents(game_descriptor.await_initialization(agent_promises))
-        print("…Agents connected")
+        # print("…Agents connected")
         self.game.play_game()
-        print("Game ended, interrupting agents")
+        # print("Game ended, interrupting agents")
         self.server.loop.call_soon_threadsafe(self.nt_interrupt)
-        print("Game ended, scheduling self.nt_close()")
+        # print("Game ended, scheduling self.nt_close()")
         asyncio.run_coroutine_threadsafe(self.nt_close(), loop=self.server.loop)
 
     # override
     async def nt_close(self):
-        print("nt_closing GameRoom…")
+        # print("nt_closing GameRoom…")
         # first close the spectators
         await super().nt_close()
-        print("Everything closed, now waiting for the game thread to end…")
+        # print("Everything closed, now waiting for the game thread to end…")
         # then wait for the game to end (with no one connected, it can't take long)
         try:
             self.game_thread.join()
-            print("Game thread ended")
+            # print("Game thread ended")
         except Exception:
             print("Game thread ended with an exception")
