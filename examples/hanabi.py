@@ -41,7 +41,6 @@ def default_hanabi_deck() -> list[HanabiCard]:
 class EveryoneCanSeeItExceptMyself(ComponentSlot):
     # override
     def can_be_seen_by(self, viewer_id=None):
-        print(f"can_be_seen_by called with {viewer_id=}, {self.owner_id=}")
         return viewer_id is not None and viewer_id != self.owner_id
 
 
@@ -78,7 +77,6 @@ class Hanabi(TurnBasedGame):
     def set_agents(self, agents: list[Agent]):
         super().set_agents(agents)
         self.players = PerPlayer.INIT  # typing: ignore
-        print("INIT finished")
         nb_players = len(agents)
         CARDS_PER_PLAYER = 5 if nb_players <= 3 else 4
         for i, player in enumerate(self.players):

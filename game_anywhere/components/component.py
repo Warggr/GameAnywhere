@@ -177,7 +177,7 @@ class ComponentSlot(WeakComponentSlot):
 
 class ComponentSlotProperty:
     _next_id = count()
-    components: dict[ComponentId, Component] = {}
+    components: dict[ComponentId, "ComponentSlotProperty"] = {}
 
     def __init__(self, id: Optional[ComponentId] = None, slotType: type[WeakComponentSlot]=ComponentSlot, *args, **kwargs):
         if id is None:

@@ -17,7 +17,7 @@ class PokerCard(Component):
             strs = {
                 PokerCard.Color.CLUBS: "♠",
                 PokerCard.Color.DIAMONDS: "♦",
-                Poker.SPADES: "♣",
+                PokerCard.Color.SPADES: "♣",
                 PokerCard.Color.HEARTS: "♥",
             }
             return strs[self]  # TODO: this is very non-idiomatic

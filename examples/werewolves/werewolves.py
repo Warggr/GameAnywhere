@@ -101,7 +101,7 @@ class Werewolves(Game):
         super().__init__(agent_descriptions, nb_agents=len(all_roles))
         self.werewolf_kill: Player|None = None
         self.other_kills: list[Player] = []
-        self.lovers: set[Player]|None = None
+        self.lovers: tuple[Player,Player]|None = None
         self.all_roles = all_roles
 
     def set_agents(self, agents: list[Agent]):
@@ -128,7 +128,7 @@ class Werewolves(Game):
         power_balance = Counter((player.role.allegiance for player in self.alive_players))
         if len(power_balance) == 1:
             raise self.Win(whowon=next(iter(power_balance.keys())), winners=self.alive_players)
-        elif len(self.alive_players) == 2 and set(self.alive_players) == self.lovers:
+        elif len(self.alive_players) == 2 and set(self.alive_players) == set(self.lovers):
             raise self.Win(whowon='lovers', winners=self.alive_players)
 
     def night(self, first=False):
@@ -246,12 +246,16 @@ class Cupid(Role):
     @classmethod
     def wake_up(cls, game: Werewolves, players: list[Player]):
         cupid, = players
-        singles = game.alive_player_slots()
-        lover1 = cupid.owner.choose_one_component_slot(players, message="Choose the first lover").content
-        singles.remove(lover1)
-        lover2 = cupid.owner.choose_one_component_slot(players, message="Choose another lover").content
-        game.lovers = {lover1, lover2}
-        with game.chat(players=[lover1, lover2]):
+        singles_slots = game.alive_player_slots()
+        lover1_slot = cupid.owner.choose_one_component_slot(singles_slots, message="Choose the first lover")
+        singles_slots.remove(lover1_slot)
+        lover2_slot = cupid.owner.choose_one_component_slot(singles_slots, message="Choose another lover")
+        game.lovers = [player for player in game.alive_players if player.slot in (lover1_slot, lover2_slot)]
+        faire_part = (f'Hit by the arrows of Cupid, {game.lovers[0].owner.name} and {game.lovers[1].owner.name} have fallen in love.' +
+                      ' Should one of them die, the other will die from sadness.')
+        for player in {cupid, game.lovers[0], game.lovers[1]}: # use set() in case Cupid is one of the lovers
+            player.owner.message(faire_part)
+        with game.chat(players=list(game.lovers)):
             sleep(10)
 
 

@@ -159,6 +159,8 @@
 <script>
 	const CHAT_CHARACTER = '<';
 
+	const screen = document.getElementById('screen');
+
 	var socket = undefined;
 	var connectionStatusDom = document.getElementById('connection-status');
 	var usernameInCookies = false;
@@ -243,14 +245,14 @@
 				addLogLine(`<b>${data.sender}: </b>${data.text}`);
 			}
 			else if(Array.isArray(data)){
-				const tmp = document.createElement('div');
 				for(let diff of data){
 					if(diff.newHTML){
 						document.getElementById(diff.id).innerHTML = diff.newHTML;
 					} else if(diff.append) {
 						let DOMConstructionSite = document.createElement('div');
 						DOMConstructionSite.innerHTML = diff.append; // TODO: find a more elegant way of parsing HTML
-						document.getElementById(diff.id).append(DOMConstructionSite.firstChild);
+						let appendSite = diff.id === '' ? screen : document.getElementById(diff.id);
+						appendSite.append(DOMConstructionSite.firstChild);
 					}
 				}
 			}
