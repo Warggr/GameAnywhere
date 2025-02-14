@@ -1,8 +1,12 @@
-from typing import Optional, Any, NoReturn, Union
+from typing import Any, NoReturn, Union
 from abc import ABC, abstractmethod
+
+from game_anywhere.components import Component
+
 from .agent import Agent, AgentId
-from ..components.component import ComponentOrGame
+from ..components.component import ComponentOrGame, WeakComponentSlot
 from ..components.utils import html
+from ..ui import tag
 
 
 class GameSummary(ABC):
@@ -59,25 +63,41 @@ class Game(ComponentOrGame):
     def get_slot_address(self):
         return ""
 
+    # override
+    def can_be_seen_by_recursive(self, viewer_id) -> bool:
+        """ The Game can be seen by everybody. """
+        return True
+
     def message(self, *args, **kwargs):
         for agent in self.agents:
             agent.message(*args, **kwargs)
 
-    def log_component_update(
-        self,
-        address,
-        data: dict[str, Any],
-        hidden: bool = False,
-        owner_id: Optional[int] = None,
-    ):
+    def log_new_slot(self, obj: ComponentOrGame, slot: WeakComponentSlot):
         if self.agents[0] is None:
             return # Return early if the agents are not initialized yet
         for agent_id, agent in enumerate(self.agents):
-            masked_update = {"id": address, **data}
-            for key in ["new_value", "append"]:
-                if key in data:
-                    masked_update[key] = html(masked_update[key], viewer_id=agent_id)
-            agent.update([masked_update])
+            if obj.can_be_seen_by_recursive(agent_id):
+                masked_update = {"id": obj.get_slot_address(), "append": tag.div(id=slot.get_address())}
+                agent.update([masked_update])
+
+    def log_component_update(
+        self,
+        slot: WeakComponentSlot,
+        new_value: Component,
+        only_update: int|None = None,
+        force_reveal = False,
+    ):
+        address = slot.get_address()
+
+        if only_update is None:
+            agents = enumerate(self.agents)
+        else:
+            agents = [(only_update, self.agents[only_update])]
+        if self.agents[0] is None:
+            return # Return early if the agents are not initialized yet
+        for agent_id, agent in agents:
+            if force_reveal or slot.can_be_seen_by_recursive(agent_id):
+                agent.update([{"id": address, "new_value": html(new_value, viewer_id=agent_id)}])
 
     # Subclasses might override this if they need to be notified once the real agents are available
     # TODO: this is ugly, most overrides do not actually require the agents to be loaded

@@ -35,7 +35,7 @@ class List(Component, Generic[T]):
         # log update, see ComponentSlot.set()
         try:
             game = self.get_game()
-            game.log_component_update(self.get_slot_address(), {"append": slot})
+            game.log_new_slot(self, slot)
         except Component.NotAttachedToComponentTree:
             pass
         # set slot content separately, so that the slot can decide itself how it wants to log the update event (and take e.g. the hidden flag into account).

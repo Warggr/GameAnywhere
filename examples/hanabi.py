@@ -43,13 +43,11 @@ class EveryoneCanSeeItExceptMyself(ComponentSlot):
     def can_be_seen_by(self, viewer_id=None):
         print(f"can_be_seen_by called with {viewer_id=}, {self.owner_id=}")
         return viewer_id is not None and viewer_id != self.owner_id
-    def html(self, viewer_id=None):
-        result = super().html(viewer_id=viewer_id)
-        #print(f"special ComponentSlot html() called with {viewer_id=} -> {result}")
-        return result
+
 
 class HanabiPerPlayerComponent(PerPlayerComponent):
     cards = ComponentSlotProperty()
+
 
 class Hanabi(TurnBasedGame):
     @dataclass

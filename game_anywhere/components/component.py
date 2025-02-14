@@ -30,6 +30,11 @@ class ComponentOrGame(ABC):
     @abstractmethod
     def get_slot_address(self) -> str: ...
 
+    @abstractmethod
+    def can_be_seen_by_recursive(self, viewer_id) -> bool:
+        """ Whether there's a component higher up in the component hierarchy that blocks visibility of this slot. """
+        ...
+
     def html(self, viewer_id=None) -> Html:
         print(f'Getting html for {self} with {viewer_id=}')
         result = Html()
@@ -62,6 +67,12 @@ class Component(ComponentOrGame):
 
     def reveal(self, *args, **kwargs):
         self.slot.reveal(*args, **kwargs)
+
+    def can_be_seen_by_recursive(self, viewer_id) -> bool:
+        try:
+            return self.slot.can_be_seen_by_recursive(viewer_id)
+        except self.NotAttachedToComponentTree:
+            raise AssertionError("This method should be called only on components on the tree")
 
 
 """ Typically, ComponentTreeNodes are Components. But we also support raw values, e.g. booleans. """
@@ -103,25 +114,17 @@ class WeakComponentSlot:
             self.set_owner_id(self.owner_id)
         try:
             game = self.get_game()
-            game.log_component_update(
-                self.get_address(),
-                {"new_value": content},
-                hidden=self.hidden,
-                owner_id=self.owner_id,
-            )
         except Component.NotAttachedToComponentTree:
             # No need to update the clients then
-            pass
+            return
+        game.log_component_update(self, content)
 
     def reveal(self, to: int|None = None):
         try:
             game = self.get_game()
         except Component.NotAttachedToComponentTree:
             return
-        if to is not None:
-            game.log_component_update(self.get_address(), {"new_value": self._content}, hidden=True, owner_id=to)
-        else:
-            game.log_component_update(self.get_address(), {"new_value": self._content}, hidden=False)
+        game.log_component_update(self, self.content, force_reveal=True, only_update=to)
 
     @property
     def content(self):
@@ -144,8 +147,12 @@ class WeakComponentSlot:
     def can_be_seen_by(self, viewer_id=None):
         return not self.hidden or viewer_id == self.owner_id
 
-    def html(self, viewer_id=None) -> HtmlElement:
-        if self.can_be_seen_by(viewer_id):
+    def can_be_seen_by_recursive(self, viewer_id=None) -> bool:
+        """ Whether there's a component higher up in the component hierarchy that blocks visibility of this slot. """
+        return self.can_be_seen_by(viewer_id) and self.parent.can_be_seen_by_recursive(viewer_id)
+
+    def html(self, viewer_id=None, force_reveal=False) -> HtmlElement:
+        if self.can_be_seen_by(viewer_id) or force_reveal:
             html = to_html(self._content, viewer_id=viewer_id)
         else:
             html = mask(self._content)
@@ -198,15 +205,13 @@ class ComponentSlotProperty:
 
     def __set__(self, obj: ComponentOrGame, value: any):
         if self.private_name not in obj.slots:
-            kwargs = self.kwargs
-            if 'owner_id' not in self.kwargs and isinstance(obj, Component):
+            kwargs = self.kwargs.copy()
+            if 'owner_id' not in self.kwargs and isinstance(obj, Component) and obj.slot is not None:
                 kwargs['owner_id'] = obj.slot.owner_id
-            slot = self.SlotType(self.id, obj, value, *self.args, **kwargs)
+            slot = self.SlotType(self.id, obj, *self.args, **kwargs)
             obj.add_slot(self.private_name, slot)
-            try:
-                obj.get_game().log_component_update(obj.get_slot_address(), {"append": slot})
-            except Component.NotAttachedToComponentTree:
-                pass
+            slot.set(value) # First set and register the slot, then fill it.
+            # Otherwise, it will log its update as soon as it is filled, and the clients will get confused
         else:
             obj.slots[self.private_name].set(value)
         if isinstance(value, Component) and self.SlotType == ComponentSlot:
@@ -282,10 +287,10 @@ class PerPlayer(ComponentSlotProperty):
             for_all_players = List(per_player)
             for agent_id, slot in enumerate(for_all_players.slots):
                 slot.set_owner_id(agent_id)
-            slot = ComponentSlot(self.id, obj, for_all_players)
+            slot = ComponentSlot(self.id, obj)
             obj.add_slot(self.private_name, slot)
-            # Notify the client that we just created another slot.
-            obj.log_component_update("screen", {"append": slot})
+            # Fill the slot only after it is registered. See ComponentSlotProperty for explanation
+            slot.set(for_all_players)
         else:
             obj.slots[self.private_name].set(value)
             assert value.slot == obj.slots[self.private_name]

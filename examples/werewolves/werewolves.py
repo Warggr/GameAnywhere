@@ -262,7 +262,7 @@ class Seer(Role):
     def wake_up(cls, game: Werewolves, players: list[Player]):
         seer, = players
         seen = seer.owner.choose_one_component_slot(game.alive_player_slots(), message="Choose whose role you want to See").content
-        seen.role.card.reveal(to=seer)
+        seen.role.card.reveal(to=seer.owner_id)
 
 
 class Witch(Role):
