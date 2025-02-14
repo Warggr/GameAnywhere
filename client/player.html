@@ -253,6 +253,16 @@
 						DOMConstructionSite.innerHTML = diff.append; // TODO: find a more elegant way of parsing HTML
 						let appendSite = diff.id === '' ? screen : document.getElementById(diff.id);
 						appendSite.append(DOMConstructionSite.firstChild);
+					} else if(diff.hint) {
+						const hinted = document.getElementById(diff.id);
+						let hint = [...hinted.childNodes].find(node => node.classList?.contains("hint"));
+						if(hint === undefined) {
+							hint = document.createElement('div'); hint.classList.add("hint"); hinted.appendChild(hint);
+						}
+						let hintText = document.createElement('span'); hintText.innerText = diff.hint;
+						hint.appendChild(hintText);
+					} else {
+						console.warn("Unrecognized diff: " + diff)
 					}
 				}
 			}

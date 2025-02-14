@@ -108,6 +108,18 @@ class Deck(Generic[T], Component):
         return tag.div("Deck with", len(self.cards), "cards")
 
 
+class DiscardPile(Generic[T], Component):
+    def __init__(self):
+        super().__init__()
+        self.cards: list[T] = []
+
+    def append(self, card: T):
+        self.cards.append(card)
+
+    def html(self, viewer_id=None):
+        return tag.div("Discard pile with", len(self.cards), "cards")
+
+
 def fiftytwo_cards() -> Iterable[PokerCard]:
     return (
         PokerCard(color, value)

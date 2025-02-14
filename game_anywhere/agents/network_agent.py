@@ -98,6 +98,8 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
                     "id": diff["id"],
                     "append": str(diff["append"]),
                 }
+            elif "hint" in diff:
+                return diff
             else:
                 raise NotImplementedError("Unrecognized diff type: " + str(diff))
 
