@@ -1,3 +1,3 @@
 from .board import Board, CheckerBoard
-from .list import List
+from .containers import List, Dict
 from .component import Component, ComponentSlot, ComponentSlotProperty, PerPlayer

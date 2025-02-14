@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from game_anywhere.ui import Html, HtmlElement, tag
 from itertools import count
-from typing import Optional, Type, Any, Generator
+from typing import Optional, Type, Any, Generator, Generic, TypeVar
 from .utils import html as to_html, mask
 
 ComponentId = str
@@ -15,6 +15,7 @@ class ComponentOrGame(ABC):
     I.e. each Component has a ComponentSlot as a parent/slot, and each ComponentSlot has a ComponentOrGame as a parent.
     """
     def __init__(self):
+        # TODO: a lot of subclasses don't need the slots dict - maybe this should be optional or a mixin
         self.slots: dict[str, "WeakComponentSlot"] = {}
 
     def add_slot(self, slot_name: str, slot: "WeakComponentSlot"):
@@ -54,7 +55,7 @@ class Component(ComponentOrGame):
         super().__init__()
         self.slot: Optional["ComponentSlot"] = None
 
-    def get_game(self):
+    def get_game(self) -> "Game":
         if self.slot is None:
             raise Component.NotAttachedToComponentTree()
         return self.slot.parent.get_game()
@@ -76,14 +77,15 @@ class Component(ComponentOrGame):
 
 """ Typically, ComponentTreeNodes are Components. But we also support raw values, e.g. booleans. """
 ComponentTreeNode = Any
+T = TypeVar("T", bound=ComponentTreeNode)
 
 
-class WeakComponentSlot:
+class WeakComponentSlot(Generic[T]):
     def __init__(
         self,
         id: str,
         parent: ComponentOrGame,
-        content: Optional[ComponentTreeNode] = None,
+        content: Optional[T] = None,
         hidden: bool = False,
         owner_id: Optional[int] = None,
     ):
@@ -101,10 +103,10 @@ class WeakComponentSlot:
     def get_game(self) -> "Game":
         return self.parent.get_game()
 
-    def get(self):
+    def get(self) -> T:
         return self._content
 
-    def set(self, content: ComponentTreeNode):
+    def set(self, content: T):
         self._content = content
         if isinstance(content, Component):
             content.slot = self
@@ -126,12 +128,17 @@ class WeakComponentSlot:
         game.log_component_update(self, self.content, force_reveal=True, only_update=to)
 
     @property
-    def content(self):
+    def content(self) -> T:
         return self.get()
 
     @content.setter
-    def content(self, content: ComponentTreeNode):
+    def content(self, content: T):
         self.set(content)
+
+    def take(self) -> T:
+        result = self._content
+        self.set(None)
+        return result
 
     def empty(self) -> bool:
         return self._content is None
@@ -174,7 +181,7 @@ class ComponentSlot(WeakComponentSlot):
             content.slot = self
 
 
-class ComponentSlotProperty:
+class ComponentSlotProperty(Generic[T]):
     _next_id = count()
     components: dict[ComponentId, "ComponentSlotProperty"] = {}
 
@@ -196,13 +203,13 @@ class ComponentSlotProperty:
     def __set_name__(self, owner: Type[ComponentOrGame], name):
         self.private_name = "_" + name
 
-    def __get__(self, obj: ComponentOrGame, objtype=None):
+    def __get__(self, obj: ComponentOrGame, objtype=None) -> T:
         if self.private_name not in obj.slots:
             slot = self.SlotType(self.id, obj, *self.args, **self.kwargs)
             obj.add_slot(self.private_name, slot)
         return obj.slots[self.private_name].get()
 
-    def __set__(self, obj: ComponentOrGame, value: any):
+    def __set__(self, obj: ComponentOrGame, value: T):
         if self.private_name not in obj.slots:
             kwargs = self.kwargs.copy()
             if 'owner_id' not in self.kwargs and isinstance(obj, Component) and obj.slot is not None:
@@ -280,7 +287,7 @@ class PerPlayer(ComponentSlotProperty):
 
     def __set__(self, obj: "Game", value: any):
         if value is PerPlayer.INIT:
-            from .list import List
+            from .containers import List
 
             per_player = [self.componentClass(owner=agent, owner_id=i) for i, agent in enumerate(obj.agents)]
             for_all_players = List(per_player)

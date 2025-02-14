@@ -45,7 +45,7 @@ class EveryoneCanSeeItExceptMyself(ComponentSlot):
 
 
 class HanabiPerPlayerComponent(PerPlayerComponent):
-    cards = ComponentSlotProperty()
+    cards = ComponentSlotProperty[List[HanabiCard]]()
 
 
 class Hanabi(TurnBasedGame):
@@ -56,9 +56,9 @@ class Hanabi(TurnBasedGame):
         def get_winner(self) -> AgentId:
             raise NotImplementedError("There is no winner in Hanabi. It's a cooperative game.")
 
-    nb_lives = ComponentSlotProperty()
-    nb_hints = ComponentSlotProperty()
-    deck = ComponentSlotProperty()
+    nb_lives = ComponentSlotProperty[int]()
+    nb_hints = ComponentSlotProperty[int]()
+    deck = ComponentSlotProperty[Deck[HanabiCard]]()
     players = PerPlayer(HanabiPerPlayerComponent)
     MAX_HINTS = 8
 
@@ -73,10 +73,12 @@ class Hanabi(TurnBasedGame):
         self.deck = Deck(default_hanabi_deck(), shuffled=True)
         self.nb_hints = self.MAX_HINTS
         self.nb_lives = 3
+        self.stacks = Dict[Color, List]()
+        self.discard_pile = DiscardPile()
 
     def set_agents(self, agents: list[Agent]):
         super().set_agents(agents)
-        self.players = PerPlayer.INIT  # typing: ignore
+        self.players: List[HanabiPerPlayerComponent] = PerPlayer.INIT  # typing: ignore
         nb_players = len(agents)
         CARDS_PER_PLAYER = 5 if nb_players <= 3 else 4
         for i, player in enumerate(self.players):

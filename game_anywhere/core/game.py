@@ -80,6 +80,14 @@ class Game(ComponentOrGame):
                 update = {"id": obj.get_slot_address(), "append": tag.div(id=slot.get_address())}
                 agent.update([update])
 
+    def log_delete_slot(self, obj: ComponentOrGame, slot_relative_address: str):
+        if self.agents[0] is None:
+            return
+        for agent_id, agent in enumerate(self.agents):
+            if obj.can_be_seen_by_recursive(agent_id):
+                update = {"id": obj.get_slot_address(), "delete": slot_relative_address}
+                agent.update([update])
+
     def log_component_update(
         self,
         slot: WeakComponentSlot,
