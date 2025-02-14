@@ -20,7 +20,7 @@ class List(Component, Generic[T]):
 
     # Component interface methods
 
-    def _slots(self) -> Generator[tuple[str, "ComponentSlot"]]:
+    def get_slots(self) -> Generator[tuple[str, "ComponentSlot"]]:
         for i, slot in enumerate(self.slots):
             yield f"@[{i}]", slot
 

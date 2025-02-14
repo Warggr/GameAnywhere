@@ -28,6 +28,7 @@ Represents a game in progress.
 # ComponentOrGame is an ABC, so indirectly Game is also an ABC
 class Game(ComponentOrGame):
     def __init__(self, agent_descriptions: Union[list["AgentDescriptor"],"AgentDescriptor"], nb_agents: int|None = None):
+        super().__init__()
         if type(agent_descriptions) == list:
             assert nb_agents is None or nb_agents == len(agent_descriptions)
             nb_agents = len(agent_descriptions)

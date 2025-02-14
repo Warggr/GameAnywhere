@@ -114,7 +114,6 @@ class Werewolves(Game):
         shuffle(self.all_roles)
         for player, roleType in zip(self.players, self.all_roles):
             player.role = roleType()
-            print(player.alive, player.owner)
 
     def chat(self, players: Iterable[Player]):
         return Chat([player.owner for player in players])

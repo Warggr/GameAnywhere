@@ -85,7 +85,6 @@ class Hanabi(TurnBasedGame):
         CARDS_PER_PLAYER = 5 if nb_players <= 3 else 4
         for i, player in enumerate(self.players):
             player.cards = List(self.deck.draw(CARDS_PER_PLAYER), slotClass=EveryoneCanSeeItExceptMyself, owner_id=i)
-            print("Owner ID of slot is", player._cards.owner_id, "; above slot has", player.slot.owner_id)
 
     def turn(self) -> Union['Hanabi.Summary', None]:
         options = ['Place card', 'Cycle card']

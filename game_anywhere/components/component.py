@@ -14,6 +14,15 @@ class ComponentOrGame(ABC):
     Each ComponentSlot can contain one Component. Components in turn can have multiple ComponentSlots.
     I.e. each Component has a ComponentSlot as a parent/slot, and each ComponentSlot has a ComponentOrGame as a parent.
     """
+    def __init__(self):
+        self.slots: dict[str, "WeakComponentSlot"] = {}
+
+    def add_slot(self, slot_name: str, slot: "WeakComponentSlot"):
+        self.slots[slot_name] = slot
+        try:
+            self.get_game().log_new_slot(self, slot)
+        except Component.NotAttachedToComponentTree:
+            pass
 
     @abstractmethod
     def get_game(self) -> "Game": ...
@@ -24,23 +33,21 @@ class ComponentOrGame(ABC):
     def html(self, viewer_id=None) -> Html:
         print(f'Getting html for {self} with {viewer_id=}')
         result = Html()
-        for slotname, slot in self._slots():
+        for slotname, slot in self.get_slots():
             result += slot.html(viewer_id=viewer_id)
         return result
 
-    # TODO: it would be more efficient if games provided a list of their slots themselves
-    def _slots(self) -> Generator[tuple[str, "ComponentSlot"]]:
-        for attrname, attr in self.__dict__.items():
-            if attrname == "slot":
-                continue
-            if isinstance(attr, ComponentSlot):
-                yield attrname, attr
+    def get_slots(self) -> Generator[tuple[str, "ComponentSlot"]]:
+        for slot_name, slot in self.slots.items():
+            yield slot_name, slot
+
 
 class Component(ComponentOrGame):
     class NotAttachedToComponentTree(Exception):
         pass
 
     def __init__(self):
+        super().__init__()
         self.slot: Optional["ComponentSlot"] = None
 
     def get_game(self):
@@ -131,7 +138,7 @@ class WeakComponentSlot:
         """ Owner IDs are inherited down the component tree by default, so this is a recursive method """
         self.owner_id = owner_id
         if type(self._content) is Component:
-            for child in self._content._slots():
+            for child in self._content.get_slots():
                 child.set_owner_id(owner_id)
 
     def can_be_seen_by(self, viewer_id=None):
@@ -184,25 +191,26 @@ class ComponentSlotProperty:
         self.private_name = "_" + name
 
     def __get__(self, obj: ComponentOrGame, objtype=None):
-        if not hasattr(obj, self.private_name):
-            setattr(obj, self.private_name, self.SlotType(self.id, obj, *self.args, **self.kwargs))
-        return getattr(obj, self.private_name).get()
+        if self.private_name not in obj.slots:
+            slot = self.SlotType(self.id, obj, *self.args, **self.kwargs)
+            obj.add_slot(self.private_name, slot)
+        return obj.slots[self.private_name].get()
 
     def __set__(self, obj: ComponentOrGame, value: any):
-        if not hasattr(obj, self.private_name):
+        if self.private_name not in obj.slots:
             kwargs = self.kwargs
             if 'owner_id' not in self.kwargs and isinstance(obj, Component):
                 kwargs['owner_id'] = obj.slot.owner_id
             slot = self.SlotType(self.id, obj, value, *self.args, **kwargs)
-            setattr(obj, self.private_name, slot)
+            obj.add_slot(self.private_name, slot)
             try:
                 obj.get_game().log_component_update(obj.get_slot_address(), {"append": slot})
             except Component.NotAttachedToComponentTree:
                 pass
         else:
-            getattr(obj, self.private_name).set(value)
+            obj.slots[self.private_name].set(value)
         if isinstance(value, Component) and self.SlotType == ComponentSlot:
-            assert value.slot == getattr(obj, self.private_name)
+            assert value.slot == obj.slots[self.private_name]
 
 
 class PerPlayerComponent(Component):
@@ -275,9 +283,9 @@ class PerPlayer(ComponentSlotProperty):
             for agent_id, slot in enumerate(for_all_players.slots):
                 slot.set_owner_id(agent_id)
             slot = ComponentSlot(self.id, obj, for_all_players)
-            setattr(obj, self.private_name, slot)
+            obj.add_slot(self.private_name, slot)
             # Notify the client that we just created another slot.
             obj.log_component_update("screen", {"append": slot})
         else:
-            getattr(obj, self.private_name).set(value)
-            assert value.slot == getattr(obj, self.private_name)
+            obj.slots[self.private_name].set(value)
+            assert value.slot == obj.slots[self.private_name]
