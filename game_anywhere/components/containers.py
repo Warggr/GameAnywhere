@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, Iterable, Iterator, Generator, MutableSequence, MutableMapping
+from typing import TypeVar, Generic, Iterable, Iterator, MutableSequence, MutableMapping
 
 from game_anywhere.ui import Html
 from .component import Component, ComponentSlot
@@ -18,7 +18,7 @@ class List(Component, Generic[T], MutableSequence[T]):
 
     # Component interface methods
 
-    def get_slots(self) -> Generator[tuple[str, "ComponentSlot"]]:
+    def get_slots(self) -> Iterator[tuple[str, "ComponentSlot"]]:
         for i, slot in enumerate(self.slots):
             yield f"@[{i}]", slot
 
@@ -93,7 +93,7 @@ class Dict(Component, Generic[Key, T], MutableMapping[Key, T]):
         self.slots: dict[Key, ComponentSlot] = slots
 
     # Component interface methods
-    def get_slots(self) -> Generator[tuple[str, ComponentSlot]]:
+    def get_slots(self) -> Iterator[tuple[str, ComponentSlot]]:
         for key, value in self.slots.items():
             yield str(key), value
 

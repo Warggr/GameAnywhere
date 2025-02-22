@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from game_anywhere.ui import Html, HtmlElement, tag
 from itertools import count
-from typing import Optional, Type, Any, Generator, Generic, TypeVar
+from typing import Optional, Type, Any, Iterator, Generic, TypeVar
 from .utils import html as to_html, mask
 
 ComponentId = str
@@ -39,10 +39,12 @@ class ComponentOrGame(ABC):
     def html(self, viewer_id=None) -> Html:
         result = Html()
         for slotname, slot in self.get_slots():
-            result += slot.html(viewer_id=viewer_id)
+            slot_html = slot.html(viewer_id=viewer_id)
+            label = tag.label(slotname, **{ 'for': slot_html.attrs['id'] })
+            result += label + slot_html
         return result
 
-    def get_slots(self) -> Generator[tuple[str, "ComponentSlot"]]:
+    def get_slots(self) -> Iterator[tuple[str, "WeakComponentSlot"]]:
         for slot_name, slot in self.slots.items():
             yield slot_name, slot
 
