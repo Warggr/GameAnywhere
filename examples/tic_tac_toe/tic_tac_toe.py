@@ -18,19 +18,15 @@ class TicTacToeMark(Component):
 
 BOARD_SIZE = 3
 
-TicTacToeBoard = CheckerBoard.specialize(
-    height=BOARD_SIZE, width=BOARD_SIZE, CellType=TicTacToeMark
-)
-
 
 def hasRow(
     player: AgentId,
-    board: TicTacToeBoard,
+    board: CheckerBoard[TicTacToeMark],
     start: tuple[int, int],
     step: tuple[int, int],
 ):
     for i in range(BOARD_SIZE):
-        if board[start].empty() or board[start].content.player != player:
+        if board[start] is None or board[start].player != player:
             return False
         start = [start[i] + step[i] for i in range(2)]
     return True
@@ -39,11 +35,11 @@ def hasRow(
 class TicTacToe(TurnBasedGame):
     SummaryType = SimpleGameSummary
 
-    board = ComponentSlotProperty()
+    board = ComponentSlotProperty[CheckerBoard]()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.board = TicTacToeBoard(fill=lambda: None)
+        self.board = CheckerBoard(BOARD_SIZE, BOARD_SIZE)
 
     def turn(self) -> Union[None, SimpleGameSummary]:
         TOTAL_MOVES = self.board.get_size()

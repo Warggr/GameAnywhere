@@ -4,6 +4,7 @@ from typing import (
     Type,
     Callable,
     Iterable,
+    Optional, Iterator,
 )
 
 from .component import Component, ComponentSlot
@@ -22,53 +23,57 @@ class CheckerBoard(Board, Generic[T]):
     class Field(ComponentSlot):
         pass
 
-    @classmethod
-    def specialize(
-        cls, height: int, width: int, CellType: Type[T]
-    ) -> Type["CheckerBoard[T]"]:
-        class _CheckerBoard(CheckerBoard[CellType]):
-            def __init__(self, fill: Callable[[], CellType] = CellType):
-                super().__init__()
-                self.board = [[None for i in range(width)] for j in range(height)]
-                for i in range(width):
-                    for j in range(height):
-                        self.board[i][j] = CheckerBoard.Field(
-                            id=self.coords_to_field_id((i, j)),
-                            parent=self,
-                            content=fill(),
-                        )
+    def __init__(self, height: int, width: int, fill: Callable[[], Optional[T]] | None = None):
+        super().__init__()
+        self.width = width
+        self.height = height
+        self.board: list[list[Optional[T]]] = [[None for i in range(width)] for j in range(height)]
+        if fill is None:
+            fill = lambda: None
+        for i in range(width):
+            for j in range(height):
+                self.board[i][j] = CheckerBoard.Field(
+                    id=self._coords_to_field_id((i, j)),
+                    parent=self,
+                    content=fill(),
+                )
 
-        _CheckerBoard.width = width
-        _CheckerBoard.height = height
-        _CheckerBoard.CellType = CellType
-        return _CheckerBoard
-
-    def __getitem__(self, index: tuple[int, int]) -> "CheckerBoard.Field":
+    def __getitem__(self, index: tuple[int, int]) -> Optional[T]:
         try:
-            return self.board[index[0]][index[1]]
+            return self.board[index[0]][index[1]].get()
         except TypeError:
             raise TypeError(f"expected (int, int), got {type(index)}")
 
-    def __setitem__(self, index: tuple[int, int], val: T):
+    def __setitem__(self, index: tuple[int, int], val: Optional[T]):
         self.board[index[0]][index[1]].set(val)
 
-    def all_fields(self) -> Iterable[tuple[tuple[int, int], T]]:
+    def all_fields(self) -> Iterable[tuple[tuple[int, int], Optional[T]]]:
         return (
             ((i, j), self.board[i][j])
             for j in range(self.width)
             for i in range(self.height)
         )
 
-    def coords_to_field_id(self, coords: tuple[int, int]):
+    def get_slot(self, index: tuple[int, int]) -> "Checkerboard.Field":
+        i, j = index
+        return self.board[i][j]
+
+    @staticmethod
+    def _coords_to_field_id(coords: tuple[int, int]):
         return f"{coords[0]},{coords[1]}"
 
-    @classmethod
-    def get_size(cls) -> int:
-        return cls.width * cls.height
+    def get_size(self) -> int:
+        return self.width * self.height
 
-    @classmethod
-    def get_dimensions(cls) -> tuple[int, int]:
-        return cls.height, cls.width
+    def get_dimensions(self) -> tuple[int, int]:
+        return self.height, self.width
+
+    # Component interface methods
+
+    def get_slots(self) -> Iterator[tuple[str, "CheckerBoard.Field"]]:
+        for i in range(self.height):
+            for j in range(self.width):
+                yield self._coords_to_field_id((i,j)), self.board[i][j]
 
     def html(self, viewer_id=None) -> Html:
         return Html(
@@ -80,7 +85,7 @@ class CheckerBoard(Board, Generic[T]):
                 },
             ),
             tag.style(
-                ".checkerboard{display:grid;width:100%;height:100%;background-color:red;gap:10px;}" +
+                ".checkerboard{display:grid;width:100%;height:100%;gap:10px;}" +
                 " .checkerboard div{background-color:white;color:black;border:2px solid;aspect-ratio:1;}"
             ),
         )

@@ -50,20 +50,17 @@ class ChessPiece(Component):
         return chr(code)
 
 
-ChessBoard = CheckerBoard.specialize(height=8, width=8, CellType=ChessPiece)
-
-
-def full_chessboard() -> ChessBoard:
-    board = ChessBoard(fill=lambda: None)
+def full_chessboard() -> CheckerBoard[ChessPiece]:
+    board = CheckerBoard(height=8, width=8)
     for i, color in enumerate(["WHITE", "BLACK"]):
         color = ChessPiece.Color[color]
         for j, type in enumerate(
             ["ROOK", "KNIGHT", "BISHOP", "QUEEN", "KING", "BISHOP", "KNIGHT", "ROOK"]
         ):
             type = ChessPiece.Type[type]
-            board[j, i * 7].content = ChessPiece(color, type)
+            board[j, i * 7] = ChessPiece(color, type)
         for j in range(8):
-            board[j, 1 + i * 5].content = ChessPiece(color, ChessPiece.Type.PAWN)
+            board[j, 1 + i * 5] = ChessPiece(color, ChessPiece.Type.PAWN)
     return board
 
 
@@ -153,43 +150,44 @@ class Chess(TurnBasedGame):
         color: ChessPiece.Color,
     ) -> list[ChessCoordinates]:
         assert (
-            self.board[position].content and self.board[position].content.color == color
+            self.board[position] is not None and self.board[position].color == color
         )
         possibilities = []
         while True:
             position = position.try_add(direction)
             if position and (
-                self.board[position].empty()
-                or self.board[position].content.color != color
-            ):
+                self.board[position] is None
+                or self.board[position].color != color
+            ): # empty or enemy piece taken
                 possibilities.append(position)
-            if not position or self.board[position].content:
+            if not position or self.board[position] is not None:
+                # end of board or enemy piece taken -> stop here
                 break
         return possibilities
 
     def possible_movements(
         self, piece: ChessPiece, position: ChessCoordinates
     ) -> list[ChessCoordinates]:
-        assert self.board[position].content == piece
+        assert self.board[position] == piece
         possibilities = []
         if piece.type == ChessPiece.Type.PAWN:
             forward = 1 if piece.color == ChessPiece.Color.WHITE else -1
             field_in_front = position.try_add((0, forward))
-            if field_in_front and self.board[field_in_front].empty():
+            if field_in_front and self.board[field_in_front] is None:
                 possibilities.append(field_in_front)
                 if (piece.color == ChessPiece.Color.WHITE and position[1] == 1) or (
                     piece.color == ChessPiece.Color.BLACK and position[1] == 6
                 ):
                     field_2_in_front = field_in_front.try_add((0, forward))
-                    if field_2_in_front and self.board[field_2_in_front].empty():
+                    if field_2_in_front and self.board[field_2_in_front] is None:
                         possibilities.append(field_2_in_front)
             for side in (-1, 1):
                 field_at_diag = position.try_add((side, forward))
                 if field_at_diag:
                     if (
                         (
-                            self.board[field_at_diag].content
-                            and self.board[field_at_diag].content.color != piece.color
+                            self.board[field_at_diag] is not None
+                            and self.board[field_at_diag].color != piece.color
                         )
                         or self.last_field_moved_through_for_en_passant == field_at_diag
                     ):
@@ -207,8 +205,8 @@ class Chess(TurnBasedGame):
             for direction in CARDINAL_DIRECTIONS + DIAGONAL_DIRECTIONS:
                 next_position = position.try_add(direction)
                 if next_position and (
-                    self.board[next_position].empty()
-                    or self.board[next_position].content.color != piece.color
+                    self.board[next_position] is None
+                    or self.board[next_position].color != piece.color
                 ):
                     possibilities.append(next_position)
             # TODO castling
@@ -218,8 +216,8 @@ class Chess(TurnBasedGame):
                     for direction in [(long, short), (short, long)]:
                         next_position = position.try_add(direction)
                         if next_position and (
-                            self.board[next_position].empty()
-                            or self.board[next_position].content.color != piece.color
+                            self.board[next_position] is None
+                            or self.board[next_position].color != piece.color
                         ):
                             possibilities.append(next_position)
         # TODO do not allow the king to be in check
@@ -237,8 +235,8 @@ class Chess(TurnBasedGame):
             ]
 
         field_chosen: tuple[int, int] = previous_choices[0]
-        piece_chosen = self.board[field_chosen].content
-        assert piece_chosen.color == self.current_color()
+        piece_chosen = self.board[field_chosen]
+        assert piece_chosen is not None and piece_chosen.color == self.current_color()
 
         if len(previous_choices) == 1:
             return self.possible_movements(piece_chosen, field_chosen)
@@ -251,18 +249,17 @@ class Chess(TurnBasedGame):
         starting_coords: ChessCoordinates = choices[0]
         stopping_coords: ChessCoordinates = choices[1]
         # TODO: assert that the move is valid
-        starting_field = self.board[starting_coords]
-        piece = starting_field.content
-        starting_field.content = None
+        piece = self.board[starting_coords]
+        self.board[starting_coords] = None
         assert piece.color == self.current_color()
 
         captured = None
-        if self.board[stopping_coords].content:
-            captured = self.board[stopping_coords].content
+        if self.board[stopping_coords] is not None:
+            captured = self.board[stopping_coords]
             assert captured.color != self.current_color()
             self.captured.append(captured)
 
-        self.board[stopping_coords].content = piece
+        self.board[stopping_coords] = piece
 
         if (
             piece.type == ChessPiece.Type.PAWN
@@ -291,7 +288,7 @@ class Chess(TurnBasedGame):
             if len(partial_choices) != 0:
                 special_options = ["Back"]
             chosen_option = self.get_current_agent().choose_one_component_slot(
-                [self.board[coords] for coords in options], options, special_options
+                [self.board.get_slot(coords) for coords in options], options, special_options
             )
             if chosen_option == "Back":
                 partial_choices.pop()
