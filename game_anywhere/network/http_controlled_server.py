@@ -40,7 +40,7 @@ class HttpControlledServer(Server):
             game_description = parse_game_descriptor(
                 await request.json(), self.available_games, default_description
             )
-        except (KeyError, json.JSONDecodeError) as err:
+        except (NotImplementedError, KeyError, json.JSONDecodeError) as err:
             raise web.HTTPBadRequest(text=repr(err))
         try:
             room_id, room = self.new_room(room=GameRoom(game_description, server=self))

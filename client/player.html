@@ -246,7 +246,7 @@
 			}
 			else if(Array.isArray(data)){
 				for(let diff of data){
-					if(diff.newHTML){
+					if(diff.newHTML !== undefined){
 						document.getElementById(diff.id).innerHTML = diff.newHTML;
 					} else if(diff.append) {
 						let DOMConstructionSite = document.createElement('div');

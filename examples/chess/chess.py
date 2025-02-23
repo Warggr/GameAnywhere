@@ -1,22 +1,18 @@
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).parent.parent.parent))
-
 from game_anywhere.core import TurnBasedGame, SimpleGameSummary
 from game_anywhere.components import (
     Component,
     CheckerBoard,
-    ComponentSlot,
     ComponentSlotProperty,
+    List,
 )
+from game_anywhere.ui import tag
 from enum import Enum, auto
-from typing import Optional, Any
+from typing import Optional
 
 
 class ChessPiece(Component):
     class Type(Enum):
-        ROOK = 0  # Rook, Knight, and Bishop have to be in that order
+        ROOK = 0  # Rook, Knight, and Bishop have to be in that order (so we can put them on the board in a loop)
         KNIGHT = 1
         BISHOP = 2
         # Here we use `auto()` to indicate that we don't care about their specific values.
@@ -47,7 +43,13 @@ class ChessPiece(Component):
         code = ord(UNICODE_ICONS[self.type.name])
         if self.color == ChessPiece.Color.BLACK:
             code += BLACK_OFFSET
-        return chr(code)
+
+        return (
+            '<svg width="100%" height="100%" viewBox="0 0 12 12">' +
+            '<text y="100%" textLength="100%" lengthAdjust="spacingAndGlyphs" style="font-size: 12;">' +
+            chr(code) +
+            '</text></svg>'
+        )
 
 
 def full_chessboard() -> CheckerBoard[ChessPiece]:
@@ -84,7 +86,7 @@ class ChessCoordinates(tuple[int, int]):
             cls, tup
         )  # using super().__new__ to create a ChessCoordinates object
         for i in range(2):
-            if not (0 <= obj[i] and obj[i] < 8):
+            if not (0 <= obj[i] < 8):
                 raise ChessCoordinates.OutOfBounds()
         return obj
 
@@ -124,20 +126,17 @@ DIAGONAL_DIRECTIONS = [(i, j) for i in (-1, 1) for j in (-1, 1)]
 class Chess(TurnBasedGame):
     SummaryType = SimpleGameSummary
 
-    board = ComponentSlotProperty()
+    board = ComponentSlotProperty[CheckerBoard]()
+    captured = ComponentSlotProperty[List[ChessPiece]]()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.board = full_chessboard()
         self.last_field_moved_through_for_en_passant = None
-        self.captured: list[ChessPiece] = []
+        self.captured = List[ChessPiece]([])
 
-    def color_of(self, agent_id: "AgentId"):
-        """
-        currently a static method, but in the future, colors might not be tied to agent ID
-        (e.g. color could be decided randomly at the beginning of the game).
-        In that case, it would become a regular method again
-        """
+    @staticmethod
+    def color_of(agent_id: "AgentId"):
         return ChessPiece.Color.WHITE if agent_id == 1 else ChessPiece.Color.BLACK
 
     def current_color(self):
@@ -279,7 +278,7 @@ class Chess(TurnBasedGame):
         return ChessMove(starting_coords, stopping_coords, captured)
 
     def turn(self) -> Optional[SimpleGameSummary]:
-        partial_choices: list[PartialChoice] = []
+        partial_choices = []
         while True:
             options = self.all_options(partial_choices)
             if options is None:
@@ -301,8 +300,13 @@ class Chess(TurnBasedGame):
             return SimpleGameSummary(winner=self.get_current_agent_id())
 
     def html(self, *args, **kwargs):
-        # TODO add alternate black/white styling
-        return super().html(*args, **kwargs)
+        html = super().html(*args, **kwargs)
+        chess_style = ".checkerboard>div{background-color:white;} "
+        # see https://stackoverflow.com/a/69122036
+        black_fields = [f"16n+{2*i+1}" for i in range(4)] + [f"16n+{2*i+10}" for i in range(4)]
+        black_fields = ', '.join('.checkerboard>div:nth-child(' + idx + ')' for idx in black_fields)
+        chess_style += black_fields + '{background-color:grey}'
+        return html + tag.style(chess_style)
 
 
 if __name__ == "__main__":
