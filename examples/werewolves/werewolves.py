@@ -103,13 +103,7 @@ class Werewolves(Game):
         self.other_kills: list[Player] = []
         self.lovers: tuple[Player,Player]|None = None
         self.all_roles = all_roles
-
-    def set_agents(self, agents: list[Agent]):
-        super().set_agents(agents)
-        # we have to reset that now that the real agents are available
-        # TODO: this is very ugly
-        self.players: list[Player] = PerPlayer.INIT  # type: ignore
-
+        self.players: list[Player] = PerPlayer.INIT(agent_descriptions)  # type: ignore
         # and now we can also distribute the roles
         shuffle(self.all_roles)
         for player, roleType in zip(self.players, self.all_roles):

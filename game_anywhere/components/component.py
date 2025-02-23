@@ -239,16 +239,15 @@ class PerPlayerComponent(Component):
     ))
     """
 
-    def __init__(self, owner: "Agent", owner_id: "AgentId", *args, **kwargs):
+    def __init__(self, owner: "AgentDescriptor", owner_id: "AgentId", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.owner = owner
-        assert self.owner is not None
         self.owner_id = owner_id
     def __str__(self):
-        return f'Board of player {self.owner.name}'
+        return f'Board of player {self.owner.name or "(not connected)"}'
     def html(self, viewer_id=None) -> Html:
         html = super().html(viewer_id)
-        owner = self.owner.name
+        owner = self.owner.name or "(not connected)"
         if self.owner_id == viewer_id:
             owner += ' (you)'
         return tag.h2(owner) + html
@@ -258,11 +257,15 @@ class PerPlayer(ComponentSlotProperty):
     """
     Usage: use this as an attribute of the class
     then before you use this, you need to write once
-    ` game.attr = PerPlayer.INIT `. Then you can do e.g. game.attr[0] = ...
+    ` game.attr = PerPlayer.INIT(agent_descriptors) `. Then you can do e.g. game.attr[0] = ...
     """
 
     class INIT:
-        pass  # Sentinel value
+        # A sentinel value with some content. TODO: this is ugly.
+        # A prettier syntax would be `game.attr.INIT(descriptors)`, but this is not possible
+        # as game.attr calls __get__ and returns the property
+        def __init__(self, agent_descriptors: list["AgentDescriptor"]):
+            self.agent_descriptors = agent_descriptors
 
     def __init__(
         self,
@@ -288,10 +291,11 @@ class PerPlayer(ComponentSlotProperty):
         self.componentClass = componentClass
 
     def __set__(self, obj: "Game", value: any):
-        if value is PerPlayer.INIT:
+        # TODO: we might attach PerPlayers to something else than the top-level Game
+        if type(value) is PerPlayer.INIT:
             from .containers import List
 
-            per_player = [self.componentClass(owner=agent, owner_id=i) for i, agent in enumerate(obj.agents)]
+            per_player = [self.componentClass(owner=agent, owner_id=i) for i, agent in enumerate(value.agent_descriptors)]
             for_all_players = List(per_player)
             for agent_id, slot in enumerate(for_all_players.slots):
                 slot.set_owner_id(agent_id)

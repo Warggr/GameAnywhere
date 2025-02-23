@@ -142,10 +142,10 @@ class TextAgent(Agent):
 class HumanAgent(TextAgent):
     class Descriptor(AgentDescriptor):
         def start_initialization(self, id: "AgentId", context):
-            pass
+            self.resolve_name(f'Human agent {id}')
 
         def await_initialization(self, promise) -> "HumanAgent":
-            return HumanAgent('Bob')
+            return HumanAgent(self.name)
 
     def _write(*objects, **kwargs):
         print(*objects, **kwargs)
@@ -194,6 +194,7 @@ class PipeAgent(TextAgent):
             context["exit_stack"].push(infile)
             print('Enter your name:', file=outfile, flush=True)
             name = infile.readline().strip()
+            self.resolve_name(name)
             return PipeAgent(infile, outfile, name)
 
     def __init__(self, infile: TextIO, outfile: TextIO, *args, **kwargs):

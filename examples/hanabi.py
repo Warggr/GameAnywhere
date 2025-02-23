@@ -65,23 +65,21 @@ class Hanabi(TurnBasedGame):
     MAX_HINTS = 8
 
     @classmethod
-    def parse_config(cls, config: list[str]) -> dict[str, Any]:
+    def parse_config(cls, config: list[str]|None) -> tuple[int, dict[str, Any]]:
         assert len(config) == 1, "Only one configuration option allowed: number of players"
-        return {'nb_players': int(config[0])}
+        return int(config[0]), {}
 
-    def __init__(self, agent_descriptions, nb_players):
-        assert 2 <= nb_players <= 5, "Hanabi can be played only between 2 and 5 players"
-        super().__init__(agent_descriptions=agent_descriptions, nb_agents=nb_players)
+    def __init__(self, agent_descriptions):
+        super().__init__(agent_descriptions=agent_descriptions)
         self.deck = Deck(default_hanabi_deck(), shuffled=True)
         self.nb_hints = self.MAX_HINTS
         self.nb_lives = 3
         self.stacks = Dict[Color, List]()
         self.discard_pile = DiscardPile()
+        self.players: List[HanabiPerPlayerComponent] = PerPlayer.INIT(agent_descriptions)  # typing: ignore
 
-    def set_agents(self, agents: list[Agent]):
-        super().set_agents(agents)
-        self.players: List[HanabiPerPlayerComponent] = PerPlayer.INIT  # typing: ignore
-        nb_players = len(agents)
+        nb_players = len(agent_descriptions)
+        assert 2 <= nb_players <= 5, "Hanabi can be played only between 2 and 5 players"
         CARDS_PER_PLAYER = 5 if nb_players <= 3 else 4
         for i, player in enumerate(self.players):
             player.cards = List(self.deck.draw(CARDS_PER_PLAYER), slotClass=EveryoneCanSeeItExceptMyself, owner_id=i)

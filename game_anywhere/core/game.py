@@ -31,27 +31,29 @@ Represents a game in progress.
 
 # ComponentOrGame is an ABC, so indirectly Game is also an ABC
 class Game(ComponentOrGame):
-    def __init__(self, agent_descriptions: Union[list["AgentDescriptor"],"AgentDescriptor"], nb_agents: int|None = None):
+    """
+    Game lifecycle. E.g. assume a game called FooGame.
+    - the FooGame class is defined as Python code
+    - FooGame.parse_config() is called to parse command-line options, in particular number of agents.
+      the type of the agents are often clear from the context - when they are not, i.e. in run_game_from_cmdline,
+      there's extra logic to determine them from the command-line arguments
+    - FooGame is instantiated: game = FooGame(...)
+      from now on the html() method can be called (we know how many agents there are so we can show what an emtpy board looks like)
+    - we wait for the agents to connect and then call set_agents - now the game can start
+    - play_game is called (typically)
+    """
+
+    def __init__(self, agent_descriptions: list["AgentDescriptor"]):
         super().__init__()
-        if type(agent_descriptions) == list:
-            assert nb_agents is None or nb_agents == len(agent_descriptions)
-            nb_agents = len(agent_descriptions)
-        elif nb_agents is not None:
-            pass
-        else:
-            nb_agents = self.NB_PLAYERS
+        nb_agents = len(agent_descriptions)
+        # TODO: maybe a state pattern with AgentDescriptors and Agents, instead of setting them to None at the beginning
         self.agents: list[Agent]|list[None] = [None] * nb_agents
 
-    @property
-    def NB_PLAYERS(self):
-        """ Override this to set the only possible number of players of the game """
-        return 2
-
     @classmethod
-    def parse_config(cls, config: list[str]) -> dict[str, Any]|NoReturn:
+    def parse_config(cls, config: list[str]|None) -> tuple[int, dict[str, Any]]:
         """ Override this to accept configuration options """
-        if len(config) == 0:
-            return {}
+        if len(config) == 0 or config is None:
+            return 2, {}
         else:
             raise NotImplementedError(f'{cls.__name__} does not accept configuration options')
 
@@ -107,19 +109,12 @@ class Game(ComponentOrGame):
             if force_reveal or slot.can_be_seen_by_recursive(agent_id):
                 agent.update([{"id": address, "new_value": html(new_value, viewer_id=agent_id)}])
 
-    # Subclasses might override this if they need to be notified once the real agents are available
-    # TODO: this is ugly, most overrides do not actually require the agents to be loaded
     def set_agents(self, agents: list[Agent]):
         self.agents = agents
 
     @abstractmethod
     def play_game(self) -> GameSummary: ...
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, extype, exvalue, traceback):
-        pass
 
 # TODO: possible improvements:
 # Game could detect automatically when Components exist as class properties

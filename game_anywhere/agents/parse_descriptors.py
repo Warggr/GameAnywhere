@@ -21,11 +21,14 @@ def parse_game_descriptor(
         **obj, **defaults
     )  # TODO: this is intended to be a recursive dictionary merge
     GameType = available_games[obj["game"]]
-    args = {}
     if obj["args"]:
-        args = GameType.parse_config(obj["args"].split(' ')) # imitating a command line
+        cmdline = obj["args"].split(' ') # imitating a command line
+    else:
+        cmdline = []
+    nb_players, args = GameType.parse_config(cmdline)
+
     if type(obj["agents"]) == list:
         agent_descriptions = [parse_agent_description(agent) for agent in obj["agents"]]
     else:
-        agent_descriptions = parse_agent_description(obj["agents"])
+        agent_descriptions = [parse_agent_description(obj["agents"]) for _ in range(nb_players)]
     return GameDescriptor(GameType, agent_descriptions, **args)

@@ -74,6 +74,7 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
 
         def await_initialization(self, session):
             session.reconnect_sync()
+            self.resolve_name(session.room.session_id_to_username[session.id])
             return NetworkAgent(session)
 
     def __init__(self, session: Session):

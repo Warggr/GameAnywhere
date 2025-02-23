@@ -13,11 +13,17 @@ class Context(dict):
 
 
 class AgentDescriptor(ABC):
+    def __init__(self):
+        self.name = None
+
     @abstractmethod
     def start_initialization(self, id: "AgentId", context: Context) -> AgentPromise: ...
 
     @abstractmethod
     def await_initialization(self, promise: AgentPromise) -> Agent: ...
+
+    def resolve_name(self, name: str):
+        self.name = name
 
 
 GameType = TypeVar("GameType", bound="Game")
@@ -25,7 +31,7 @@ GameType = TypeVar("GameType", bound="Game")
 
 class GameDescriptor(Generic[GameType]):
     def __init__(
-        self, GameType: Type[GameType], agents_descriptors: list[AgentDescriptor]|AgentDescriptor,
+        self, GameType: Type[GameType], agents_descriptors: list[AgentDescriptor],
         *game_args, **game_kwargs
     ):
         self.GameType = GameType
