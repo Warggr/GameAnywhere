@@ -130,9 +130,9 @@ class Hanabi(TurnBasedGame):
                     type(hint_key) is int and slot.content.value == hint_key
                     or type(hint_key) is Color and slot.content.color == hint_key
                 ):
-                    hint_value.append({"id": slot.get_address(), "hint": f"is {hint_key}"})
+                    hint_value.append({"op": "add", "key": slot.get_address() + "/hint", "value": f"is {hint_key}"})
                 else:
-                    hint_value.append({"id": slot.get_address(), "hint": f"is not {hint_key}"})
+                    hint_value.append({"op": "add", "key": slot.get_address() + "/hint", "value": f"is not {hint_key}"})
             self.agents[player_hinted.owner_id].update(hint_value)
 
             self.nb_hints -= 1

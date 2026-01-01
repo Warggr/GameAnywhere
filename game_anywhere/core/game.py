@@ -79,7 +79,7 @@ class Game(ComponentOrGame):
             return # Return early if the agents are not initialized yet
         for agent_id, agent in enumerate(self.agents):
             if obj.can_be_seen_by_recursive(agent_id):
-                update = {"id": obj.get_slot_address(), "append": tag.div(id=slot.get_address())}
+                update = {"op": "add", "key": slot.get_address(), "value": tag.div(id=slot.get_address())}
                 agent.update([update])
 
     def log_delete_slot(self, obj: ComponentOrGame, slot_relative_address: str):
@@ -87,7 +87,7 @@ class Game(ComponentOrGame):
             return
         for agent_id, agent in enumerate(self.agents):
             if obj.can_be_seen_by_recursive(agent_id):
-                update = {"id": obj.get_slot_address(), "delete": slot_relative_address}
+                update = {"op": "remove", "key": obj.get_slot_address()}
                 agent.update([update])
 
     def log_component_update(
@@ -107,7 +107,7 @@ class Game(ComponentOrGame):
             return # Return early if the agents are not initialized yet
         for agent_id, agent in agents:
             if force_reveal or slot.can_be_seen_by_recursive(agent_id):
-                agent.update([{"id": address, "new_value": html(new_value, viewer_id=agent_id)}])
+                agent.update([{"op": "replace", "key": address, "value": html(new_value, viewer_id=agent_id)}])
 
     def set_agents(self, agents: list[Agent]):
         self.agents = agents

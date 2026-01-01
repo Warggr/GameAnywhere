@@ -88,21 +88,11 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
 
     # override
     def update(self, diffs: list[Any]):
-        def serialize_diff(diff):
-            if "new_value" in diff:
-                return {
-                    "id": diff["id"],
-                    "newHTML": str(diff["new_value"]),
-                }
-            elif "append" in diff:
-                return {
-                    "id": diff["id"],
-                    "append": str(diff["append"]),
-                }
-            elif "hint" in diff:
-                return diff
-            else:
-                raise NotImplementedError("Unrecognized diff type: " + str(diff))
+        def serialize_diff(diff: dict):
+            if diff["op"] in ["add", "update"]:
+                diff = diff.copy()
+                diff["value"] = str(diff["value"])
+            return diff
 
         self.session.send_sync(list(map(serialize_diff, diffs)))
 

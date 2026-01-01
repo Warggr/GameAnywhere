@@ -246,21 +246,27 @@
 			}
 			else if(Array.isArray(data)){
 				for(let diff of data){
-					if(diff.newHTML !== undefined){
-						document.getElementById(diff.id).innerHTML = diff.newHTML;
-					} else if(diff.append) {
-						let DOMConstructionSite = document.createElement('div');
-						DOMConstructionSite.innerHTML = diff.append; // TODO: find a more elegant way of parsing HTML
-						let appendSite = diff.id === '' ? screen : document.getElementById(diff.id);
-						appendSite.append(DOMConstructionSite.firstChild);
-					} else if(diff.hint) {
-						const hinted = document.getElementById(diff.id);
-						let hint = [...hinted.childNodes].find(node => node.classList?.contains("hint"));
-						if(hint === undefined) {
-							hint = document.createElement('div'); hint.classList.add("hint"); hinted.appendChild(hint);
+					if(diff.op == "replace"){
+						document.getElementById(diff.key).innerHTML = diff.value;
+					} else if(diff.op == "add") {
+						if(diff.key.slice(-5) == "/hint"){
+							const hinted = document.getElementById(diff.key.slice(0, -5));
+							let hint = [...hinted.childNodes].find(node => node.classList?.contains("hint"));
+							if(hint === undefined) {
+								hint = document.createElement('div'); hint.classList.add("hint"); hinted.appendChild(hint);
+							}
+							let hintText = document.createElement('span'); hintText.innerText = diff.value;
+							hint.appendChild(hintText);
+						} else {
+							let DOMConstructionSite = document.createElement('div');
+							DOMConstructionSite.innerHTML = diff.append; // TODO: find a more elegant way of parsing HTML
+							let appendSite = diff.key === '' ? screen : document.getElementById(diff.id);
+							appendSite.append(DOMConstructionSite.firstChild);
 						}
-						let hintText = document.createElement('span'); hintText.innerText = diff.hint;
-						hint.appendChild(hintText);
+					} else if(diff.op == "remove") {
+						let child = document.getElementById(diff.key);
+						let parent = child.parentNode();
+						parent.removeChild(child);
 					} else {
 						console.warn("Unrecognized diff: " + diff)
 					}
