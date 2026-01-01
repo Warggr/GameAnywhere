@@ -5,6 +5,7 @@ from enum import Enum, unique
 from game_anywhere.core.agent import AgentId
 from typing import Optional, Any, Awaitable, Callable
 from threading import Condition, Lock
+import json
 
 """
 Represents an active WebSocket connection to the server.
@@ -29,7 +30,7 @@ class Spectator:
     def __init__(self, room: "ServerRoom"):
         self.room = room
 
-        self.state = Spectator.State.FREE
+        self._state = Spectator.State.FREE
         self.listening = False
         self.previously_connected = False
 
@@ -53,6 +54,15 @@ class Spectator:
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
         return self.room.server.loop
+
+    @property
+    def state(self) -> 'Spectator.State':
+        return self._state
+
+    @state.setter
+    def state(self, value: "Spectator.State"):
+        self._state = value
+        # The logging is done in @class Room
 
     # this is not guaranteed to be called, unlike a C++ destructor.
     # but it's just an assertion so it's fine
@@ -202,6 +212,18 @@ class Session(Spectator):
     def __init__(self, id: AgentId, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.id = id
+
+    @property
+    def seat_id(self) -> int:
+        (seat_id, _this), = filter(lambda i: i[1] is self, self.room.sessions.items())
+        return seat_id
+
+    @Spectator.state.setter
+    def state(self, value: "Spectator.State"):
+        self._state = value
+        self.room.server.log_event(json.dumps([
+            {"op": "replace", "key": f"/{self.room.room_id}/seats/{self.seat_id}", "value": str(value)}
+        ]))
 
     def reconnect_sync(self) -> None:
         with self.protect_reading_queue:

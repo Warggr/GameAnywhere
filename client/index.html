@@ -90,7 +90,7 @@
         // TODO: move to an actual front-end reactive framework instead of just using React for the convenience syntax
         function renderRooms(rooms){
             if(rooms.length == 0) roomsRoot.render('(no rooms)');
-            else roomsRoot.render(rooms.map(room =>
+            else roomsRoot.render(Object.entries(rooms).map(room =>
                 e('div', {key:room[0]}, [
                     e('h3', {key:'h3'}, 'Room ' + room[0]),
                     e('a', {key:'a', href: `player.html?room=${room[0]}`}, 'Watch'),
@@ -107,7 +107,6 @@
         }
         function loadRooms(){
             fetch('/room/list').then(response => response.json()).then(rooms => {
-                rooms = Object.entries(rooms);
                 knownRooms = rooms;
                 console.warn(`Set knownRooms to ${rooms}`)
                 renderRooms(rooms);
@@ -117,10 +116,31 @@
         const sseSource = new EventSource('/room/list/watch');
         sseSource.onmessage = msg => {
             let data = JSON.parse(msg.data);
-            let room = data['add'];
-            knownRooms.push([ room.key, room.value ]);
-            console.warn(`Set knownRooms to ${knownRooms} after getting value ${msg.data}`);
-            renderRooms(knownRooms);
+            for(let update of data){
+                if(update.op == "add"){
+                    console.assert(update.key[0] == "/");
+                    let room_id = Number.parseInt(update.key.slice(1));
+                    knownRooms[room_id] = update.value;
+                }
+                else if(update.op == "replace"){
+                    console.assert(update.key[0] == "/");
+                    let path = update.key.slice(1).split("/");
+                    let room_id = Number.parseInt(path[0]);
+                    if(path[1] == "seats"){
+                        console.assert(path.length == 3);
+                        let seat_id = Number.parseInt(path[2]);
+                        knownRooms[room_id].seats[seat_id] = update.value;
+                    }
+                    else if(path[1] == "spectators"){
+                        console.assert(path.length == 2);
+                        knownRooms[room_id].spectators = update.value;
+                    }
+                }
+                else{
+                    console.warn(`Unknown operation: ${JSON.stringify(update)}`);
+                }
+                renderRooms(knownRooms);
+            }
         }
         function errorPopup(message) {
             alert(message);

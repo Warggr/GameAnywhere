@@ -1,3 +1,4 @@
+import json
 from game_anywhere.core.agent import AgentId
 from .spectator import Session, Spectator
 from itertools import chain
@@ -42,6 +43,11 @@ class ServerRoom(AsyncResource):
                 Spectator.State.FREE,
             ]
 
+    @property
+    def room_id(self) -> int:
+        (room_id, _this), = filter(lambda i: i[1] is self, self.server.rooms.items())
+        return room_id
+
     def create_session(self, agent_id: AgentId) -> Session:
         assert agent_id not in self.sessions
         session = Session(agent_id, self)
@@ -73,6 +79,9 @@ class ServerRoom(AsyncResource):
             pass
         else:
             self.spectators.remove(spectator)
+            self.server.log_event(json.dumps([
+                {"op": "replace", "key": f"/{self.room_id}/spectators", "value": len(self.spectators)}
+            ]))
 
     def send(self, message: str) -> None:
         for spectator in self.get_spectators_and_sessions():
@@ -98,6 +107,9 @@ class ServerRoom(AsyncResource):
     async def nt_add_spectator(self, request: web.Request):
         spectator = Spectator(self)
         self.spectators.append(spectator)
+        self.server.log_event(json.dumps([
+            {"op": "replace", "key": f"/{self.room_id}/spectators", "value": len(self.spectators)}
+        ]))
         return await self.nt_handle_websocket(request, spectator)
 
     async def nt_connect_session(self, request: web.Request):

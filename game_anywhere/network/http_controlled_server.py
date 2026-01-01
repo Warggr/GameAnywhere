@@ -49,7 +49,7 @@ class HttpControlledServer(Server):
             raise web.HTTPBadRequest(text=str(ex))
         self.log_event(
             json.dumps(
-                {"add": {"key": room_id, "value": room}},
+                [{"op": "add", "key": f"/{room_id}", "value": room}],
                 default=json_encode_server_room,
             )
         )
