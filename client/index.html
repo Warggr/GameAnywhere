@@ -97,7 +97,7 @@
                     e('p', {key:'p'}, room[1].spectators + ' spectators'),
                     e('div', {key:'div'}, Object.entries(room[1].seats).map(seat =>
                         e('span', {key:seat[0]},
-                            seat[1] == "state.FREE"
+                            seat[1] == "State.FREE"
                             ? e('a', {href:`player.html?room=${room[0]}&seat=${Number(seat[0])}`}, 'Join')
                             : e('p', {}, seat[1])
                         )

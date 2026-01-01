@@ -16,7 +16,7 @@ except those called _sync
 
 class Spectator:
     @unique
-    class state(Enum):
+    class State(Enum):
         FREE = 0
         CLAIMED = 1
         CONNECTED = 2
@@ -29,7 +29,7 @@ class Spectator:
     def __init__(self, room: "ServerRoom"):
         self.room = room
 
-        self.state = Spectator.state.FREE
+        self.state = Spectator.State.FREE
         self.listening = False
         self.previously_connected = False
 
@@ -58,8 +58,8 @@ class Spectator:
     # but it's just an assertion so it's fine
     def __del__(self):
         assert (
-            self.state == Spectator.state.FREE
-            or self.state == Spectator.state.INTERRUPTED_BY_SERVER
+            self.state == Spectator.State.FREE
+            or self.state == Spectator.State.INTERRUPTED_BY_SERVER
         )
 
     # note: in C++, this method is split into two parts, claim() and on_connect()
@@ -67,15 +67,15 @@ class Spectator:
     async def on_connect(
         self, request: web.Request, websocket: web.WebSocketResponse
     ) -> Awaitable[web.WebSocketResponse]:
-        assert self.state == Spectator.state.FREE
-        self.state = Spectator.state.CLAIMED
+        assert self.state == Spectator.State.FREE
+        self.state = Spectator.State.CLAIMED
         self.ws = websocket
 
         # do the websocket handshake
         await self.ws.prepare(request)
 
         with self.protect_reading_queue:
-            self.state = Spectator.state.CONNECTED
+            self.state = Spectator.State.CONNECTED
             self.signal_reading_queue.notify()
         return self.ws
 
@@ -91,7 +91,7 @@ class Spectator:
             await self.read_all_messages()
             # all messages read, connection closed
             with self.protect_reading_queue:
-                self.state = Spectator.state.FREE
+                self.state = Spectator.State.FREE
         finally:  # catch asyncio.CancelledError
             message_sending_task.cancel()
             await message_sending_task  # in case it had any other exception
@@ -144,7 +144,7 @@ class Spectator:
     # This is executed on the network thread, so the only possible race condition is with send() or get()
     def interrupt(self, msg="Server shutdown") -> None:
         with self.protect_reading_queue:
-            self.state = Spectator.state.INTERRUPTED_BY_SERVER
+            self.state = Spectator.State.INTERRUPTED_BY_SERVER
             self.signal_reading_queue.notify()
 
         if self.run_handle:
@@ -160,13 +160,13 @@ class Spectator:
         with self.protect_reading_queue:
             self.listening = True
             if len(self.reading_queue) == 0:
-                if self.state != Spectator.state.CONNECTED:
+                if self.state != Spectator.State.CONNECTED:
                     raise Spectator.DisconnectedException(self.state)
                 self.signal_reading_queue.wait_for(  # condition for waking up:
                     lambda: len(self.reading_queue) > 0
-                    or self.state != Spectator.state.CONNECTED
+                    or self.state != Spectator.State.CONNECTED
                 )
-                if self.state != Spectator.state.CONNECTED:
+                if self.state != Spectator.State.CONNECTED:
                     raise Spectator.DisconnectedException(self.state)
 
             assert len(self.reading_queue) > 0
@@ -205,25 +205,25 @@ class Session(Spectator):
 
     def reconnect_sync(self) -> None:
         with self.protect_reading_queue:
-            if self.state == Spectator.state.INTERRUPTED_BY_SERVER:
+            if self.state == Spectator.State.INTERRUPTED_BY_SERVER:
                 raise Spectator.DisconnectedException(
-                    Spectator.state.INTERRUPTED_BY_SERVER
+                    Spectator.State.INTERRUPTED_BY_SERVER
                 )
-            elif self.state == Spectator.state.CONNECTED:
+            elif self.state == Spectator.State.CONNECTED:
                 return
 
             # the lock needs to be still locked when we wait for the signal (wait_for unlocks it)
             if not self.signal_reading_queue.wait_for(
                 predicate=lambda: self.state
-                in [Spectator.state.CONNECTED, Spectator.state.INTERRUPTED_BY_SERVER],
+                in [Spectator.State.CONNECTED, Spectator.State.INTERRUPTED_BY_SERVER],
                 timeout=Session.TIMEOUT_SECONDS,
             ):
                 raise Session.TimeoutException()
 
-        if self.state == Spectator.state.INTERRUPTED_BY_SERVER:
+        if self.state == Spectator.State.INTERRUPTED_BY_SERVER:
             raise Exception("Interrupted by server")
 
-        assert self.state == Spectator.state.CONNECTED, str(self.state)
+        assert self.state == Spectator.State.CONNECTED, str(self.state)
 
     # Override
     def get_sync(self) -> str:
@@ -231,7 +231,7 @@ class Session(Spectator):
             try:
                 return super().get_sync()
             except Spectator.DisconnectedException as err:
-                if err.state == Spectator.state.INTERRUPTED_BY_SERVER:
+                if err.state == Spectator.State.INTERRUPTED_BY_SERVER:
                     raise err
                 else:
                     self.reconnect_sync()

@@ -38,8 +38,8 @@ class ServerRoom(AsyncResource):
         assert len(self.spectators) == 0
         for session in self.sessions.values():
             assert session.state in [
-                Spectator.state.INTERRUPTED_BY_SERVER,
-                Spectator.state.FREE,
+                Spectator.State.INTERRUPTED_BY_SERVER,
+                Spectator.State.FREE,
             ]
 
     def create_session(self, agent_id: AgentId) -> Session:
@@ -66,8 +66,8 @@ class ServerRoom(AsyncResource):
 
     def report_afk(self, spectator: Spectator):
         assert spectator.state in [
-            Spectator.state.FREE,
-            Spectator.state.INTERRUPTED_BY_SERVER,
+            Spectator.State.FREE,
+            Spectator.State.INTERRUPTED_BY_SERVER,
         ]
         if type(spectator) == Session:
             pass
@@ -115,7 +115,7 @@ class ServerRoom(AsyncResource):
 
         # this is done on the network thread, which is single-threaded.
         # There can be no race condition between reading session.state and claiming the session
-        if session.state != Session.state.FREE:
+        if session.state != Session.State.FREE:
             raise web.HTTPNotFound(text="Session already taken")
         return await self.nt_handle_websocket(request, session)
 
