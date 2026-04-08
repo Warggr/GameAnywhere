@@ -1,11 +1,16 @@
-import aiohttp
 import asyncio
-from aiohttp import web
-from enum import Enum, unique
-from game_anywhere.core.agent import AgentId
-from typing import Optional, Any, Awaitable, Callable
-from threading import Condition, Lock
 import json
+from enum import Enum, unique
+from threading import Condition, Lock
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
+
+import aiohttp
+from aiohttp import web
+
+from game_anywhere.core.agent import AgentId
+
+if TYPE_CHECKING:
+    from .room import ServerRoom
 
 """
 Represents an active WebSocket connection to the server.
@@ -56,7 +61,7 @@ class Spectator:
         return self.room.server.loop
 
     @property
-    def state(self) -> 'Spectator.State':
+    def state(self) -> "Spectator.State":
         return self._state
 
     @state.setter
@@ -89,7 +94,7 @@ class Spectator:
             self.signal_reading_queue.notify()
         return self.ws
 
-    async def run(self) -> Awaitable[None]:
+    async def run(self) -> None:
         assert self.run_handle is None
         self.run_handle = asyncio.create_task(self._run())
         await self.run_handle
@@ -113,7 +118,9 @@ class Spectator:
     async def read_all_messages(self):
         async for msg in self.ws:
             if msg.type == aiohttp.WSMsgType.TEXT:
-                if self.message_interceptor is not None and self.message_interceptor(msg.data):
+                if self.message_interceptor is not None and self.message_interceptor(
+                    msg.data
+                ):
                     continue
 
                 # Add to queue
@@ -173,8 +180,10 @@ class Spectator:
                 if self.state != Spectator.State.CONNECTED:
                     raise Spectator.DisconnectedException(self.state)
                 self.signal_reading_queue.wait_for(  # condition for waking up:
-                    lambda: len(self.reading_queue) > 0
-                    or self.state != Spectator.State.CONNECTED
+                    lambda: (
+                        len(self.reading_queue) > 0
+                        or self.state != Spectator.State.CONNECTED
+                    )
                 )
                 if self.state != Spectator.State.CONNECTED:
                     raise Spectator.DisconnectedException(self.state)
@@ -189,19 +198,19 @@ class Spectator:
         def __init__(self, parent: "Spectator", on_message: Callable[[str], bool]):
             self.parent = parent
             self.on_message = on_message
+
         def __enter__(self):
             assert self.parent.message_interceptor is None
             self.parent.message_interceptor = self.on_message
+
         def __exit__(self, exc_type, exc_val, exc_tb):
             assert self.parent.message_interceptor is self.on_message
             self.parent.message_interceptor = None
 
-"""
-A Session is like a Spectator, but can reconnect if the connection was lost.
-"""
-
 
 class Session(Spectator):
+    """A Session is like a Spectator, but can reconnect if the connection was lost."""
+
     TIMEOUT_SECONDS = 3 * 60
 
     CLIENT_LOST_TRACK_MESSAGE = "?"
@@ -209,21 +218,29 @@ class Session(Spectator):
     class TimeoutException(Exception):
         pass
 
-    def __init__(self, id: AgentId, *args, **kwargs):
+    def __init__(self, agent_id: AgentId, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.id = id
+        self.id = agent_id
 
     @property
     def seat_id(self) -> int:
-        (seat_id, _this), = filter(lambda i: i[1] is self, self.room.sessions.items())
+        ((seat_id, _this),) = filter(lambda i: i[1] is self, self.room.sessions.items())
         return seat_id
 
     @Spectator.state.setter
     def state(self, value: "Spectator.State"):
         self._state = value
-        self.room.server.log_event(json.dumps([
-            {"op": "replace", "key": f"/{self.room.room_id}/seats/{self.seat_id}", "value": str(value)}
-        ]))
+        self.room.server.log_event(
+            json.dumps(
+                [
+                    {
+                        "op": "replace",
+                        "key": f"/{self.room.room_id}/seats/{self.seat_id}",
+                        "value": str(value),
+                    }
+                ]
+            )
+        )
 
     def reconnect_sync(self) -> None:
         with self.protect_reading_queue:
@@ -236,8 +253,13 @@ class Session(Spectator):
 
             # the lock needs to be still locked when we wait for the signal (wait_for unlocks it)
             if not self.signal_reading_queue.wait_for(
-                predicate=lambda: self.state
-                in [Spectator.State.CONNECTED, Spectator.State.INTERRUPTED_BY_SERVER],
+                predicate=lambda: (
+                    self.state
+                    in [
+                        Spectator.State.CONNECTED,
+                        Spectator.State.INTERRUPTED_BY_SERVER,
+                    ]
+                ),
                 timeout=Session.TIMEOUT_SECONDS,
             ):
                 raise Session.TimeoutException()

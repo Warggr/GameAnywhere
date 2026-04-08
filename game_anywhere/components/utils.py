@@ -1,5 +1,8 @@
-from typing import Any
 from html import escape
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from game_anywhere.ui import Html
 
 """
 Returns an HTML representation of the object.
@@ -11,7 +14,7 @@ def html(obj, *args, **kwargs) -> "Html":
     if obj is None:
         html = ""
     else:
-        if hasattr(obj, 'html'):
+        if hasattr(obj, "html"):
             html = obj.html(*args, **kwargs)
         else:
             html = escape(str(obj))
@@ -19,8 +22,7 @@ def html(obj, *args, **kwargs) -> "Html":
 
 
 def mask(obj: Any, *_args, **_kwargs) -> "Html":
-    """
-    Returns a masked HTML representation of the object.
+    """Returns a masked HTML representation of the object.
     *args, **kwargs are accepted so the signature is compatible with html().
     """
     try:

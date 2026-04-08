@@ -1,8 +1,9 @@
 import asyncio
 from asyncio import CancelledError
-from game_anywhere.core.agent import Agent, ChatStream
-from threading import Thread, Semaphore
+from threading import Semaphore, Thread
 from typing import Callable
+
+from game_anywhere.core.agent import Agent, ChatStream
 
 
 class Chat:
@@ -11,9 +12,12 @@ class Chat:
 
     def __enter__(self) -> "Chat":
         semaphore = Semaphore(value=0)
-        self.thread = Thread(target=self._messages_thread, kwargs={'on_setup_finished': lambda: semaphore.release()})
+        self.thread = Thread(
+            target=self._messages_thread,
+            kwargs={"on_setup_finished": lambda: semaphore.release()},
+        )
         self.thread.start()
-        semaphore.acquire() # wait for the thread to be really started
+        semaphore.acquire()  # wait for the thread to be really started
         return self
 
     async def _broadcast_message_one_player(self, messages: ChatStream, sender: Agent):
@@ -29,7 +33,9 @@ class Chat:
         loops: list[asyncio.Task] = []
         try:
             for player in self.players:
-                loop = self._broadcast_message_one_player(player.chat_stream(self.event_loop), player)
+                loop = self._broadcast_message_one_player(
+                    player.chat_stream(self.event_loop), player
+                )
                 loop = self.event_loop.create_task(loop)
                 loops.append(loop)
             on_setup_finished()
@@ -40,7 +46,9 @@ class Chat:
 
     def _messages_thread(self, on_setup_finished: Callable[[], None]):
         self.event_loop = asyncio.new_event_loop()
-        self.task = self.event_loop.create_task(self._broadcast_messages(on_setup_finished))
+        self.task = self.event_loop.create_task(
+            self._broadcast_messages(on_setup_finished)
+        )
         self.event_loop.run_until_complete(self.task)
         self.event_loop.close()
 

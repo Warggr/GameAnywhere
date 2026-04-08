@@ -1,14 +1,20 @@
-from typing import Union, Any
 from dataclasses import dataclass
-from enum import Enum, unique, auto
+from enum import Enum, auto, unique
+from typing import Any, Union
 
+from game_anywhere.components import (
+    ComponentSlot,
+    ComponentSlotProperty,
+    Dict,
+    List,
+    PerPlayer,
+)
 from game_anywhere.components.component import PerPlayerComponent
-
-from game_anywhere.run_game import run_game_from_cmdline
-from game_anywhere.components import PerPlayer, ComponentSlotProperty, ComponentSlot, Component, List, Dict
-from game_anywhere.core import TurnBasedGame, GameSummary, Agent
-from game_anywhere.core.agent import AgentId
 from game_anywhere.components.traditional.cards import Deck, DiscardPile
+from game_anywhere.core import GameSummary, TurnBasedGame
+from game_anywhere.core.agent import AgentId
+from game_anywhere.run_game import run_game_from_cmdline
+
 
 @unique
 class Color(Enum):
@@ -54,19 +60,23 @@ class Hanabi(TurnBasedGame):
         cards_played: int
 
         def get_winner(self) -> AgentId:
-            raise NotImplementedError("There is no winner in Hanabi. It's a cooperative game.")
+            raise NotImplementedError(
+                "There is no winner in Hanabi. It's a cooperative game."
+            )
 
     nb_lives = ComponentSlotProperty[int]()
     nb_hints = ComponentSlotProperty[int]()
     deck = ComponentSlotProperty[Deck[HanabiCard]]()
     players = PerPlayer(HanabiPerPlayerComponent)
-    stacks = ComponentSlotProperty[Dict[List[HanabiCard]]]()
+    stacks = ComponentSlotProperty[Dict[Color, List[HanabiCard]]]()
     discard_pile = ComponentSlotProperty[DiscardPile[HanabiCard]]()
     MAX_HINTS = 8
 
     @classmethod
-    def parse_config(cls, config: list[str]|None) -> tuple[int, dict[str, Any]]:
-        assert len(config) == 1, "Only one configuration option allowed: number of players"
+    def parse_config(cls, config: list[str] | None) -> tuple[int, dict[str, Any]]:
+        assert config is not None and len(config) == 1, (
+            f"Expected [number_of_players], got {config}"
+        )
         return int(config[0]), {}
 
     def __init__(self, agent_descriptions):
@@ -81,41 +91,72 @@ class Hanabi(TurnBasedGame):
         assert 2 <= nb_players <= 5, "Hanabi can be played only between 2 and 5 players"
         CARDS_PER_PLAYER = 5 if nb_players <= 3 else 4
         for i, player in enumerate(self.players):
-            player.cards = List(self.deck.draw(CARDS_PER_PLAYER), slotClass=EveryoneCanSeeItExceptMyself, owner_id=i)
+            player.cards = List(
+                self.deck.draw(CARDS_PER_PLAYER),
+                slotClass=EveryoneCanSeeItExceptMyself,
+                owner_id=i,
+            )
 
-    def turn(self) -> Union['Hanabi.Summary', None]:
-        options = ['Place card', 'Cycle card']
+    def turn(self) -> Union["Hanabi.Summary", None]:
+        options = ["Place card", "Cycle card"]
         if self.nb_hints > 0:
-            options.append('Give hint')
+            options.append("Give hint")
         choice = self.get_current_agent().text_choice(options)
-        if choice == 'Place card':
-            card = self.get_current_agent().choose_one_component_slot(
-                [slot for _, slot in self.players[self.get_current_agent_index()].cards.get_slots()]
-            ).content
+        if choice == "Place card":
+            card = (
+                self.get_current_agent()
+                .choose_one_component_slot(
+                    [
+                        slot
+                        for slot in self.players[self.get_current_agent_index()]
+                        .cards.get_slots()
+                        .values()
+                    ]
+                )
+                .content
+            )
             self.players[self.get_current_agent_index()].cards.remove(card)
             if card.color not in self.stacks and card.value == 1:
                 self.stacks[card.color] = List([card])
-            elif card.color in self.stacks and self.stacks[card.color][-1].value == card.value - 1:
+            elif (
+                card.color in self.stacks
+                and self.stacks[card.color][-1].value == card.value - 1
+            ):
                 self.stacks[card.color].append(card)
             else:
                 self.discard_pile.append(card)
                 self.nb_lives -= 1
                 if self.nb_lives == 0:
-                    return self.Summary(sum(len(stack) for stack in self.stacks.values()))
-            self.players[self.get_current_agent_index()].cards.append(self.deck.draw())
-        elif choice == 'Cycle card':
+                    return self.Summary(
+                        sum(len(stack) for stack in self.stacks.values())
+                    )
+            self.players[self.get_current_agent_index()].cards.extend(self.deck.draw())
+        elif choice == "Cycle card":
             card_slot = self.get_current_agent().choose_one_component_slot(
-                [slot for _, slot in self.players[self.get_current_agent_index()].cards.get_slots()]
+                [
+                    slot
+                    for _, slot in self.players[
+                        self.get_current_agent_index()
+                    ].cards.get_slots()
+                ]
             )
             card = card_slot.take()
             self.discard_pile.append(card)
-            self.players[self.get_current_agent_index()].cards.append(self.deck.draw())
+            self.players[self.get_current_agent_index()].cards.extend(self.deck.draw())
             if self.nb_hints < self.MAX_HINTS:
                 self.nb_hints += 1
-        elif choice == 'Give hint':
-            player_hinted = self.get_current_agent().choose_one_component_slot(
-                [slot for i, slot in enumerate(self.players.get_slots().values()) if i != self.get_current_agent_index()]
-            ).content
+        elif choice == "Give hint":
+            player_hinted = (
+                self.get_current_agent()
+                .choose_one_component_slot(
+                    [
+                        slot
+                        for i, slot in enumerate(self.players.get_slots().values())
+                        if i != self.get_current_agent_index()
+                    ]
+                )
+                .content
+            )
             options = {}
             for color in Color:
                 options[str(color)] = color
@@ -126,17 +167,32 @@ class Hanabi(TurnBasedGame):
             hint_value = []
             for slot in player_hinted.cards.get_slots().values():
                 if (
-                    type(hint_key) is int and slot.content.value == hint_key
-                    or type(hint_key) is Color and slot.content.color == hint_key
+                    type(hint_key) is int
+                    and slot.content.value == hint_key
+                    or type(hint_key) is Color
+                    and slot.content.color == hint_key
                 ):
-                    hint_value.append({"op": "add", "key": slot.get_address() + "/hint", "value": f"is {hint_key}"})
+                    hint_value.append(
+                        {
+                            "op": "add",
+                            "key": slot.get_address() + "/hint",
+                            "value": f"is {hint_key}",
+                        }
+                    )
                 else:
-                    hint_value.append({"op": "add", "key": slot.get_address() + "/hint", "value": f"is not {hint_key}"})
+                    hint_value.append(
+                        {
+                            "op": "add",
+                            "key": slot.get_address() + "/hint",
+                            "value": f"is not {hint_key}",
+                        }
+                    )
             self.agents[player_hinted.owner_id].update(hint_value)
 
             self.nb_hints -= 1
         else:
-            raise AssertionError(f'Unrecognized choice: {choice}')
+            raise AssertionError(f"Unrecognized choice: {choice}")
+
 
 if __name__ == "__main__":
     run_game_from_cmdline(Hanabi)

@@ -1,14 +1,15 @@
 from typing import (
-    TypeVar,
-    Generic,
-    Type,
     Callable,
+    Generic,
     Iterable,
-    Optional, Iterator,
+    Iterator,
+    Optional,
+    TypeVar,
 )
 
-from .component import Component, ComponentSlot
 from game_anywhere.ui import Html, tag
+
+from .component import Component, ComponentSlot
 
 
 class Board(Component):
@@ -23,17 +24,21 @@ class CheckerBoard(Board, Generic[T]):
     class Field(ComponentSlot):
         pass
 
-    def __init__(self, height: int, width: int, fill: Callable[[], Optional[T]] | None = None):
+    def __init__(
+        self, height: int, width: int, fill: Callable[[], Optional[T]] | None = None
+    ):
         super().__init__()
         self.width = width
         self.height = height
-        self.board: list[list[Optional[T]]] = [[None for i in range(width)] for j in range(height)]
+        self.board: list[list[Optional[T]]] = [
+            [None for i in range(width)] for j in range(height)
+        ]
         if fill is None:
-            fill = lambda: None
+            fill = lambda: None  # noqa: E731
         for i in range(width):
             for j in range(height):
                 self.board[i][j] = CheckerBoard.Field(
-                    id=self._coords_to_field_id((i, j)),
+                    id_=self._coords_to_field_id((i, j)),
                     parent=self,
                     content=fill(),
                 )
@@ -41,8 +46,8 @@ class CheckerBoard(Board, Generic[T]):
     def __getitem__(self, index: tuple[int, int]) -> Optional[T]:
         try:
             return self.board[index[0]][index[1]].get()
-        except TypeError:
-            raise TypeError(f"expected (int, int), got {type(index)}")
+        except TypeError as err:
+            raise TypeError(f"expected (int, int), got {type(index)}") from err
 
     def __setitem__(self, index: tuple[int, int], val: Optional[T]):
         self.board[index[0]][index[1]].set(val)
@@ -54,7 +59,7 @@ class CheckerBoard(Board, Generic[T]):
             for i in range(self.height)
         )
 
-    def get_slot(self, index: tuple[int, int]) -> "Checkerboard.Field":
+    def get_slot(self, index: tuple[int, int]) -> "CheckerBoard.Field":
         i, j = index
         return self.board[i][j]
 
@@ -73,7 +78,7 @@ class CheckerBoard(Board, Generic[T]):
     def get_slots(self) -> Iterator[tuple[str, "CheckerBoard.Field"]]:
         for i in range(self.height):
             for j in range(self.width):
-                yield self._coords_to_field_id((i,j)), self.board[i][j]
+                yield self._coords_to_field_id((i, j)), self.board[i][j]
 
     def html(self, viewer_id=None) -> Html:
         return Html(
@@ -85,7 +90,7 @@ class CheckerBoard(Board, Generic[T]):
                 },
             ),
             tag.style(
-                ".checkerboard{display:grid;width:100%;height:100%;gap:10px;}" +
-                " .checkerboard div{background-color:white;color:black;border:2px solid;aspect-ratio:1;}"
+                ".checkerboard{display:grid;width:100%;height:100%;gap:10px;}"
+                + " .checkerboard div{background-color:white;color:black;border:2px solid;aspect-ratio:1;}"
             ),
         )

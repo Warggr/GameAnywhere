@@ -1,11 +1,17 @@
-import json
-from game_anywhere.core.agent import AgentId
-from .spectator import Session, Spectator
-from itertools import chain
-from typing import Iterable, Awaitable, Optional
-from aiohttp import web
 import asyncio
+import json
+from itertools import chain
+from typing import TYPE_CHECKING, Iterable
+
+from aiohttp import web
+
+from game_anywhere.core.agent import AgentId
+
 from .async_resource import AsyncResource
+from .spectator import Session, Spectator
+
+if TYPE_CHECKING:
+    from .server import Server
 
 SeatId = int
 Username = str
@@ -18,9 +24,9 @@ class ServerRoom(AsyncResource):
     @staticmethod
     def get_request_username(request: web.Request) -> str:
         try:
-            return request.cookies['username']
+            return request.cookies["username"]
         except KeyError:
-            return request.query['username'] + ' (Guest)'
+            return request.query["username"] + " (Guest)"
 
     def __init__(self, server: "Server", greeter_message="Welcome to the room!"):
         self.server = server
@@ -33,7 +39,7 @@ class ServerRoom(AsyncResource):
 
     def __del__(self):
         # as part of their closing, all sessions should have set themselves to FREE and all spectators should have deleted themselves
-        if not hasattr(self, 'spectators') and not hasattr(self, 'sessions'):
+        if not hasattr(self, "spectators") and not hasattr(self, "sessions"):
             # Maybe the object is not even initialized yet
             return
         assert len(self.spectators) == 0
@@ -45,7 +51,7 @@ class ServerRoom(AsyncResource):
 
     @property
     def room_id(self) -> int:
-        (room_id, _this), = filter(lambda i: i[1] is self, self.server.rooms.items())
+        ((room_id, _this),) = filter(lambda i: i[1] is self, self.server.rooms.items())
         return room_id
 
     def create_session(self, agent_id: AgentId) -> Session:
@@ -75,13 +81,21 @@ class ServerRoom(AsyncResource):
             Spectator.State.FREE,
             Spectator.State.INTERRUPTED_BY_SERVER,
         ]
-        if type(spectator) == Session:
+        if type(spectator) is Session:
             pass
         else:
             self.spectators.remove(spectator)
-            self.server.log_event(json.dumps([
-                {"op": "replace", "key": f"/{self.room_id}/spectators", "value": len(self.spectators)}
-            ]))
+            self.server.log_event(
+                json.dumps(
+                    [
+                        {
+                            "op": "replace",
+                            "key": f"/{self.room_id}/spectators",
+                            "value": len(self.spectators),
+                        }
+                    ]
+                )
+            )
 
     def send(self, message: str) -> None:
         for spectator in self.get_spectators_and_sessions():
@@ -107,20 +121,31 @@ class ServerRoom(AsyncResource):
     async def nt_add_spectator(self, request: web.Request):
         spectator = Spectator(self)
         self.spectators.append(spectator)
-        self.server.log_event(json.dumps([
-            {"op": "replace", "key": f"/{self.room_id}/spectators", "value": len(self.spectators)}
-        ]))
+        self.server.log_event(
+            json.dumps(
+                [
+                    {
+                        "op": "replace",
+                        "key": f"/{self.room_id}/spectators",
+                        "value": len(self.spectators),
+                    }
+                ]
+            )
+        )
         return await self.nt_handle_websocket(request, spectator)
 
     async def nt_connect_session(self, request: web.Request):
         try:
             session_id = SeatId(request.match_info["seat"])
             session = self.sessions[session_id]
-        except (KeyError, ValueError):
-            raise web.HTTPNotFound(text="No such session expected")
+        except (KeyError, ValueError) as err:
+            raise web.HTTPNotFound(text="No such session expected") from err
 
         if session_id in self.session_id_to_username:
-            if self.get_request_username(request) != self.session_id_to_username[session_id]:
+            if (
+                self.get_request_username(request)
+                != self.session_id_to_username[session_id]
+            ):
                 raise web.HTTPForbidden(text="Session already taken")
         else:
             self.session_id_to_username[session_id] = self.get_request_username(request)
@@ -135,7 +160,7 @@ class ServerRoom(AsyncResource):
         ws = web.WebSocketResponse()
         try:
             await spectator.on_connect(request, ws)
-            if type(spectator) != Session:
+            if type(spectator) is not Session:
                 await spectator.send(self.greeter_message)
             await spectator.run()
             # the websocket is closed as soon as the method execution finishes, i.e. now

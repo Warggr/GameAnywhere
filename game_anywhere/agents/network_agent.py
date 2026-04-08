@@ -1,18 +1,23 @@
+import asyncio
+import json
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
+
 from game_anywhere.core import Agent
-from game_anywhere.components.utils import html
 from game_anywhere.core.agent import ChatStream
 
-from .descriptors import AgentDescriptor, Context
 from ..network import Server
 from ..network.game_room import BaseGameRoom
 from ..network.spectator import Session, Spectator
-from typing import Any, TypeVar, Callable, Optional
-import json
-import asyncio
-from abc import ABC, abstractmethod
+from .descriptors import AgentDescriptor, Context
+
+if TYPE_CHECKING:
+    from game_anywhere.components import ComponentSlot
+    from game_anywhere.core.agent import AgentId
 
 T = TypeVar("T")
 Json = Any
+
 
 class JsonSchemaAgentMixin(ABC):
     class InvalidAnswer(Exception):
@@ -21,28 +26,29 @@ class JsonSchemaAgentMixin(ABC):
             self.message = message
 
     @abstractmethod
-    def question_with_validation(self, question: Json, validation: Callable[[Any], bool]):
-        ...
+    def question_with_validation(
+        self, question: Json, validation: Callable[[Any], T]
+    ) -> T: ...
 
     # override
-    def int_choice(self, min: int | None = 0, max: int | None = None) -> int:
+    def int_choice(self, mini: int | None = 0, maxi: int | None = None) -> int:
         jsonSchema = {"type": "integer"}
-        if min is not None:
-            jsonSchema["minimum"] = min
-        if max is not None:
-            jsonSchema["maximum"] = max
+        if mini is not None:
+            jsonSchema["minimum"] = mini
+        if maxi is not None:
+            jsonSchema["maximum"] = maxi
 
         def _validation(answer: str):
             try:
                 assert answer.isdigit()
                 integer = int(answer)
-                if min is not None:
-                    assert integer >= min, f"Please choose a number higher than {min}"
-                if max is not None:
-                    assert integer <= max, f"Please choose a number higher than {max}"
+                if mini is not None:
+                    assert integer >= mini, f"Please choose a number higher than {mini}"
+                if maxi is not None:
+                    assert integer <= maxi, f"Please choose a number higher than {maxi}"
                 return integer
             except (ValueError, AssertionError) as err:
-                raise self.InvalidAnswer(repr(err))
+                raise self.InvalidAnswer(repr(err)) from err
 
         return self.question_with_validation(
             {"type": "choice", "schema": jsonSchema}, _validation
@@ -101,7 +107,7 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
         self,
         slots: list["ComponentSlot"],
         indices: Optional[list[T]] = None,
-        special_options=[],
+        special_options=(),
         message: Optional[str] = None,
     ) -> T:
         if not indices:
@@ -130,7 +136,9 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
         jsonSchema = {"type": "string", "enum": options}
 
         def _validation(answer: str):
-            assert answer.startswith('"') and answer.endswith('"') # answer should be JSON text
+            assert answer.startswith('"') and answer.endswith(
+                '"'
+            )  # answer should be JSON text
             answer = answer[1:-1]
 
             if answer not in options:
@@ -142,15 +150,15 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
         )
 
     # override
-    def query(self, query):
+    def query(self, allowedSchema):
         def _validation(answer: str):
             try:
                 return json.loads(answer)
             except json.decoder.JSONDecodeError as err:
-                raise self.InvalidAnswer(str(err))
+                raise self.InvalidAnswer(str(err)) from err
 
         return self.question_with_validation(
-            {"type": "choice", "schema": query}, _validation
+            {"type": "choice", "schema": allowedSchema}, _validation
         )
 
     def question_with_validation(
@@ -173,7 +181,7 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
 
 
 class NetworkChatStream(ChatStream):
-    CHAT_CHARACTER = '<'
+    CHAT_CHARACTER = "<"
 
     def __init__(self, loop: asyncio.AbstractEventLoop, spectator: Spectator):
         self.queue = asyncio.Queue()
@@ -181,7 +189,9 @@ class NetworkChatStream(ChatStream):
         self.session = spectator
         self.impl = Spectator.Chat(spectator, on_message=self.on_message)
         self.impl.__enter__()
-        self.session.send_sync({"type": "chatcontrol", "set": "on", "message": "Start chatting..."})
+        self.session.send_sync(
+            {"type": "chatcontrol", "set": "on", "message": "Start chatting..."}
+        )
 
     # Called on the network thread
     def on_message(self, message: str) -> bool:

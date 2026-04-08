@@ -1,8 +1,8 @@
 from typing import Union
 
+from game_anywhere.components import CheckerBoard, Component, ComponentSlotProperty
+from game_anywhere.core import SimpleGameSummary, TurnBasedGame
 from game_anywhere.core.game import AgentId
-from game_anywhere.core import TurnBasedGame, SimpleGameSummary
-from game_anywhere.components import Component, CheckerBoard, ComponentSlotProperty
 
 
 class TicTacToeMark(Component):
@@ -11,9 +11,12 @@ class TicTacToeMark(Component):
         self.player = player
 
     def html(self, **kwargs):
-        return ('<svg width="100%" height="100%" viewBox="0 0 12 12">'
-                '<text y="100%" textLength="100%" lengthAdjust="spacingAndGlyphs" style="font-size: 12;">' +
-                ("X" if self.player == 0 else "O") + '</text></svg>')
+        return (
+            '<svg width="100%" height="100%" viewBox="0 0 12 12">'
+            '<text y="100%" textLength="100%" lengthAdjust="spacingAndGlyphs" style="font-size: 12;">'
+            + ("X" if self.player == 0 else "O")
+            + "</text></svg>"
+        )
 
 
 BOARD_SIZE = 3
@@ -48,6 +51,7 @@ class TicTacToe(TurnBasedGame):
             return SimpleGameSummary(SimpleGameSummary.NO_WINNER)
 
         fields = [field for _, field in self.board.all_fields() if field.empty()]
+        assert len(fields) > 0, self.get_current_turn()
         field = self.get_current_agent().choose_one_component_slot(fields, fields)
         field.content = TicTacToeMark(self.get_current_agent_index())
 
@@ -64,7 +68,9 @@ class TicTacToe(TurnBasedGame):
         # check diagonals
         if hasRow(self.get_current_agent_index(), self.board, (0, 0), (1, 1)):
             return SimpleGameSummary(self.get_current_agent_id())
-        if hasRow(self.get_current_agent_index(), self.board, (0, BOARD_SIZE - 1), (1, -1)):
+        if hasRow(
+            self.get_current_agent_index(), self.board, (0, BOARD_SIZE - 1), (1, -1)
+        ):
             return SimpleGameSummary(self.get_current_agent_id())
 
         return None

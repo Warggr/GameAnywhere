@@ -3,14 +3,14 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from game_anywhere.core import Game, GameSummary, Agent
-from game_anywhere.components import ComponentSlotProperty, PerPlayer, List
-from game_anywhere.components.traditional.cards import Deck, PokerCard, fiftytwo_cards
-
-from typing import Protocol, TypeVar, Callable
+from abc import abstractmethod
 from collections import defaultdict
 from itertools import combinations, cycle
-from abc import abstractmethod
+from typing import Callable, Protocol, TypeVar
+
+from game_anywhere.components import ComponentSlotProperty, List, PerPlayer
+from game_anywhere.components.traditional.cards import Deck, PokerCard, fiftytwo_cards
+from game_anywhere.core import Game, GameSummary
 
 
 class Poker(Game):
@@ -29,7 +29,7 @@ class Poker(Game):
         # TODO: stakes
 
     deck = ComponentSlotProperty()
-    revealed_cards = ComponentSlotProperty()
+    revealed_cards = ComponentSlotProperty[List[PokerCard]]()
     players = PerPlayer(
         hand=ComponentSlotProperty(),
         bet=ComponentSlotProperty(),
@@ -39,7 +39,7 @@ class Poker(Game):
     def __init__(self, agent_descriptions, *args, small_blind=1, big_blind=2, **kwargs):
         super().__init__(agent_descriptions, *args, **kwargs)
         self.deck = Deck(fiftytwo_cards(), shuffled=True)
-        self.revealed_cards : List[PokerCard] = List()
+        self.revealed_cards = List()
         self.big_blind = big_blind
         self.small_blind = small_blind
         for i, player in enumerate(self.players):
@@ -71,7 +71,9 @@ class Poker(Game):
             if not player.folded:
                 best_hand_for_player = max(
                     PokerHand(cards)
-                    for cards in combinations(list(self.revealed_cards) + list(player.hand), 5)
+                    for cards in combinations(
+                        list(self.revealed_cards) + list(player.hand), 5
+                    )
                 )
                 if best_hand is None or best_hand < best_hand_for_player:
                     best_hand = best_hand_for_player
@@ -111,9 +113,7 @@ class Poker(Game):
                 if sum(not player.folded for player in self.players) == 1:
                     # TODO this is ugly. Is there no find_first function in Python?
                     last_remaining_player = next(
-                        filter(
-                            lambda args: not args[1].folded, enumerate(self.players)
-                        )
+                        filter(lambda args: not args[1].folded, enumerate(self.players))
                     )[0]
                     return self.win_game(player_index=last_remaining_player)
             elif decision == "check":

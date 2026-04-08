@@ -1,8 +1,9 @@
-from enum import Enum, unique, auto
-from typing import Iterable, TypeVar, Generic, Any
 import random
-from ..component import Component
+from enum import Enum, auto, unique
+from typing import Any, Generic, Iterable, TypeVar
+
 from ...ui import Html, tag
+from ..component import Component
 
 
 class PokerCard(Component):
@@ -25,7 +26,7 @@ class PokerCard(Component):
         def __lt__(self, other):
             if self.__class__ == other.__class__:
                 return self.value < other.value
-            raise NotImplemented()
+            raise NotImplementedError()
 
     class Value:
         ACE = 1
@@ -60,8 +61,8 @@ class PokerCard(Component):
             return hash(self.value)
 
         @classmethod
-        def all_values(Value) -> Iterable["Value"]:
-            return (Value(i + 1) for i in range(13))
+        def all_values(cls) -> Iterable["PokerCard.Value"]:
+            return (cls(i + 1) for i in range(13))
 
     def __init__(self, color: "PokerCard.Color", value: "PokerCard.Value"):
         self.color = color

@@ -1,13 +1,15 @@
-from game_anywhere.agents import parse_agent_description, agent_types
-from game_anywhere.agents.descriptors import Context, GameDescriptor
-from .core.game import Game, GameSummary
 import argparse
+
+from game_anywhere.agents import agent_types, parse_agent_description
+from game_anywhere.agents.descriptors import Context, GameDescriptor
+
+from .core.game import Game, GameSummary
 
 
 def run_game_from_cmdline(GameType: type[Game], *args, **kwargs) -> GameSummary:
     parser = argparse.ArgumentParser()
-    parser.add_argument('agent_types', choices=agent_types.keys(), nargs='+')
-    parser.add_argument('--config', '-c', nargs='*')
+    parser.add_argument("agent_types", choices=agent_types.keys(), nargs="+")
+    parser.add_argument("--config", "-c", nargs="*")
     cmdline_args = parser.parse_args()
 
     if cmdline_args.config is None:
@@ -17,9 +19,13 @@ def run_game_from_cmdline(GameType: type[Game], *args, **kwargs) -> GameSummary:
     except Exception as err:
         parser.error(str(err))
 
-    agent_descriptions = [parse_agent_description(arg) for arg in cmdline_args.agent_types]
+    agent_descriptions = [
+        parse_agent_description(arg) for arg in cmdline_args.agent_types
+    ]
 
-    return run_game(GameDescriptor(GameType, agent_descriptions, *args, **kwargs, **game_config))
+    return run_game(
+        GameDescriptor(GameType, agent_descriptions, *args, **kwargs, **game_config)
+    )
 
 
 def run_game(descriptor: GameDescriptor):

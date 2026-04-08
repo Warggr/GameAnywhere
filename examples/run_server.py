@@ -1,18 +1,22 @@
+import argparse
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.append(str(PROJECT_ROOT))
+from aiohttp import http, web
+from bang import Bang
+from chess import Chess
+from hanabi import Hanabi
+from magic import Magic
+from poker import Poker
+from skull import Skull
+from tic_tac_toe import TicTacToe
+from werewolves import Werewolves
 
-import argparse
 from game_anywhere.network.http_controlled_server import HttpControlledServer
 from game_anywhere.network.router import heartbeat
-from aiohttp import web, http
-from chess import Chess
-from tic_tac_toe import TicTacToe
-from poker import Poker
-from werewolves import Werewolves
-from hanabi import Hanabi
+
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.append(str(PROJECT_ROOT))
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--port", default=8080, dest="port", type=int)

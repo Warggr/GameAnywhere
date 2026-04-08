@@ -1,14 +1,17 @@
-from game_anywhere.core import TurnBasedGame, SimpleGameSummary
+from enum import Enum, auto
+from typing import TYPE_CHECKING, Optional, Sequence
+
 from game_anywhere.components import (
-    Component,
     CheckerBoard,
+    Component,
     ComponentSlotProperty,
     List,
 )
+from game_anywhere.core import SimpleGameSummary, TurnBasedGame
 from game_anywhere.ui import tag
-from enum import Enum, auto
-from typing import Optional
 
+if TYPE_CHECKING:
+    from game_anywhere.core.agent import AgentId
 
 class ChessPiece(Component):
     class Type(Enum):
@@ -24,10 +27,10 @@ class ChessPiece(Component):
         BLACK = True
         WHITE = False
 
-    def __init__(self, color: "ChessPiece.Color", type: "ChessPiece.Type"):
+    def __init__(self, color: "ChessPiece.Color", type_: "ChessPiece.Type"):
         super().__init__()
         self.color = color
-        self.type = type
+        self.type = type_
 
     def html(self, viewer_id=None):
         UNICODE_ICONS = {
@@ -45,10 +48,10 @@ class ChessPiece(Component):
             code += BLACK_OFFSET
 
         return (
-            '<svg width="100%" height="100%" viewBox="0 0 12 12">' +
-            '<text y="100%" textLength="100%" lengthAdjust="spacingAndGlyphs" style="font-size: 12;">' +
-            chr(code) +
-            '</text></svg>'
+            '<svg width="100%" height="100%" viewBox="0 0 12 12">'
+            + '<text y="100%" textLength="100%" lengthAdjust="spacingAndGlyphs" style="font-size: 12;">'
+            + chr(code)
+            + "</text></svg>"
         )
 
 
@@ -56,20 +59,18 @@ def full_chessboard() -> CheckerBoard[ChessPiece]:
     board = CheckerBoard(height=8, width=8)
     for i, color in enumerate(["WHITE", "BLACK"]):
         color = ChessPiece.Color[color]
-        for j, type in enumerate(
+        for j, type_ in enumerate(
             ["ROOK", "KNIGHT", "BISHOP", "QUEEN", "KING", "BISHOP", "KNIGHT", "ROOK"]
         ):
-            type = ChessPiece.Type[type]
-            board[j, i * 7] = ChessPiece(color, type)
+            type_ = ChessPiece.Type[type_]
+            board[j, i * 7] = ChessPiece(color, type_)
         for j in range(8):
             board[j, 1 + i * 5] = ChessPiece(color, ChessPiece.Type.PAWN)
     return board
 
 
 class ChessCoordinates(tuple[int, int]):
-    """
-    Just a tuple of int with a few useful methods for chess coordinates
-    """
+    """Just a tuple of int with a few useful methods for chess coordinates"""
 
     class OutOfBounds(Exception):
         pass
@@ -94,8 +95,7 @@ class ChessCoordinates(tuple[int, int]):
         return chr(self[0] + ord("a")) + chr(self[1] + ord("1"))
 
     def __add__(self, other: tuple[int, int]) -> "ChessCoordinates":
-        """
-        override the + operator to get neighbours of field easily.
+        """Override the + operator to get neighbours of field easily.
         Throws a ChessCoordinates.OutOfBounds error when the field is outside the chessboard
         """
         return ChessCoordinates(self[0] + other[0], self[1] + other[1])
@@ -148,16 +148,13 @@ class Chess(TurnBasedGame):
         direction: tuple[int, int],
         color: ChessPiece.Color,
     ) -> list[ChessCoordinates]:
-        assert (
-            self.board[position] is not None and self.board[position].color == color
-        )
+        assert self.board[position] is not None and self.board[position].color == color
         possibilities = []
         while True:
             position = position.try_add(direction)
             if position and (
-                self.board[position] is None
-                or self.board[position].color != color
-            ): # empty or enemy piece taken
+                self.board[position] is None or self.board[position].color != color
+            ):  # empty or enemy piece taken
                 possibilities.append(position)
             if not position or self.board[position] is not None:
                 # end of board or enemy piece taken -> stop here
@@ -184,12 +181,9 @@ class Chess(TurnBasedGame):
                 field_at_diag = position.try_add((side, forward))
                 if field_at_diag:
                     if (
-                        (
-                            self.board[field_at_diag] is not None
-                            and self.board[field_at_diag].color != piece.color
-                        )
-                        or self.last_field_moved_through_for_en_passant == field_at_diag
-                    ):
+                        self.board[field_at_diag] is not None
+                        and self.board[field_at_diag].color != piece.color
+                    ) or self.last_field_moved_through_for_en_passant == field_at_diag:
                         possibilities.append(field_at_diag)
         elif piece.type == ChessPiece.Type.BISHOP:
             for direction in DIAGONAL_DIRECTIONS:
@@ -223,7 +217,7 @@ class Chess(TurnBasedGame):
         return possibilities
 
     def all_options(
-        self, previous_choices: list[ChessCoordinates] = []
+        self, previous_choices: Sequence[ChessCoordinates] = ()
     ) -> list[ChessCoordinates] | None:
         if len(previous_choices) == 0:
             return [
@@ -287,7 +281,9 @@ class Chess(TurnBasedGame):
             if len(partial_choices) != 0:
                 special_options = ["Back"]
             chosen_option = self.get_current_agent().choose_one_component_slot(
-                [self.board.get_slot(coords) for coords in options], options, special_options
+                [self.board.get_slot(coords) for coords in options],
+                options,
+                special_options,
             )
             if chosen_option == "Back":
                 partial_choices.pop()
@@ -303,9 +299,13 @@ class Chess(TurnBasedGame):
         html = super().html(*args, **kwargs)
         chess_style = ".checkerboard>div{background-color:white;} "
         # see https://stackoverflow.com/a/69122036
-        black_fields = [f"16n+{2*i+1}" for i in range(4)] + [f"16n+{2*i+10}" for i in range(4)]
-        black_fields = ', '.join('.checkerboard>div:nth-child(' + idx + ')' for idx in black_fields)
-        chess_style += black_fields + '{background-color:grey}'
+        black_fields = [f"16n+{2 * i + 1}" for i in range(4)] + [
+            f"16n+{2 * i + 10}" for i in range(4)
+        ]
+        black_fields = ", ".join(
+            ".checkerboard>div:nth-child(" + idx + ")" for idx in black_fields
+        )
+        chess_style += black_fields + "{background-color:grey}"
         return html + tag.style(chess_style)
 
 

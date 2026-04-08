@@ -1,15 +1,14 @@
 import asyncio
+from contextlib import AbstractContextManager
+from functools import wraps
+from threading import Semaphore, Thread
+from typing import Optional
+
 from aiohttp import web
 from aiohttp.web_runner import GracefulExit
-import time
-from threading import Thread, Semaphore, Lock
-from websockets.server import serve, WebSocketServerProtocol
-from contextlib import AbstractContextManager
-from .room import ServerRoom, SeatId
-from typing import Callable, Optional
-from signal import SIGINT
+
 from .async_resource import AsyncResource
-from functools import wraps
+from .room import ServerRoom
 
 
 def Singleton(cls):
@@ -27,9 +26,9 @@ def Singleton(cls):
 
     @wraps(cls.__new__)
     def _wrapper(cls, *args, **kwargs):
-        assert (
-            cls._instance == None
-        ), "An instance already exists. Please use get_instance"
+        assert cls._instance is None, (
+            "An instance already exists. Please use get_instance"
+        )
         cls._instance = old__new__(cls)  # object.__new__ takes no *args
         # the default __new__ takes care of removing those
         return cls._instance
@@ -89,7 +88,7 @@ class Server(AbstractContextManager, AsyncResource):
         event_loop_started.acquire()  # block until the event loop has started
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type_, value, traceback):
         self.close()
 
     def __del__(self):
@@ -105,7 +104,7 @@ class Server(AbstractContextManager, AsyncResource):
             self.on_shutdown
         )  # we can't do this after shutdown because the loop will no longer exist
         web.run_app(
-            self.app, loop=self.loop, handle_signals=False, *args, **kwargs
+            self.app, *args, loop=self.loop, handle_signals=False, **kwargs
         )  # can't handle signals when the server runs in another thread
 
     async def on_shutdown(self, app):
@@ -134,7 +133,7 @@ class Server(AbstractContextManager, AsyncResource):
         self.app.add_routes([route])
         return self  # for chaining
 
-    def new_room(self, room: ServerRoom = None) -> (RoomId, ServerRoom):
+    def new_room(self, room: ServerRoom | None = None) -> tuple[RoomId, ServerRoom]:
         if room is None:
             room = ServerRoom(server=self)
         roomId = len(self.rooms)

@@ -1,6 +1,15 @@
-from typing import TypeVar, Generic, Iterable, Iterator, MutableSequence, MutableMapping
+from typing import (
+    Generic,
+    Iterable,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    TypeVar,
+)
 
 from game_anywhere.ui import Html
+
 from .component import AbstractComponent, ComponentSlot
 
 T = TypeVar("T", bound=AbstractComponent)
@@ -11,7 +20,7 @@ class List(AbstractComponent, Generic[T], MutableSequence[T]):
         super().__init__()
         self.kwargs = kwargs
         slots = [
-            slotClass(id=str(i), content=component, parent=self, **self.kwargs)
+            slotClass(id_=str(i), content=component, parent=self, **self.kwargs)
             for i, component in enumerate(args)
         ]
         self.slots = slots
@@ -28,15 +37,15 @@ class List(AbstractComponent, Generic[T], MutableSequence[T]):
     def insert(self, index, value):
         raise NotImplementedError()
 
-    def append(self, value: Component):
-        slot = ComponentSlot(id=str(len(self.slots)), parent=self, **self.kwargs)
+    def append(self, value: T):
+        slot = ComponentSlot(id_=str(len(self.slots)), parent=self, **self.kwargs)
         self.slots.append(slot)
         self.log_added_slot(slot)
         # set slot content separately, so that the slot can decide itself how it wants to log the update event (and take e.g. the hidden flag into account).
         # TODO: there might be a cleaner way of doing this
         slot.set(value)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> T:
         return self.slots[index].get()
 
     def __setitem__(self, index, value):
@@ -51,17 +60,17 @@ class List(AbstractComponent, Generic[T], MutableSequence[T]):
 
     # list interface methods - syntactic sugar
 
-    def __iter__(self) -> Iterator[Component]:
+    def __iter__(self) -> Iterator[T]:
         # When iterating, we can't replace one value. So just dealing with components and ignoring slots is appropriate here
         return (slot._content for slot in self.slots)
 
-    def __iadd__(self, other_list: list[Component]):
+    def __iadd__(self, other_list: Iterable[T]):
         for i in other_list:
             self.append(i)
         return self
 
-    def extend(self, values_iter: Iterable[Component]):
-        for i in values_iter:
+    def extend(self, values: Iterable[T]):
+        for i in values:
             self.append(i)
 
     # useful methods
@@ -77,9 +86,18 @@ Key = TypeVar("Key")
 
 
 class Dict(AbstractComponent, Generic[Key, T], MutableMapping[Key, T]):
-    def __init__(self, content: dict[Key, T] = {}, slotClass: type[ComponentSlot] = ComponentSlot, **kwargs):
+    def __init__(
+        self,
+        content: dict[Key, T] | None = None,
+        slotClass: type[ComponentSlot] = ComponentSlot,
+        **kwargs,
+    ):
         super().__init__()
-        self.slot_constructor = lambda *args, **other_kwargs: slotClass(*args, **other_kwargs, **kwargs)
+        if content is None:
+            content = {}
+        self.slot_constructor = lambda *args, **other_kwargs: slotClass(
+            *args, **other_kwargs, **kwargs
+        )
         slots = {
             key: self.slot_constructor(id=str(key), content=value, parent=self)
             for key, value in content.items()
@@ -98,7 +116,7 @@ class Dict(AbstractComponent, Generic[Key, T], MutableMapping[Key, T]):
         if __key in self.slots:
             slot = self.slots[__key]
         else:
-            slot = self.slot_constructor(id=str(__key), parent=self)
+            slot = self.slot_constructor(id_=str(__key), parent=self)
             self.slots[__key] = slot
             self.log_added_slot(slot)
         slot.set(__value)

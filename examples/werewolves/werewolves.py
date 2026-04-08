@@ -1,22 +1,24 @@
-from time import sleep
-
-from game_anywhere.core import Game, GameSummary, Agent
-from game_anywhere.components import ComponentSlotProperty, Component
-from game_anywhere.components.component import PerPlayer, PerPlayerComponent, Pointer
-from game_anywhere.agents.chat import Chat
-
-from enum import Enum, unique, auto
-from random import shuffle
-from collections import Counter
 from abc import abstractmethod
-from typing import TypeVar, Iterable, Literal
+from collections import Counter
+from enum import Enum, auto, unique
+from random import shuffle
+from time import sleep
+from typing import TYPE_CHECKING, Iterable, Literal, TypeVar
 
+from game_anywhere.agents.chat import Chat
+from game_anywhere.components import Component, ComponentSlotProperty
+from game_anywhere.components.component import PerPlayer, PerPlayerComponent, Pointer
+from game_anywhere.core import Game, GameSummary
 from game_anywhere.core.agent import AgentId
 
-T = TypeVar('T')
+if TYPE_CHECKING:
+    from game_anywhere.components import ComponentSlot
+
+T = TypeVar("T")
+
 
 def uniq_c(it: Iterable[T]) -> Iterable[tuple[T, int]]:
-    """ see: `uniq -c`. Why isn't this in itertools? """
+    """see: `uniq -c`. Why isn't this in itertools?"""
     prev_val, counter = None, 0
     for i in it:
         if i != prev_val:
@@ -42,20 +44,22 @@ class Player(PerPlayerComponent):
 
 
 class RoleCard(Component):
-    """ A very simple class representing a role card. """
+    """A very simple class representing a role card."""
+
     def __init__(self, role: str):
         super().__init__()
         self.role = role
+
     def __str__(self):
         return self.role
 
 
 class Role(Component):
-    """
-    Represents a role, including powers as methods, current state of the role (e.g. power already used), etc.
+    """Represents a role, including powers as methods, current state of the role (e.g. power already used), etc.
     Role is basically a discriminated union of all possible roles,
     and they have a `card` slot that is the discriminant.
     """
+
     all: dict[str, type["Role"]] = {}
 
     card = ComponentSlotProperty()
@@ -76,17 +80,21 @@ class Role(Component):
 
     @classmethod
     @abstractmethod
-    def wake_up(cls, game: 'Werewolves', players: list[Player]):
-        ...
+    def wake_up(cls, game: "Werewolves", players: list[Player]): ...
 
     HIDDEN_HTML = "(hidden role)"
 
 
 class Werewolves(Game):
     class Win(GameSummary, Exception):
-        def __init__(self, whowon: Literal[Team.VILLAGE,Team.WEREWOLVES]|str, winners: list[Player]):
+        def __init__(
+            self,
+            whowon: Literal[Team.VILLAGE, Team.WEREWOLVES] | str,
+            winners: list[Player],
+        ):
             self.whowon = whowon
             self.winners = winners
+
         def get_winner(self) -> AgentId:
             pass
 
@@ -94,18 +102,20 @@ class Werewolves(Game):
     mayor = ComponentSlotProperty(slotType=Pointer)
 
     @classmethod
-    def parse_config(cls, config: list[str]) -> dict[Literal['all_roles'], list[type[Role]]]:
-        return {'all_roles': [Role.all[rolename] for rolename in config]}
+    def parse_config(
+        cls, config: list[str]
+    ) -> dict[Literal["all_roles"], list[type[Role]]]:
+        return {"all_roles": [Role.all[rolename] for rolename in config]}
 
     def __init__(self, agent_descriptions, all_roles: list[type[Role]]):
         super().__init__(agent_descriptions, nb_agents=len(all_roles))
-        self.werewolf_kill: Player|None = None
+        self.werewolf_kill: Player | None = None
         self.other_kills: list[Player] = []
-        self.lovers: tuple[Player,Player]|None = None
+        self.lovers: tuple[Player, Player] | None = None
         self.all_roles = all_roles
         # and now we can also distribute the roles
         shuffle(self.all_roles)
-        for player, roleType in zip(self.players, self.all_roles):
+        for player, roleType in zip(self.players, self.all_roles, strict=True):
             player.role = roleType()
 
     def chat(self, players: Iterable[Player]):
@@ -114,15 +124,23 @@ class Werewolves(Game):
     def kill(self, player: Player):
         # TODO check for special powers preventing their death (or e.g. Maid)
         if self.mayor == player:
-            successor = player.owner.choose_one_component_slot(self.alive_players, message="Choose your successor as mayor").owner
+            successor = player.owner.choose_one_component_slot(
+                self.alive_players, message="Choose your successor as mayor"
+            ).owner
             self.mayor = successor
         player.role.card.reveal()
         player.alive = False
-        power_balance = Counter((player.role.allegiance for player in self.alive_players))
+        power_balance = Counter(
+            (player.role.allegiance for player in self.alive_players)
+        )
         if len(power_balance) == 1:
-            raise self.Win(whowon=next(iter(power_balance.keys())), winners=self.alive_players)
-        elif len(self.alive_players) == 2 and set(self.alive_players) == set(self.lovers):
-            raise self.Win(whowon='lovers', winners=self.alive_players)
+            raise self.Win(
+                whowon=next(iter(power_balance.keys())), winners=self.alive_players
+            )
+        elif len(self.alive_players) == 2 and set(self.alive_players) == set(
+            self.lovers
+        ):
+            raise self.Win(whowon="lovers", winners=self.alive_players)
 
     def night(self, first=False):
         FIRST_NIGHT_ORDER = [Cupid, Seer, Werewolf, Witch]
@@ -130,8 +148,10 @@ class Werewolves(Game):
 
         order = FIRST_NIGHT_ORDER if first else NIGHT_ORDER
         for role in order:
-            players = [player for player in self.alive_players if type(player.role) == role]
-            print('Waking up', role, 'with players', players)
+            players = [
+                player for player in self.alive_players if type(player.role) is role
+            ]
+            print("Waking up", role, "with players", players)
             if players:
                 role.wake_up(self, players)
 
@@ -146,17 +166,21 @@ class Werewolves(Game):
             # TODO: maybe people can change their vote until the last moment
             if self.mayor is None:
                 while True:
-                    print('Electing mayor')
-                    votes = collect_votes(self.alive_players, self, message="Choose a Mayor")
+                    print("Electing mayor")
+                    votes = collect_votes(
+                        self.alive_players, self, message="Choose a Mayor"
+                    )
                     votes = count_votes(votes)
                     result = get_top_vote(votes)
                     if result is None:
-                        self.message('No mayor chosen, new vote')
+                        self.message("No mayor chosen, new vote")
                     else:
                         self.mayor = result
                         break
-            print('Killing')
-            kill_votes = collect_votes(self.alive_players, self, message="Choose who should be executed")
+            print("Killing")
+            kill_votes = collect_votes(
+                self.alive_players, self, message="Choose who should be executed"
+            )
             kill_results = count_votes(kill_votes)
             if self.mayor in kill_votes:
                 kill_results[kill_votes[self.mayor]] += 1.1
@@ -177,17 +201,21 @@ class Werewolves(Game):
     def alive_players(self) -> list[Player]:
         return list(filter(lambda p: p.alive, self.players))
 
-    def alive_player_slots(self) -> list['ComponentSlot']:
+    def alive_player_slots(self) -> list["ComponentSlot"]:
         return [slot for slot in self.players.slots if slot.content.alive]
 
 
-ABSTENTION = 'Abstain'
+ABSTENTION = "Abstain"
 
-def collect_votes(voters: list[Player], game: 'Werewolves', message: str) -> dict[Player, Player]:
+
+def collect_votes(
+    voters: list[Player], game: "Werewolves", message: str
+) -> dict[Player, Player]:
     votes = {}
     for player in voters:
         choice = player.owner.choose_one_component_slot(
-            game.alive_player_slots(), special_options=[ABSTENTION],
+            game.alive_player_slots(),
+            special_options=[ABSTENTION],
             message=message,
         )
         if choice != ABSTENTION:
@@ -201,13 +229,13 @@ def count_votes(votes: dict[Player, Player]) -> dict[Player, int]:
     return {key: nbvotes for key, nbvotes in uniq_c(votes)}
 
 
-def get_top_vote(votes: dict[Player, int]) -> Player|None:
-    votes: list[tuple[Player, int]] = list(zip(votes.keys(), votes.values()))
+def get_top_vote(votes: dict[Player, int]) -> Player | None:
+    votes: list[tuple[Player, int]] = list(votes.items())
     if len(votes) == 0:
         return None
     results = sorted(votes, key=lambda tup: tup[1], reverse=True)
     if len(results) > 1 and results[1][1] == results[0][1]:
-        return None # tied vote
+        return None  # tied vote
     return results[0][0]
 
 
@@ -216,7 +244,7 @@ class Villager(Role):
 
     @classmethod
     def wake_up(cls, *args, **kwargs):
-        raise AssertionError('Villagers are not woken up during the night!')
+        raise AssertionError("Villagers are not woken up during the night!")
 
 
 class Werewolf(Role):
@@ -225,11 +253,15 @@ class Werewolf(Role):
     @classmethod
     def wake_up(cls, game: Werewolves, players: list[Player]):
         game.werewolf_kill = None
-        with game.chat(players) as chat:
-            votes = collect_votes(players, game, message="Vote who your Werewolf pack should kill")
+        with game.chat(players):
+            votes = collect_votes(
+                players, game, message="Vote who your Werewolf pack should kill"
+            )
             votes = count_votes(votes)
             game.werewolf_kill = get_top_vote(votes)
-            print("Chose werewolf kill as", game.werewolf_kill, ". Closing chat room...")
+            print(
+                "Chose werewolf kill as", game.werewolf_kill, ". Closing chat room..."
+            )
         print("Closed chat room, werewolves go to sleep")
 
 
@@ -238,15 +270,29 @@ class Cupid(Role):
 
     @classmethod
     def wake_up(cls, game: Werewolves, players: list[Player]):
-        cupid, = players
+        (cupid,) = players
         singles_slots = game.alive_player_slots()
-        lover1_slot = cupid.owner.choose_one_component_slot(singles_slots, message="Choose the first lover")
+        lover1_slot = cupid.owner.choose_one_component_slot(
+            singles_slots, message="Choose the first lover"
+        )
         singles_slots.remove(lover1_slot)
-        lover2_slot = cupid.owner.choose_one_component_slot(singles_slots, message="Choose another lover")
-        game.lovers = [player for player in game.alive_players if player.slot in (lover1_slot, lover2_slot)]
-        faire_part = (f'Hit by the arrows of Cupid, {game.lovers[0].owner.name} and {game.lovers[1].owner.name} have fallen in love.' +
-                      ' Should one of them die, the other will die from sadness.')
-        for player in {cupid, game.lovers[0], game.lovers[1]}: # use set() in case Cupid is one of the lovers
+        lover2_slot = cupid.owner.choose_one_component_slot(
+            singles_slots, message="Choose another lover"
+        )
+        game.lovers = [
+            player
+            for player in game.alive_players
+            if player.slot in (lover1_slot, lover2_slot)
+        ]
+        faire_part = (
+            f"Hit by the arrows of Cupid, {game.lovers[0].owner.name} and {game.lovers[1].owner.name} have fallen in love."
+            + " Should one of them die, the other will die from sadness."
+        )
+        for player in {
+            cupid,
+            game.lovers[0],
+            game.lovers[1],
+        }:  # use set() in case Cupid is one of the lovers
             player.owner.message(faire_part)
         with game.chat(players=list(game.lovers)):
             sleep(10)
@@ -257,8 +303,10 @@ class Seer(Role):
 
     @classmethod
     def wake_up(cls, game: Werewolves, players: list[Player]):
-        seer, = players
-        seen = seer.owner.choose_one_component_slot(game.alive_player_slots(), message="Choose whose role you want to See").content
+        (seer,) = players
+        seen = seer.owner.choose_one_component_slot(
+            game.alive_player_slots(), message="Choose whose role you want to See"
+        ).content
         seen.role.card.reveal(to=seer.owner_id)
 
 
@@ -267,9 +315,13 @@ class Witch(Role):
 
     @classmethod
     def wake_up(cls, game: Werewolves, players: list[Player]):
-        witch, = players
+        (witch,) = players
         if game.werewolf_kill is not None:
-            witch.owner.message('This player has been killed by the werewolves:' + game.werewolf_kill.owner.name, highlight=game.werewolf_kill)
+            witch.owner.message(
+                "This player has been killed by the werewolves:"
+                + game.werewolf_kill.owner.name,
+                highlight=game.werewolf_kill,
+            )
             if witch.role.has_healing_potion:
                 if witch.owner.boolean_choice("Use healing potion"):
                     witch.role.has_healing_potion = False
@@ -277,7 +329,9 @@ class Witch(Role):
         if witch.role.has_poison:
             if witch.owner.boolean_choice("Use poison"):
                 witch.role.has_poison = False
-                killed = witch.owner.choose_one_component_slot(game.alive_player_slots(), message="Choose who to kill").content
+                killed = witch.owner.choose_one_component_slot(
+                    game.alive_player_slots(), message="Choose who to kill"
+                ).content
                 game.other_kills.append(killed)
 
     def __init__(self):
@@ -287,4 +341,5 @@ class Witch(Role):
 
 if __name__ == "__main__":
     from game_anywhere.run_game import run_game_from_cmdline
+
     run_game_from_cmdline(Werewolves)

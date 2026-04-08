@@ -1,9 +1,15 @@
-from .room import ServerRoom
-from ..agents.descriptors import Context
-from threading import Thread
-from aiohttp import web
 import asyncio
+from threading import Thread
+from typing import TYPE_CHECKING
 
+from aiohttp import web
+
+from ..agents.descriptors import Context
+from .room import ServerRoom
+
+if TYPE_CHECKING:
+    from game_anywhere.agents.descriptors import AgentPromise, GameDescriptor
+    from game_anywhere.core import Game
 
 class BaseGameRoom(ServerRoom):
     def __init__(self, game: "Game", *args, **kwargs):
@@ -25,17 +31,22 @@ class BaseGameRoom(ServerRoom):
     async def http_get_html_view(self, request: web.Request) -> web.Response:
         try:
             username = self.get_request_username(request)
-            session_id = request.query['seat']
+            session_id = request.query["seat"]
         except KeyError as err:
-            raise web.HTTPUnauthorized(text=f"Please provide a username and seat (missing: {err})")
-        if session_id == 'watch':
+            raise web.HTTPUnauthorized(
+                text=f"Please provide a username and seat (missing: {err})"
+            ) from err
+        if session_id == "watch":
             viewer_id = None
         else:
             try:
                 session_id = int(session_id)
-            except ValueError:
-                raise web.HTTPBadRequest(text="Session is not an integer")
-            if session_id in self.session_id_to_username and self.session_id_to_username[session_id] != username:
+            except ValueError as err:
+                raise web.HTTPBadRequest(text="Session is not an integer") from err
+            if (
+                session_id in self.session_id_to_username
+                and self.session_id_to_username[session_id] != username
+            ):
                 raise web.HTTPForbidden(text="Session not owned by authenticated user")
             viewer_id = session_id
         html = self.game.html(viewer_id=viewer_id)

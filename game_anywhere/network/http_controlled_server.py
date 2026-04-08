@@ -1,16 +1,21 @@
-from asyncio.queues import Queue
-from aiohttp import web
-from aiohttp import http
-from aiohttp_sse import sse_response, EventSourceResponse
-from .server import Server
-from game_anywhere.agents.parse_descriptors import parse_game_descriptor
-from .game_room import GameRoom
 import json
-import traceback
-import sys
+from asyncio.queues import Queue
+from typing import TYPE_CHECKING
 
+from aiohttp import http, web
+from aiohttp_sse import sse_response
 
-def json_encode_server_room(room: "ServerRoom"):
+from game_anywhere.agents.parse_descriptors import parse_game_descriptor
+
+from .game_room import GameRoom
+from .server import Server
+
+if TYPE_CHECKING:
+    from game_anywhere.core import Game
+
+    from .room import ServerRoom
+
+def json_encode_server_room(room: "ServerRoom") -> dict:
     return {
         "spectators": len(room.spectators),
         "seats": {key: str(value.state) for key, value in room.sessions.items()},
@@ -82,12 +87,15 @@ class HttpControlledServer(Server):
 
     async def http_login(self, request: web.Request) -> web.Response:
         login_data = await request.json()
-        username = login_data['username']
-        return web.Response(status=http.HTTPStatus.NO_CONTENT, headers={'Set-Cookie': f'username={username}'})
+        username = login_data["username"]
+        return web.Response(
+            status=http.HTTPStatus.NO_CONTENT,
+            headers={"Set-Cookie": f"username={username}"},
+        )
 
-    def log_event(self, data):
+    def log_event(self, event):
         for queue in self.event_queues:
-            queue.put_nowait(data)
+            queue.put_nowait(event)
 
     # override
     def nt_interrupt(self):

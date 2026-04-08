@@ -1,7 +1,12 @@
-from game_anywhere.core.agent import Agent
-from abc import abstractmethod, ABC
-from typing import Any, TypeVar, Type, Generic
+from abc import ABC, abstractmethod
 from contextlib import ExitStack
+from typing import TYPE_CHECKING, Any, Generic, Type, TypeVar
+
+from game_anywhere.core.agent import Agent
+
+if TYPE_CHECKING:
+    from game_anywhere.core import Game
+    from game_anywhere.core.agent import AgentId
 
 AgentPromise = Any
 
@@ -17,7 +22,7 @@ class AgentDescriptor(ABC):
         self.name = None
 
     @abstractmethod
-    def start_initialization(self, id: "AgentId", context: Context) -> AgentPromise: ...
+    def start_initialization(self, agent_id: "AgentId", context: Context) -> AgentPromise: ...
 
     @abstractmethod
     def await_initialization(self, promise: AgentPromise) -> Agent: ...
@@ -57,7 +62,11 @@ class GameDescriptor(Generic[GameType]):
         return agents
 
     def create_game(self) -> GameType:
-        game = self.GameType(self.agents_descriptors, *self.game_args, **self.game_kwargs)
+        game = self.GameType(
+            self.agents_descriptors,
+            *self.game_args,
+            **self.game_kwargs,
+        )
         if type(self.agents_descriptors) is not list:
             #  sorry for the code duplication with subclasses of Agent
             self.agents_descriptors = [self.agents_descriptors] * len(game.agents)

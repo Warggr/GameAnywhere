@@ -1,4 +1,5 @@
 import functools
+from typing import Any
 
 
 class Html:
@@ -16,14 +17,17 @@ class Html:
             raise ValueError("HTML: cannot add unrelated type", type(other))
         total_content = []
         for html in (self, other):
-            if type(html) != Html:
+            if type(html) is not Html:
                 total_content += [html]
             else:  # we can un-nest Html's within Html's
                 total_content += html.content
         return Html(*total_content)
 
-    def wrap_to_one_element(self) -> 'HtmlElement':
+    def wrap_to_one_element(self) -> "HtmlElement":
         return tag.div(self)
+
+
+HtmlLike = Any
 
 
 class HtmlElement(Html):
@@ -68,5 +72,6 @@ class HtmlElementMeta(type):
 
 
 class tag(metaclass=HtmlElementMeta):
-    """ Used as a namespace. Use e.g. tag.div(...), tag.h2(...) """
+    """Used as a namespace. Use e.g. tag.div(...), tag.h2(...)"""
+
     pass

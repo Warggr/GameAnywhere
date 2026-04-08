@@ -1,7 +1,10 @@
-from typing import Union
-from .game import Game, GameSummary, AgentId
 from abc import abstractmethod
+from typing import TYPE_CHECKING, Union
 
+from .game import AgentId, Game, GameSummary
+
+if TYPE_CHECKING:
+    from .agent import Agent
 
 class TurnBasedGame(Game):
     def __init__(self, *args, **kwargs):
@@ -16,8 +19,7 @@ class TurnBasedGame(Game):
             self.totalTurn += 1
 
     @abstractmethod
-    def turn(self) -> Union[None, GameSummary]:
-        ...
+    def turn(self) -> Union[None, GameSummary]: ...
 
     def get_current_agent_index(self) -> int:
         return self.totalTurn % len(self.agents)

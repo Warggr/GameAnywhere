@@ -1,5 +1,5 @@
-from enum import Enum, auto, unique
 import random
+from enum import Enum, auto, unique
 
 from game_anywhere.components import Component, ComponentSlotProperty, List, PerPlayer
 from game_anywhere.components.component import PerPlayerComponent
@@ -21,14 +21,15 @@ class SkullCard(Component):
     def __str__(self):
         match self.value:
             case SkullCardType.SKULL:
-                return '💀'
+                return "💀"
             case SkullCardType.FLOWER:
-                return '💮'
+                return "💮"
 
-    HIDDEN_HTML = '🟠'
+    HIDDEN_HTML = "🟠"
 
     def html(self, viewer_id=None) -> str:
         return str(self)
+
 
 class PlayerBoard(PerPlayerComponent):
     hand_cards = ComponentSlotProperty[List[SkullCard]]()
@@ -44,7 +45,7 @@ class Skull(TurnBasedGame):
         if config is None:
             num_players = 2
         else:
-            num_players, = config
+            (num_players,) = config
             num_players = int(num_players)
         return num_players, {}
 
@@ -84,7 +85,9 @@ class Skull(TurnBasedGame):
     def _play_round(self):
         self._clear_table()
         active_players = self._active_players()
-        self.starting_with = self._next_active_player(self.starting_with, active_players)
+        self.starting_with = self._next_active_player(
+            self.starting_with, active_players
+        )
         self.message(
             f"New round. Starting player: {self.players[self.starting_with].owner.name}."
         )
@@ -104,7 +107,9 @@ class Skull(TurnBasedGame):
             cards_in_play = self._total_cards_in_play()
             assert cards_in_play > 0
 
-            if highest_bidder is not None and self._remaining_bidders(active_players, passed) == [highest_bidder]:
+            if highest_bidder is not None and self._remaining_bidders(
+                active_players, passed
+            ) == [highest_bidder]:
                 break
 
             player = self.players[current_player]
@@ -246,9 +251,13 @@ class Skull(TurnBasedGame):
 
     def _play_one_card(self, player_index: int, mandatory: bool = False):
         player = self.players[player_index]
-        card = player.get_owner().choose_one_component_slot(
-            [slot for slot in player.hand_cards.get_slots().values()]
-        ).content
+        card = (
+            player.get_owner()
+            .choose_one_component_slot(
+                [slot for slot in player.hand_cards.get_slots().values()]
+            )
+            .content
+        )
         player.hand_cards.remove(card)
         player.played_cards.append(card)
         if mandatory:
@@ -268,7 +277,9 @@ class Skull(TurnBasedGame):
                 result.append(index)
         return result
 
-    def _next_active_player(self, current: int, players: list[int] | None = None) -> int:
+    def _next_active_player(
+        self, current: int, players: list[int] | None = None
+    ) -> int:
         if players is None:
             players = self._active_players()
         start = current
