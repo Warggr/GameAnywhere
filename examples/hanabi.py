@@ -5,7 +5,7 @@ from enum import Enum, unique, auto
 from game_anywhere.components.component import PerPlayerComponent
 
 from game_anywhere.run_game import run_game_from_cmdline
-from game_anywhere.components import PerPlayer, ComponentSlotProperty, ComponentSlot, List, Dict
+from game_anywhere.components import PerPlayer, ComponentSlotProperty, ComponentSlot, Component, List, Dict
 from game_anywhere.core import TurnBasedGame, GameSummary, Agent
 from game_anywhere.core.agent import AgentId
 from game_anywhere.components.traditional.cards import Deck, DiscardPile
@@ -102,7 +102,7 @@ class Hanabi(TurnBasedGame):
                 self.discard_pile.append(card)
                 self.nb_lives -= 1
                 if self.nb_lives == 0:
-                    return self.Summary(sum(len(stack) for stack in self.stacks))
+                    return self.Summary(sum(len(stack) for stack in self.stacks.values()))
             self.players[self.get_current_agent_index()].cards.append(self.deck.draw())
         elif choice == 'Cycle card':
             card_slot = self.get_current_agent().choose_one_component_slot(
@@ -115,7 +115,7 @@ class Hanabi(TurnBasedGame):
                 self.nb_hints += 1
         elif choice == 'Give hint':
             player_hinted = self.get_current_agent().choose_one_component_slot(
-                [slot for i, (_, slot) in enumerate(self.players.get_slots()) if i != self.get_current_agent_index()]
+                [slot for i, slot in enumerate(self.players.get_slots().values()) if i != self.get_current_agent_index()]
             ).content
             options = {}
             for color in Color:
@@ -125,7 +125,7 @@ class Hanabi(TurnBasedGame):
             hint_key = self.get_current_agent().text_choice(list(options.keys()))
             hint_key = options[hint_key]
             hint_value = []
-            for _, slot in player_hinted.cards.get_slots():
+            for slot in player_hinted.cards.get_slots().values():
                 if (
                     type(hint_key) is int and slot.content.value == hint_key
                     or type(hint_key) is Color and slot.content.color == hint_key

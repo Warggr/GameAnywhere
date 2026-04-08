@@ -248,7 +248,7 @@ class Skull(TurnBasedGame):
     def _play_one_card(self, player_index: int, mandatory: bool = False):
         player = self.players[player_index]
         card = player.get_owner().choose_one_component_slot(
-            [slot for _, slot in player.hand_cards.get_slots()]
+            [slot for slot in player.hand_cards.get_slots().values()]
         ).content
         player.hand_cards.remove(card)
         player.played_cards.append(card)

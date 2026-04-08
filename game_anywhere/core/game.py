@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from game_anywhere.components import Component
 
 from .agent import Agent, AgentId
-from ..components.component import ComponentOrGame, WeakComponentSlot
+from ..components.component import ComponentOrGame, PropertySlotMixin, WeakComponentSlot
 from ..components.utils import html
 from ..ui import tag
 
@@ -30,7 +30,7 @@ Represents a game in progress.
 
 
 # ComponentOrGame is an ABC, so indirectly Game is also an ABC
-class Game(ComponentOrGame):
+class Game(PropertySlotMixin):
     """
     Game lifecycle. E.g. assume a game called FooGame.
     - the FooGame class is defined as Python code

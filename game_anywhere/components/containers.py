@@ -1,12 +1,12 @@
 from typing import TypeVar, Generic, Iterable, Iterator, MutableSequence, MutableMapping
 
 from game_anywhere.ui import Html
-from .component import Component, ComponentSlot
+from .component import AbstractComponent, ComponentSlot
 
-T = TypeVar("T", bound=Component)
+T = TypeVar("T", bound=AbstractComponent)
 
 
-class List(Component, Generic[T], MutableSequence[T]):
+class List(AbstractComponent, Generic[T], MutableSequence[T]):
     def __init__(self, args, slotClass: type[ComponentSlot] = ComponentSlot, **kwargs):
         super().__init__()
         self.kwargs = kwargs
@@ -17,10 +17,8 @@ class List(Component, Generic[T], MutableSequence[T]):
         self.slots = slots
 
     # Component interface methods
-
-    def get_slots(self) -> Iterator[tuple[str, "ComponentSlot"]]:
-        for i, slot in enumerate(self.slots):
-            yield f"@[{i}]", slot
+    def get_slots(self) -> Mapping[str, "ComponentSlot"]:
+        return dict((f"@[{i}]", slot) for i, slot in enumerate(self.slots))
 
     def html(self, viewer_id=None) -> Html:
         return Html(*[slot.html(viewer_id=viewer_id) for slot in self.slots])
@@ -33,12 +31,7 @@ class List(Component, Generic[T], MutableSequence[T]):
     def append(self, value: Component):
         slot = ComponentSlot(id=str(len(self.slots)), parent=self, **self.kwargs)
         self.slots.append(slot)
-        # log update, see ComponentSlot.set()
-        try:
-            game = self.get_game()
-            game.log_new_slot(self, slot)
-        except Component.NotAttachedToComponentTree:
-            pass
+        self.log_added_slot(slot)
         # set slot content separately, so that the slot can decide itself how it wants to log the update event (and take e.g. the hidden flag into account).
         # TODO: there might be a cleaner way of doing this
         slot.set(value)
@@ -51,6 +44,7 @@ class List(Component, Generic[T], MutableSequence[T]):
 
     def __delitem__(self, index):
         del self.slots[index]
+        self.log_deleted_slot(str(index))
 
     def __len__(self):
         return len(self.slots)
@@ -82,7 +76,7 @@ class List(Component, Generic[T], MutableSequence[T]):
 Key = TypeVar("Key")
 
 
-class Dict(Component, Generic[Key, T], MutableMapping[Key, T]):
+class Dict(AbstractComponent, Generic[Key, T], MutableMapping[Key, T]):
     def __init__(self, content: dict[Key, T] = {}, slotClass: type[ComponentSlot] = ComponentSlot, **kwargs):
         super().__init__()
         self.slot_constructor = lambda *args, **other_kwargs: slotClass(*args, **other_kwargs, **kwargs)
@@ -93,9 +87,8 @@ class Dict(Component, Generic[Key, T], MutableMapping[Key, T]):
         self.slots: dict[Key, ComponentSlot] = slots
 
     # Component interface methods
-    def get_slots(self) -> Iterator[tuple[str, ComponentSlot]]:
-        for key, value in self.slots.items():
-            yield str(key), value
+    def get_slots(self) -> Mapping[str, ComponentSlot]:
+        return self.slots
 
     def html(self, viewer_id=None) -> Html:
         return Html(*[slot.html(viewer_id=viewer_id) for slot in self.slots.values()])
@@ -107,18 +100,12 @@ class Dict(Component, Generic[Key, T], MutableMapping[Key, T]):
         else:
             slot = self.slot_constructor(id=str(__key), parent=self)
             self.slots[__key] = slot
-            try:
-                self.get_game().log_new_slot(self, slot)
-            except Component.NotAttachedToComponentTree:
-                pass
+            self.log_added_slot(slot)
         slot.set(__value)
 
     def __delitem__(self, __key: Key):
         del self.slots[__key]
-        try:
-            self.get_game().log_delete_slot(self, __key)
-        except Component.NotAttachedToComponentTree:
-            pass
+        self.log_deleted_slot(__key)
 
     def __getitem__(self, __key) -> T:
         return self.slots[__key].get()
