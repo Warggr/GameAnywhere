@@ -48,6 +48,7 @@ class Game(PropertySlotMixin):
         nb_agents = len(agent_descriptions)
         # TODO: maybe a state pattern with AgentDescriptors and Agents, instead of setting them to None at the beginning
         self.agents: list[Agent]|list[None] = [None] * nb_agents
+        self.agent_descriptions = agent_descriptions
 
     @classmethod
     def parse_config(cls, config: list[str]|None) -> tuple[int, dict[str, Any]]:

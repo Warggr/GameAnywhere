@@ -76,7 +76,6 @@ class Hanabi(TurnBasedGame):
         self.nb_lives = 3
         self.stacks = Dict[Color, List]()
         self.discard_pile = DiscardPile()
-        self.players: List[HanabiPerPlayerComponent] = PerPlayer.INIT(agent_descriptions)  # typing: ignore
 
         nb_players = len(agent_descriptions)
         assert 2 <= nb_players <= 5, "Hanabi can be played only between 2 and 5 players"

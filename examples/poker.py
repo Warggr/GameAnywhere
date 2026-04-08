@@ -42,7 +42,6 @@ class Poker(Game):
         self.revealed_cards : List[PokerCard] = List()
         self.big_blind = big_blind
         self.small_blind = small_blind
-        self.players = PerPlayer.INIT(agent_descriptions)
         for i, player in enumerate(self.players):
             player.hand = List(hidden=True, owner_id=i)
             player.bet = 0

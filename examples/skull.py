@@ -52,7 +52,6 @@ class Skull(TurnBasedGame):
         if not 3 <= len(agent_descriptions) <= 6:
             raise ValueError("Skull is designed for 3 to 6 players.")
         super().__init__(agent_descriptions, *args, **kwargs)
-        self.players = PerPlayer.INIT(agent_descriptions)
         self.starting_with = 0
 
         for player_id, player in enumerate(self.players):

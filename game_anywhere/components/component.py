@@ -286,20 +286,20 @@ class PerPlayerComponent(Component):
         return tag.h2(owner) + html
 
 
-class PerPlayer(ComponentSlotProperty):
-    """
-    Usage: use this as an attribute of the class
-    then before you use this, you need to write once
-    ` game.attr = PerPlayer.INIT(agent_descriptors) `. Then you can do e.g. game.attr[0] = ...
-    """
 
-    class INIT:
-        # A sentinel value with some content. TODO: this is ugly.
-        # A prettier syntax would be `game.attr.INIT(descriptors)`, but this is not possible
-        # as game.attr calls __get__ and returns the property
-        def __init__(self, agent_descriptors: list["AgentDescriptor"]):
-            self.agent_descriptors = agent_descriptors
 
+class PerPlayer(ComponentSlotProperty["List[PerPlayerComponent]"], Generic[PerPlayerComponent]):
+    """
+    PerPlayer(
+        **kwargs
+    )
+    is a shorthand for
+    ComponentSlot(component=List(
+        Component( **kwargs ),
+        Component( **kwargs ),
+        ...
+    ))
+    """
     def __init__(
         self,
         componentClass: type[PerPlayerComponent] | None = None,

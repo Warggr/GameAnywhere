@@ -103,7 +103,6 @@ class Werewolves(Game):
         self.other_kills: list[Player] = []
         self.lovers: tuple[Player,Player]|None = None
         self.all_roles = all_roles
-        self.players: list[Player] = PerPlayer.INIT(agent_descriptions)  # type: ignore
         # and now we can also distribute the roles
         shuffle(self.all_roles)
         for player, roleType in zip(self.players, self.all_roles):
