@@ -265,7 +265,7 @@
 						}
 					} else if(diff.op == "remove") {
 						let child = document.getElementById(diff.key);
-						let parent = child.parentNode();
+						let parent = child.parentNode;
 						parent.removeChild(child);
 					} else {
 						console.warn("Unrecognized diff: " + diff)

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
     from .room import ServerRoom
 
+
 def json_encode_server_room(room: "ServerRoom") -> dict:
     return {
         "spectators": len(room.spectators),
@@ -45,13 +46,9 @@ class HttpControlledServer(Server):
             game_description = parse_game_descriptor(
                 await request.json(), self.available_games, default_description
             )
-        except (NotImplementedError, KeyError, json.JSONDecodeError) as err:
-            raise web.HTTPBadRequest(text=repr(err))
-        try:
             room_id, room = self.new_room(room=GameRoom(game_description, server=self))
         except Exception as ex:
-            traceback.print_exception(ex, file=sys.stderr)
-            raise web.HTTPBadRequest(text=str(ex))
+            raise web.HTTPBadRequest(text=str(ex)) from ex
         self.log_event(
             json.dumps(
                 [{"op": "add", "key": f"/{room_id}", "value": room}],
