@@ -1,5 +1,4 @@
 import asyncio
-import json
 from enum import Enum, unique
 from threading import Condition, Lock
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
@@ -231,15 +230,11 @@ class Session(Spectator):
     def state(self, value: "Spectator.State"):
         self._state = value
         self.room.server.log_event(
-            json.dumps(
-                [
-                    {
-                        "op": "replace",
-                        "key": f"/{self.room.room_id}/seats/{self.seat_id}",
-                        "value": str(value),
-                    }
-                ]
-            )
+            {
+                "op": "replace",
+                "key": f"/r/{self.room.room_id}/seats/{self.seat_id}",
+                "value": str(value),
+            }
         )
 
     def reconnect_sync(self) -> None:

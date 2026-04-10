@@ -1,4 +1,6 @@
 import asyncio
+from dataclasses import dataclass
+from datetime import datetime
 from threading import Thread
 from typing import TYPE_CHECKING
 
@@ -9,12 +11,26 @@ from .room import ServerRoom
 
 if TYPE_CHECKING:
     from game_anywhere.agents.descriptors import AgentPromise, GameDescriptor
-    from game_anywhere.core import Game
+    from game_anywhere.core import Game, GameSummary
 
-class BaseGameRoom(ServerRoom):
-    def __init__(self, game: "Game", *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    from .http_controlled_server import HttpControlledServer
+    from .room import SeatId, Username
+
+
+@dataclass
+class GameMetadata:
+    game: type["Game"]
+    players: dict["SeatId", "Username"]
+    started: datetime
+    ended: datetime
+    summary: "GameSummary | None"
+
+
+class BaseGameRoom(ServerRoom["HttpControlledServer"]):
+    def __init__(self, game: "Game", server: "HttpControlledServer", *args, **kwargs):
+        super().__init__(server, *args, **kwargs)
         self.game = game
+        self.started = datetime.now()
 
     # override
     @classmethod
@@ -74,16 +90,26 @@ class GameRoom(BaseGameRoom):
         # print("Starting game thread, waiting for agents…")
         self.game.set_agents(game_descriptor.await_initialization(agent_promises))
         # print("…Agents connected")
-        self.game.play_game()
+        summary = self.game.play_game()
         # print("Game ended, interrupting agents")
         self.server.loop.call_soon_threadsafe(self.nt_interrupt)
         # print("Game ended, scheduling self.nt_close()")
-        asyncio.run_coroutine_threadsafe(self.nt_close(), loop=self.server.loop)
+        asyncio.run_coroutine_threadsafe(
+            self.nt_close(summary=summary), loop=self.server.loop
+        )
 
     # override
-    async def nt_close(self):
+    async def nt_close(self, summary: "GameSummary | None" = None):
         # print("nt_closing GameRoom…")
         # first close the spectators
+        metadata = GameMetadata(
+            game=type(self.game),
+            players=self.session_id_to_username,
+            started=self.started,
+            ended=datetime.now(),
+            summary=summary,
+        )
+        self.server.log_game_summary(metadata)
         await super().nt_close()
         # print("Everything closed, now waiting for the game thread to end…")
         # then wait for the game to end (with no one connected, it can't take long)

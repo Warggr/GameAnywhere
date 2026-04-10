@@ -52,6 +52,7 @@
             <input type="text" name="seat"/>
             <button type="submit">Join a game with a code</button>
         </form>
+        <div id="status-room-histories"></div>
     </div>
     <script>
         function toggleLogin(username) {
@@ -86,7 +87,8 @@
             ;
         }
         const roomsRoot = ReactDOM.createRoot(document.getElementById('status-rooms'));
-        var knownRooms;
+        const historyRoot = ReactDOM.createRoot(document.getElementById('status-room-histories'));
+        var knownRooms, knownHistory;
         // TODO: move to an actual front-end reactive framework instead of just using React for the convenience syntax
         function renderRooms(rooms){
             if(rooms.length == 0) roomsRoot.render('(no rooms)');
@@ -105,41 +107,94 @@
                 ])
             ));
         }
+        function renderHistory(games){
+            if(games.length == 0) historyRoot.render('(no games saved)');
+            else historyRoot.render(
+                e('table', {}, [
+                    e('tbody', {}, [
+                        e('tr', {key:'header'}, [
+                            e('th', {}, 'Game'),
+                            e('th', {}, 'Players'),
+                            e('th', {}, 'Started'),
+                            e('th', {}, 'Ended'),
+                            e('th', {}, 'Winner'),
+                            e('th', {}, 'Replay'),
+                        ])
+                    ].concat(Object.entries(games).map(game =>
+                        e('tr', {key:game[0]}, [
+                            e('td', {key:'game'}, game[1].game),
+                            e('td', {key:'players'}, Object.values(game[1].players).join(', ')),
+                            e('td', {key:'start'}, new Date(game[1].started * 1000).toLocaleDateString()),
+                            e('td', {key:'end'}, new Date(game[1].ended * 1000).toLocaleDateString()),
+                            e('td', {key:'winner'}, game[1].players[game[1].summary.winner]),
+                            e('td', {key:'replay'}, (game[1].summary.replay !== undefined) 
+                                ? e('a', {key:'a', href: `replay.html?game=${game[0]}`}, 'Replay')
+                                : ''
+                            )
+                        ])
+                    )))
+                ]
+            ))
+        }
         function loadRooms(){
             fetch('/room/list').then(response => response.json()).then(rooms => {
                 knownRooms = rooms;
-                console.warn(`Set knownRooms to ${rooms}`)
                 renderRooms(rooms);
             });
         }
+        function loadHistory(){
+            fetch('/logs/list').then(response => response.json()).then(games => {
+                knownHistory = games;
+                renderHistory(games);
+            })
+        }
         loadRooms();
-        const sseSource = new EventSource('/room/list/watch');
+        loadHistory();
+        const sseSource = new EventSource('/watch');
         sseSource.onmessage = msg => {
             let data = JSON.parse(msg.data);
+            let roomsChanged = false, historyChanged = false;
             for(let update of data){
+                let key = update.key.split('/');
+                console.assert(key[0] == '', 'Key does not start with /:', update.key);
+                key = key.slice(1);
                 if(update.op == "add"){
-                    console.assert(update.key[0] == "/");
-                    let room_id = Number.parseInt(update.key.slice(1));
-                    knownRooms[room_id] = update.value;
+                    if(key[0] == 'r'){
+                        console.assert(key.length == 2);
+                        let room_id = Number.parseInt(key[1]);
+                        knownRooms[room_id] = update.value;
+                        roomsChanged = true;
+                    } else if(key[0] == 's'){
+                        console.assert(key.length == 2);
+                        let hist_id = Number.parseInt(key[1]);
+                        knownHistory[hist_id] = update.value;
+                        historyChanged = true;
+                    } else {
+                        console.warn('Unknown key ' + key[0]);
+                    }
                 }
                 else if(update.op == "replace"){
-                    console.assert(update.key[0] == "/");
-                    let path = update.key.slice(1).split("/");
-                    let room_id = Number.parseInt(path[0]);
-                    if(path[1] == "seats"){
-                        console.assert(path.length == 3);
-                        let seat_id = Number.parseInt(path[2]);
-                        knownRooms[room_id].seats[seat_id] = update.value;
-                    }
-                    else if(path[1] == "spectators"){
-                        console.assert(path.length == 2);
-                        knownRooms[room_id].spectators = update.value;
+                    if(key[0] == 'r'){
+                        let room_id = Number.parseInt(key[1]);
+                        if(key[2] == "seats"){
+                            console.assert(key.length == 4);
+                            let seat_id = Number.parseInt(key[3]);
+                            knownRooms[room_id].seats[seat_id] = update.value;
+                        }
+                        else if(key[2] == "spectators"){
+                            console.assert(key.length == 3);
+                            knownRooms[room_id].spectators = update.value;
+                        }
+                        roomsChanged = true;
+                    } else {
+                        console.warn('Unknown key ' + key)
                     }
                 }
                 else{
                     console.warn(`Unknown operation: ${JSON.stringify(update)}`);
                 }
-                renderRooms(knownRooms);
+                if(roomsChanged) renderRooms(knownRooms);
+                if(historyChanged) renderHistory(knownHistory);
             }
         }
         function errorPopup(message) {

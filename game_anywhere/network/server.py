@@ -2,13 +2,16 @@ import asyncio
 from contextlib import AbstractContextManager
 from functools import wraps
 from threading import Semaphore, Thread
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from aiohttp import web
 from aiohttp.web_runner import GracefulExit
 
 from .async_resource import AsyncResource
 from .room import ServerRoom
+
+if TYPE_CHECKING:
+    from .http_controlled_server import ServerEvent
 
 
 def Singleton(cls):
@@ -145,3 +148,7 @@ class Server(AbstractContextManager, AsyncResource):
     def delete_room(self, room: ServerRoom) -> None:
         room_key = [key for (key, value) in self.rooms.items() if value is room][0]
         del self.rooms[room_key]
+
+    def log_event(self, event: "ServerEvent") -> None:
+        """Polymorphic hook for HttpControlledServer, which wants to be notified of events such as agents joining."""
+        pass

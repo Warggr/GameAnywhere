@@ -1,7 +1,7 @@
 import asyncio
 import json
 from itertools import chain
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Generic, Iterable, TypeVar
 
 from aiohttp import web
 
@@ -17,7 +17,10 @@ SeatId = int
 Username = str
 
 
-class ServerRoom(AsyncResource):
+ServerType = TypeVar("ServerType", bound="Server")
+
+
+class ServerRoom(AsyncResource, Generic[ServerType]):
     class CouldntConnect(Exception):
         pass
 
@@ -28,7 +31,7 @@ class ServerRoom(AsyncResource):
         except KeyError:
             return request.query["username"] + " (Guest)"
 
-    def __init__(self, server: "Server", greeter_message="Welcome to the room!"):
+    def __init__(self, server: ServerType, greeter_message="Welcome to the room!"):
         self.server = server
         self.greeter_message = (
             greeter_message  # The message that will be sent to every new spectator
@@ -122,15 +125,11 @@ class ServerRoom(AsyncResource):
         spectator = Spectator(self)
         self.spectators.append(spectator)
         self.server.log_event(
-            json.dumps(
-                [
-                    {
-                        "op": "replace",
-                        "key": f"/{self.room_id}/spectators",
-                        "value": len(self.spectators),
-                    }
-                ]
-            )
+            {
+                "op": "replace",
+                "key": f"/r/{self.room_id}/spectators",
+                "value": len(self.spectators),
+            }
         )
         return await self.nt_handle_websocket(request, spectator)
 
