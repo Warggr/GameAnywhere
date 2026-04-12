@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Optional, Sequence
 
@@ -12,6 +13,7 @@ from game_anywhere.ui import tag
 
 if TYPE_CHECKING:
     from game_anywhere.core.agent import AgentId
+
 
 class ChessPiece(Component):
     class Type(Enum):
@@ -32,7 +34,7 @@ class ChessPiece(Component):
         self.color = color
         self.type = type_
 
-    def html(self, viewer_id=None):
+    def _icon(self) -> str:
         UNICODE_ICONS = {
             "KING": "♔",
             "QUEEN": "♕",
@@ -46,11 +48,13 @@ class ChessPiece(Component):
         code = ord(UNICODE_ICONS[self.type.name])
         if self.color == ChessPiece.Color.BLACK:
             code += BLACK_OFFSET
+        return chr(code)
 
+    def html(self, viewer_id=None):
         return (
             '<svg width="100%" height="100%" viewBox="0 0 12 12">'
             + '<text y="100%" textLength="100%" lengthAdjust="spacingAndGlyphs" style="font-size: 12;">'
-            + chr(code)
+            + self._icon()
             + "</text></svg>"
         )
 
@@ -94,6 +98,9 @@ class ChessCoordinates(tuple[int, int]):
     def algebraic_notation(self) -> str:
         return chr(self[0] + ord("a")) + chr(self[1] + ord("1"))
 
+    def __str__(self) -> str:
+        return self.algebraic_notation()
+
     def __add__(self, other: tuple[int, int]) -> "ChessCoordinates":
         """Override the + operator to get neighbours of field easily.
         Throws a ChessCoordinates.OutOfBounds error when the field is outside the chessboard
@@ -107,16 +114,24 @@ class ChessCoordinates(tuple[int, int]):
             return None
 
 
+@dataclass
 class ChessMove:
-    def __init__(
-        self,
-        start_coords: ChessCoordinates,
-        stop_coords: ChessCoordinates,
-        piece_captured: Optional[ChessPiece] = None,
-    ):
-        self.start_coords = start_coords
-        self.stop_coords = stop_coords
-        self.piece_captured = piece_captured
+    piece_moved: ChessPiece
+    start_coords: ChessCoordinates
+    stop_coords: ChessCoordinates
+    piece_captured: Optional[ChessPiece] = None
+
+    def algebraic_notation(self):
+        s = ""
+        if self.piece_moved.type != ChessPiece.Type.PAWN:
+            s += self.piece_moved._icon()
+        if self.piece_captured is not None:
+            s += "x"
+        s += str(self.stop_coords)
+        return s
+
+    def __str__(self):
+        return self.algebraic_notation()
 
 
 CARDINAL_DIRECTIONS = [(0, 1), (0, -1), (1, 0), (-1, 0)]
@@ -269,7 +284,7 @@ class Chess(TurnBasedGame):
 
         # TODO: pawn promotion
 
-        return ChessMove(starting_coords, stopping_coords, captured)
+        return ChessMove(piece, starting_coords, stopping_coords, captured)
 
     def turn(self) -> Optional[SimpleGameSummary]:
         partial_choices = []
@@ -291,6 +306,7 @@ class Chess(TurnBasedGame):
                 partial_choices.append(chosen_option)
 
         move = self.apply_move(partial_choices)
+        self.message(move.algebraic_notation())
 
         if any([piece.type == ChessPiece.Type.KING for piece in self.captured]):
             return SimpleGameSummary(winner=self.get_current_agent_id())
