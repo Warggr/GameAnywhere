@@ -22,9 +22,14 @@ class Werewolf(Role):
 
 ![Screenshot](screenshot.png)
 
-# Usage
+# Installation
+
 ```sh
-python examples/run_server.py
+git clone .../GameAnywhere.git && cd GameAnywhere
+pip install '.[examples]'
 ```
 
-Note: this requires (at least) Python 3.11.
+# Usage
+```sh
+python -m game_anywhere.run_server
+```

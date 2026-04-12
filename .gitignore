@@ -1,7 +1,8 @@
 # build artifacts
 cmake-build-*/
 **/__pycache__/
-game_anywhere.egg-info/
+*.egg-info/
+build/
 
 #IDEs
 .idea/

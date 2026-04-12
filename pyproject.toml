@@ -1,0 +1,29 @@
+[project]
+name = "game_anywhere"
+version = "0.1"
+authors = [
+    {name = "Pierre Ballif", email = "pierre@ballif.eu"},
+]
+description = "A framework for tabletop games."
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "aiohttp>=3.9.0",
+    "aiohttp-sse",
+    "websockets",
+]
+requires-python = ">= 3.11"
+# A hack for the dependency on the `examples` subdir.
+dynamic = ["optional-dependencies"]
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-data = {"game_anywhere" = ["client/**"]}
+
+[tool.setuptools.packages.find]
+include = ["game_anywhere*"]
