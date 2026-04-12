@@ -80,13 +80,36 @@ class CheckerBoard(Board, Generic[T]):
             for j in range(self.width):
                 yield self._coords_to_field_id((i, j)), self.board[i][j]
 
-    def html(self, viewer_id=None) -> Html:
+    def _iter_fields(
+        self, trans_height: int, trans_width: int, turn: float = 0
+    ) -> Iterable["CheckerBoard.Field"]:
+        reverse_transforms = {
+            0: lambda i, j: (i, j),
+            90: lambda i, j: (j, self.height - i - 1),
+            180: lambda i, j: (self.height - i - 1, self.width - j - 1),
+            270: lambda i, j: (self.width - j - 1, i),
+        }
+        rev_transform = reverse_transforms[int(turn % 360)]
+        for it in range(trans_height):
+            for jt in range(trans_width):
+                i, j = rev_transform(it, jt)
+                yield self.board[i][j]
+
+    def html(self, viewer_id=None, *, turn: float = 0) -> Html:
+        if turn % 180 == 0:
+            width, height = self.width, self.height
+        elif turn % 180 == 90:
+            width, height = self.height, self.width
+        else:
+            raise NotImplementedError(
+                "CheckerBoard must be rotated by 90° or a multiple!"
+            )
         return Html(
             tag.div(
-                *(field.html() for _, field in self.all_fields()),
+                *(field.html() for field in self._iter_fields(height, width, turn)),
                 **{
                     "class": "checkerboard",
-                    "style": f"grid-template-rows: repeat({self.width}, 1fr); grid-template-columns: repeat({self.height}, 1fr)",
+                    "style": f"grid-template-rows: repeat({width}, 1fr); grid-template-columns: repeat({height}, 1fr)",
                 },
             ),
             tag.style(

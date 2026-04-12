@@ -19,8 +19,11 @@ if TYPE_CHECKING:
 def load_games() -> dict[str, "Game"]:
     available_games = {}
     for ep in entry_points(group="game_anywhere.games"):
-        game_class = ep.load()
-        available_games[ep.name] = game_class
+        try:
+            game_class = ep.load()
+            available_games[ep.name] = game_class
+        except ImportError:
+            pass
     return available_games
 
 
