@@ -4,6 +4,7 @@ version = "0.1"
 authors = [
     {name = "Pierre Ballif", email = "pierre@ballif.eu"},
 ]
+license = { file = "LICENSE" }
 description = "A framework for tabletop games."
 classifiers = [
     "Programming Language :: Python :: 3",
