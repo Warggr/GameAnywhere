@@ -224,7 +224,6 @@
 
                 socket.onmessage = (event) => {
                     const data = JSON.parse(event.data);
-                    console.log(data, data.type);
 
                     if (data.type === "choice") {
                         if (data.message) {
@@ -238,8 +237,9 @@
                                 document.getElementById(id),
                             );
                             let eventListener = (event) => {
-                                console.log(event);
-                                const chosenComponent = event.target;
+                                endChoices(event.currentTarget.id);
+                            };
+                            let endChoices = (chosenComponent) => {
                                 slots.forEach((c) => {
                                     c.removeEventListener(
                                         "click",
@@ -247,21 +247,55 @@
                                     );
                                     c.classList.remove("clickable");
                                 });
+                                controlPanel.innerHTML = "";
+                                controlPanel.hidden = true;
                                 if (
-                                    chosenComponent.id.startsWith(
-                                        CHAT_CHARACTER,
-                                    )
+                                    chosenComponent.startsWith(CHAT_CHARACTER)
                                 ) {
                                     console.warn(
                                         "Warning: sent data starts with /, the chat character",
                                     );
                                 }
-                                socket.send(chosenComponent.id);
+                                socket.send(chosenComponent);
                             };
                             slots.forEach((c) => {
                                 c.addEventListener("click", eventListener);
                                 c.classList.add("clickable");
                             });
+                            if (data.special_options) {
+                                controlPanel.hidden = false;
+                                for (let option of data.special_options) {
+                                    const button =
+                                        document.createElement("button");
+                                    button.textContent = option;
+                                    button.addEventListener("click", (_event) =>
+                                        endChoices(option),
+                                    );
+                                    controlPanel.appendChild(button);
+                                }
+                            }
+                        } else if (
+                            data.schema &&
+                            data.schema.type == "string" &&
+                            data.schema.enum
+                        ) {
+                            let form = document.createElement("form");
+                            let btn_handler = (event) => {
+                                event.preventDefault();
+                                let answer = event.target.textContent;
+                                socket.send(JSON.stringify(answer));
+                                controlPanel.removeChild(form);
+                                controlPanel.hidden = true;
+                            };
+                            for (let option of data.schema.enum) {
+                                let btn = document.createElement("button");
+                                btn.textContent = option;
+                                btn.type = "submit";
+                                btn.onclick = btn_handler;
+                                form.appendChild(btn);
+                            }
+                            controlPanel.appendChild(form);
+                            controlPanel.hidden = false;
                         } else if (data.schema) {
                             let formContent = makeWord(data.schema);
                             let form = document.createElement("form");
