@@ -95,13 +95,8 @@ class TextAgent(Agent):
         if indices is None:
             indices = slots
         for i, option in enumerate(chain(slots, special_options)):
-            self._write(f"[{i+1}]", option)
-        i = (
-            self._get_integer(
-                mini=1, maxi=len(slots) + len(special_options)
-            )
-            - 1
-        )
+            self._write(f"[{i + 1}]", option)
+        i = self._get_integer(mini=1, maxi=len(slots) + len(special_options)) - 1
         if i < len(indices):
             return indices[i]
         else:

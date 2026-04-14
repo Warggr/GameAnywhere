@@ -366,7 +366,10 @@ class PerPlayer(
         if self.private_name not in obj.slots:
             from .containers import List
 
-            per_player = [self.componentClass(owner=agent, owner_id=i) for i, agent in enumerate(obj.get_game().agent_descriptions)]
+            per_player = [
+                self.componentClass(owner=agent, owner_id=i)
+                for i, agent in enumerate(obj.get_game().agent_descriptions)
+            ]
             for_all_players = List(per_player)
             for agent_id, slot in enumerate(for_all_players.slots):
                 slot.set_owner_id(agent_id)

@@ -6,6 +6,7 @@ from .game import AgentId, Game, GameSummary
 if TYPE_CHECKING:
     from .agent import Agent
 
+
 class TurnBasedGame(Game):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -1,309 +1,404 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Play | GameAnywhere</title>
-  <link rel="stylesheet" href="css/main.css">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f0f0f0;
-      color: #333;
-      margin: 0;
-      padding: 0;
-    }
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Play | GameAnywhere</title>
+        <link rel="stylesheet" href="css/main.css" />
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f0f0f0;
+                color: #333;
+                margin: 0;
+                padding: 0;
+            }
 
-    h2 {
-      color: #333;
-    }
+            h2 {
+                color: #333;
+            }
 
-    .container {
-      display: flex;
-      justify-content: space-around;
-      padding: 20px;
-    }
+            .container {
+                display: flex;
+                justify-content: space-around;
+                padding: 20px;
+            }
 
-    .status-bar {
-      background-color: #333;
-      color: white;
-      padding: 10px;
-      text-align: center;
-      font-weight: bold;
-    }
+            .status-bar {
+                background-color: #333;
+                color: white;
+                padding: 10px;
+                text-align: center;
+                font-weight: bold;
+            }
 
-    form {
-      display: flex;
-      flex-direction: column;
-      background-color: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      max-width: 300px;
-    }
+            form {
+                display: flex;
+                flex-direction: column;
+                background-color: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                max-width: 300px;
+            }
 
-    form label {
-      margin: 10px 0 5px;
-    }
+            form label {
+                margin: 10px 0 5px;
+            }
 
-    input[type="text"] {
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      margin-bottom: 15px;
-      width: 100%;
-      box-sizing: border-box;
-    }
+            input[type="text"] {
+                padding: 10px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                margin-bottom: 15px;
+                width: 100%;
+                box-sizing: border-box;
+            }
 
-    button {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 10px;
-      cursor: pointer;
-      border-radius: 4px;
-    }
+            button {
+                background-color: #007bff;
+                color: white;
+                border: none;
+                padding: 10px;
+                cursor: pointer;
+                border-radius: 4px;
+            }
 
-    button:hover {
-      background-color: #0056b3;
-    }
+            button:hover {
+                background-color: #0056b3;
+            }
 
-    #screen {
-      background-color: black;
-      color: white;
-      min-height: 80vh;
-      min-width: 50vw;
-      padding: 10px;
-      margin-right: 10px;
-    }
+            #screen {
+                background-color: black;
+                color: white;
+                min-height: 80vh;
+                min-width: 50vw;
+                padding: 10px;
+                margin-right: 10px;
+            }
 
-    #logPanel {
-      background-color: #f8f9fa;
-      padding: 10px;
-      max-width: 300px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
+            #logPanel {
+                background-color: #f8f9fa;
+                padding: 10px;
+                max-width: 300px;
+                border-radius: 8px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
 
-    #chatInput input[type="text"] {
-      width: 200px;
-      padding: 8px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-    }
+            #chatInput input[type="text"] {
+                width: 200px;
+                padding: 8px;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+            }
 
-    #chatInput button {
-      padding: 8px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      cursor: pointer;
-      border-radius: 4px;
-    }
+            #chatInput button {
+                padding: 8px;
+                background-color: #28a745;
+                color: white;
+                border: none;
+                cursor: pointer;
+                border-radius: 4px;
+            }
 
-    #chatInput button:hover {
-      background-color: #218838;
-    }
+            #chatInput button:hover {
+                background-color: #218838;
+            }
 
-    .log-message {
-      display: block;
-      margin-top: 5px;
-    }
+            .log-message {
+                display: block;
+                margin-top: 5px;
+            }
 
-    .clickable {
-      cursor: pointer;
-      background-color: greenyellow !important;
-      padding: 5px;
-      border-radius: 4px;
-    }
+            .clickable {
+                cursor: pointer;
+                background-color: greenyellow !important;
+                padding: 5px;
+                border-radius: 4px;
+            }
 
-    [hidden]{
-      display: none; /* Ensure that hidden elements are not displayed, even if they have e.g. display: flex */
-    }
-  </style>
-  <script src="wizard/wizard.js"></script>
-  <link href="wizard/wizard-robe.css" rel="stylesheet"/>
-</head>
+            [hidden] {
+                display: none; /* Ensure that hidden elements are not displayed, even if they have e.g. display: flex */
+            }
+        </style>
+        <script src="wizard/wizard.js"></script>
+        <link href="wizard/wizard-robe.css" rel="stylesheet" />
+    </head>
 
-<body>
-  <div class="status-bar">
-    <span>Status: </span><span id="connection-status">Connected</span> as <span id="username"></span>
-  </div>
+    <body>
+        <div class="status-bar">
+            <span>Status: </span
+            ><span id="connection-status">Connected</span> as
+            <span id="username"></span>
+        </div>
 
-  <div class="container">
-    <!-- Server Connection Form -->
-    <form onsubmit="connectToServer(document.getElementById('serverUrl').value); return false;">
-      <h2>Server Connection</h2>
-      <label for="serverUrl">Server address</label>
-      <input type="text" id="serverUrl" placeholder="Enter server address">
-      <label for="playerId">Seat number</label>
-      <input type="text" id="playerId" value="0">
-      <label for="roomId">Room ID</label>
-      <input type="text" id="roomId" placeholder="Enter room ID">
-      <button type="submit">Join room</button>
-    </form>
+        <div class="container">
+            <!-- Server Connection Form -->
+            <form
+                onsubmit="connectToServer(document.getElementById('serverUrl').value); return false;"
+            >
+                <h2>Server Connection</h2>
+                <label for="serverUrl">Server address</label>
+                <input
+                    type="text"
+                    id="serverUrl"
+                    placeholder="Enter server address"
+                />
+                <label for="playerId">Seat number</label>
+                <input type="text" id="playerId" value="0" />
+                <label for="roomId">Room ID</label>
+                <input type="text" id="roomId" placeholder="Enter room ID" />
+                <button type="submit">Join room</button>
+            </form>
 
-    <!-- Screen Panel -->
-    <div id="screen">Game screen content goes here...</div>
+            <!-- Screen Panel -->
+            <div id="screen">Game screen content goes here...</div>
 
-    <!-- Chat Log and Input -->
-    <div id="logPanel">
-      <form id="chatInput" hidden onsubmit="sendChatLine(this); return false;">
-        <input type="text" placeholder="Type a message...">
-        <button type="submit">Send</button>
-      </form>
-    </div>
-  </div>
+            <!-- Chat Log and Input -->
+            <div id="logPanel">
+                <form
+                    id="chatInput"
+                    hidden
+                    onsubmit="sendChatLine(this); return false;"
+                >
+                    <input type="text" placeholder="Type a message..." />
+                    <button type="submit">Send</button>
+                </form>
+            </div>
+        </div>
 
-  <div id="controlPanel" hidden></div>
-<script>
-	const CHAT_CHARACTER = '<';
+        <div id="controlPanel" hidden></div>
+        <script>
+            const CHAT_CHARACTER = "<";
 
-	const screen = document.getElementById('screen');
+            const screen = document.getElementById("screen");
 
-	var socket = undefined;
-	var connectionStatusDom = document.getElementById('connection-status');
-	var usernameInCookies = false;
+            var socket = undefined;
+            var connectionStatusDom =
+                document.getElementById("connection-status");
+            var usernameInCookies = false;
 
-	const connectToServer = serverAddress => {
-		const teamNr = document.getElementById('playerId').value || 'watch';
-		const roomNr = document.getElementById('roomId').value;
+            const connectToServer = (serverAddress) => {
+                const teamNr =
+                    document.getElementById("playerId").value || "watch";
+                const roomNr = document.getElementById("roomId").value;
 
-		fetch('http://' + serverAddress + '/r/' + roomNr + '/html?seat=' + teamNr + (usernameInCookies ? "" : "&username=" + username))
-                .then(async content => {document.getElementById('screen').innerHTML = await content.text();});
+                fetch(
+                    "http://" +
+                        serverAddress +
+                        "/r/" +
+                        roomNr +
+                        "/html?seat=" +
+                        teamNr +
+                        (usernameInCookies ? "" : "&username=" + username),
+                ).then(async (content) => {
+                    document.getElementById("screen").innerHTML =
+                        await content.text();
+                });
 
-		connectionStatusDom.textContent = 'Connecting...';
-		if(window.WebSocket === undefined) {
-			connectionStatusDom.textContent = 'WebSockets not supported!';
-			throw new Error('WebSockets not supported!');
-		}
+                connectionStatusDom.textContent = "Connecting...";
+                if (window.WebSocket === undefined) {
+                    connectionStatusDom.textContent =
+                        "WebSockets not supported!";
+                    throw new Error("WebSockets not supported!");
+                }
 
-		socket = new WebSocket('ws://' + serverAddress + '/r/' + roomNr + '/ws/' + teamNr + (usernameInCookies ? "" : "?username=" + username));
-		socket.onopen = (event) => {
-			connectionStatusDom.textContent = 'Connected';
-			initialized = false;
-			socket.send('?'); // In case we just reconnected and the server is waiting for us to answer a question
-		};
-		socket.onclose = (event) => { connectionStatusDom.textContent = 'Not connected'; };
-		socket.onerror = console.error;
+                socket = new WebSocket(
+                    "ws://" +
+                        serverAddress +
+                        "/r/" +
+                        roomNr +
+                        "/ws/" +
+                        teamNr +
+                        (usernameInCookies ? "" : "?username=" + username),
+                );
+                socket.onopen = (event) => {
+                    connectionStatusDom.textContent = "Connected";
+                    initialized = false;
+                    socket.send("?"); // In case we just reconnected and the server is waiting for us to answer a question
+                };
+                socket.onclose = (event) => {
+                    connectionStatusDom.textContent = "Not connected";
+                };
+                socket.onerror = console.error;
 
-		socket.onmessage = (event) => {
-			const data = JSON.parse(event.data);
-			console.log(data, data.type);
+                socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log(data, data.type);
 
-			if(data.type === "choice"){
-				if(data.message){
-					controlPanel.hidden = false;
-					const banner = document.createElement('span');
-					banner.innerText = data.message;
-					controlPanel.appendChild(banner);
-				}
-				if(data.slots){
-					let slots = data.slots.map(id => document.getElementById(id));
-					let eventListener = event => {
-						console.log(event);
-						const chosenComponent = event.target;
-						slots.forEach(c => {
-							c.removeEventListener('click', eventListener);
-							c.classList.remove('clickable');
-						});
-						if(chosenComponent.id.startsWith(CHAT_CHARACTER)) { console.warn('Warning: sent data starts with /, the chat character'); }
-							socket.send(chosenComponent.id);
-						}
-						slots.forEach(c => {
-							c.addEventListener('click', eventListener);
-							c.classList.add('clickable');
-						});
-				}
-				else if(data.schema){
-					let formContent = makeWord(data.schema);
-					let form = document.createElement('form');
-					form.appendChild(formContent);
-					let submitButton = document.createElement('button'); submitButton.type = "submit"; submitButton.textContent = "Submit"; submitButton.classList.add('clickable');
-					form.appendChild(submitButton);
-					form.onsubmit = event => {
-						event.preventDefault();
-						let answer = readWord(formContent);
-						if(JSON.stringify(answer).startsWith(CHAT_CHARACTER)){ console.warn("Sent content will be interpreted as chat message"); }
-						socket.send(JSON.stringify(answer));
-						controlPanel.removeChild(form);
-						controlPanel.hidden = true;
-					}
-					controlPanel.appendChild(form);
-					controlPanel.hidden = false;
-				}
-				else console.warn("Unrecognized server message: unrecognized choice type:", data);
-			}
-			else if(data.type === "chatcontrol"){
-				if(data.set === "on") {
-					chatInput.hidden = false;
-				} else {
-					chatInput.hidden = true;
-				}
-			}
-			else if(data.type === "message"){
-				addLogLine(`<b>${data.sender}: </b>${data.text}`);
-			}
-			else if(Array.isArray(data)){
-				for(let diff of data){
-					if(diff.op == "replace"){
-						document.getElementById(diff.key).innerHTML = diff.value;
-					} else if(diff.op == "add") {
-						if(diff.key.slice(-5) == "/hint"){
-							const hinted = document.getElementById(diff.key.slice(0, -5));
-							let hint = [...hinted.childNodes].find(node => node.classList?.contains("hint"));
-							if(hint === undefined) {
-								hint = document.createElement('div'); hint.classList.add("hint"); hinted.appendChild(hint);
-							}
-							let hintText = document.createElement('span'); hintText.innerText = diff.value;
-							hint.appendChild(hintText);
-						} else {
-							let DOMConstructionSite = document.createElement('div');
-							DOMConstructionSite.innerHTML = diff.value; // TODO: find a more elegant way of parsing HTML
-							let appendSite = diff.key === '' ? screen : document.getElementById(diff.key);
-							appendSite.append(DOMConstructionSite.firstChild);
-						}
-					} else if(diff.op == "remove") {
-						let child = document.getElementById(diff.key);
-						let parent = child.parentNode;
-						parent.removeChild(child);
-					} else {
-						console.warn("Unrecognized diff: " + diff)
-					}
-				}
-			}
-			else console.warn("Unrecognized server message: unknown type:", data);
-		}
-	}
+                    if (data.type === "choice") {
+                        if (data.message) {
+                            controlPanel.hidden = false;
+                            const banner = document.createElement("span");
+                            banner.innerText = data.message;
+                            controlPanel.appendChild(banner);
+                        }
+                        if (data.slots) {
+                            let slots = data.slots.map((id) =>
+                                document.getElementById(id),
+                            );
+                            let eventListener = (event) => {
+                                console.log(event);
+                                const chosenComponent = event.target;
+                                slots.forEach((c) => {
+                                    c.removeEventListener(
+                                        "click",
+                                        eventListener,
+                                    );
+                                    c.classList.remove("clickable");
+                                });
+                                if (
+                                    chosenComponent.id.startsWith(
+                                        CHAT_CHARACTER,
+                                    )
+                                ) {
+                                    console.warn(
+                                        "Warning: sent data starts with /, the chat character",
+                                    );
+                                }
+                                socket.send(chosenComponent.id);
+                            };
+                            slots.forEach((c) => {
+                                c.addEventListener("click", eventListener);
+                                c.classList.add("clickable");
+                            });
+                        } else if (data.schema) {
+                            let formContent = makeWord(data.schema);
+                            let form = document.createElement("form");
+                            form.appendChild(formContent);
+                            let submitButton = document.createElement("button");
+                            submitButton.type = "submit";
+                            submitButton.textContent = "Submit";
+                            submitButton.classList.add("clickable");
+                            form.appendChild(submitButton);
+                            form.onsubmit = (event) => {
+                                event.preventDefault();
+                                let answer = readWord(formContent);
+                                if (
+                                    JSON.stringify(answer).startsWith(
+                                        CHAT_CHARACTER,
+                                    )
+                                ) {
+                                    console.warn(
+                                        "Sent content will be interpreted as chat message",
+                                    );
+                                }
+                                socket.send(JSON.stringify(answer));
+                                controlPanel.removeChild(form);
+                                controlPanel.hidden = true;
+                            };
+                            controlPanel.appendChild(form);
+                            controlPanel.hidden = false;
+                        } else
+                            console.warn(
+                                "Unrecognized server message: unrecognized choice type:",
+                                data,
+                            );
+                    } else if (data.type === "chatcontrol") {
+                        if (data.set === "on") {
+                            chatInput.hidden = false;
+                        } else {
+                            chatInput.hidden = true;
+                        }
+                    } else if (data.type === "message") {
+                        addLogLine(`<b>${data.sender}: </b>${data.text}`);
+                    } else if (Array.isArray(data)) {
+                        for (let diff of data) {
+                            if (diff.op == "replace") {
+                                document.getElementById(diff.key).innerHTML =
+                                    diff.value;
+                            } else if (diff.op == "add") {
+                                if (diff.key.slice(-5) == "/hint") {
+                                    const hinted = document.getElementById(
+                                        diff.key.slice(0, -5),
+                                    );
+                                    let hint = [...hinted.childNodes].find(
+                                        (node) =>
+                                            node.classList?.contains("hint"),
+                                    );
+                                    if (hint === undefined) {
+                                        hint = document.createElement("div");
+                                        hint.classList.add("hint");
+                                        hinted.appendChild(hint);
+                                    }
+                                    let hintText =
+                                        document.createElement("span");
+                                    hintText.innerText = diff.value;
+                                    hint.appendChild(hintText);
+                                } else {
+                                    let DOMConstructionSite =
+                                        document.createElement("div");
+                                    DOMConstructionSite.innerHTML = diff.value; // TODO: find a more elegant way of parsing HTML
+                                    let appendSite =
+                                        diff.key === ""
+                                            ? screen
+                                            : document.getElementById(diff.key);
+                                    appendSite.append(
+                                        DOMConstructionSite.firstChild,
+                                    );
+                                }
+                            } else if (diff.op == "remove") {
+                                let child = document.getElementById(diff.key);
+                                let parent = child.parentNode;
+                                parent.removeChild(child);
+                            } else {
+                                console.warn("Unrecognized diff: " + diff);
+                            }
+                        }
+                    } else
+                        console.warn(
+                            "Unrecognized server message: unknown type:",
+                            data,
+                        );
+                };
+            };
 
-	const urlParams = new URLSearchParams(window.location.search);
-	const roomId = urlParams.get('room'); document.getElementById('roomId').value = roomId || '';
-	const playerId = urlParams.get('seat'); document.getElementById('playerId').value = playerId || '';
-	const serverUrl = urlParams.get('serverUrl') || window.location.host;
-	let username = urlParams.get('username');
-	if(username === null) {
-		if (document.cookie.split("; ").map(cookie => cookie.split('=')[0]).includes('username')) {
-			username = document.cookie.split("; ").find(cookie => cookie.split('=')[0] === 'username').split('=')[1];
-			usernameInCookies = true;
-		} else {
-			username = "guest" + Math.round(Math.random() * 100);
-			window.history.pushState(null, null, window.location + (urlParams.size === 0 ? '?' : '&') + 'username=' + username); // Make a page reload keep the guestId
-		}
-	}
-	document.getElementById('username').innerText = username;
-	if(roomId) connectToServer(serverUrl);
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get("room");
+            document.getElementById("roomId").value = roomId || "";
+            const playerId = urlParams.get("seat");
+            document.getElementById("playerId").value = playerId || "";
+            const serverUrl =
+                urlParams.get("serverUrl") || window.location.host;
+            let username = urlParams.get("username");
+            if (username === null) {
+                if (
+                    document.cookie
+                        .split("; ")
+                        .map((cookie) => cookie.split("=")[0])
+                        .includes("username")
+                ) {
+                    username = document.cookie
+                        .split("; ")
+                        .find((cookie) => cookie.split("=")[0] === "username")
+                        .split("=")[1];
+                    usernameInCookies = true;
+                } else {
+                    username = "guest" + Math.round(Math.random() * 100);
+                    window.history.pushState(
+                        null,
+                        null,
+                        window.location +
+                            (urlParams.size === 0 ? "?" : "&") +
+                            "username=" +
+                            username,
+                    ); // Make a page reload keep the guestId
+                }
+            }
+            document.getElementById("username").innerText = username;
+            if (roomId) connectToServer(serverUrl);
 
-	function sendChatLine(form) {
-		let line = form.firstElementChild.value;
-		socket.send(CHAT_CHARACTER + line);
-		addLogLine('<b>You: </b>' + line)
-	}
-	function addLogLine(line){
-		let newLine = document.createElement('span');
-		newLine.innerHTML = line;
-		newLine.classList.add('log-message');
-		logPanel.appendChild(newLine);
-	}
-</script>
-</body>
+            function sendChatLine(form) {
+                let line = form.firstElementChild.value;
+                socket.send(CHAT_CHARACTER + line);
+                addLogLine("<b>You: </b>" + line);
+            }
+            function addLogLine(line) {
+                let newLine = document.createElement("span");
+                newLine.innerHTML = line;
+                newLine.classList.add("log-message");
+                logPanel.appendChild(newLine);
+            }
+        </script>
+    </body>
 </html>

@@ -25,7 +25,9 @@ class GameDescriptorArgs(TypedDict):
 
 
 def parse_game_descriptor(
-    obj: GameDescriptorArgs, available_games: dict[str, "Game"], defaults: dict | None = None
+    obj: GameDescriptorArgs,
+    available_games: dict[str, "Game"],
+    defaults: dict | None = None,
 ) -> GameDescriptor:
     if defaults is None:
         defaults = {}

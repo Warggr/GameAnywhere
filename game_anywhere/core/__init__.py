@@ -4,6 +4,8 @@ from .turn_based_game import TurnBasedGame
 
 __all__ = [
     "Agent",
-    "Game", "GameSummary", "SimpleGameSummary",
+    "Game",
+    "GameSummary",
+    "SimpleGameSummary",
     "TurnBasedGame",
 ]

@@ -119,7 +119,10 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
         }
         if message is not None:
             question["message"] = message
-        ids = {slot.get_address(): index for slot, index in zip(slots, indices)}
+        ids = {
+            slot.get_address(): index
+            for slot, index in zip(slots, indices, strict=True)
+        }
 
         def _validation(answer: str):
             if answer in ids:
