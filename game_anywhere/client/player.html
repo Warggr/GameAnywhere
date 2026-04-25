@@ -74,7 +74,7 @@
                     document.getElementById("playerId").value || "watch";
                 const roomNr = document.getElementById("roomId").value;
 
-                fetch(
+                let DOMLoaded = fetch(
                     "http://" +
                         serverAddress +
                         "/r/" +
@@ -106,7 +106,8 @@
                 socket.onopen = (event) => {
                     connectionStatusDom.textContent = "Connected";
                     initialized = false;
-                    socket.send("?"); // In case we just reconnected and the server is waiting for us to answer a question
+                    DOMLoaded.then(() => socket.send("?")); // In case we just reconnected and the server is waiting for us to answer a question
+                    // TODO: we could already send the request and only wait before processing the response
                 };
                 socket.onclose = (event) => {
                     connectionStatusDom.textContent = "Not connected";
