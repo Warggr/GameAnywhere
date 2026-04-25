@@ -53,7 +53,7 @@ def json_encode_game_metadata(metadata: "GameMetadata") -> dict:
     return result
 
 
-class HttpControlledServer(Server[GameRoom]):
+class HttpControlledServer(Server):
     SERVER_CLOSED_DUMMY_MSG = None
 
     def __init__(self, available_games: dict[str, "Game"]):
