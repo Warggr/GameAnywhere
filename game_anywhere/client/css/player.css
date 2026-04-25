@@ -1,0 +1,211 @@
+:root {
+    --bg: #f4efe6;
+    --bg-accent: #e4dccf;
+    --surface: rgba(255, 252, 246, 0.92);
+    --surface-strong: #fffdf9;
+    --surface-muted: #efe7da;
+    --border: #d6cab7;
+    --border-strong: #b8a78c;
+    --text: #2e241d;
+    --text-muted: #756554;
+    --accent: #a44d2f;
+    --accent-soft: #f4d2bf;
+    --success: #2c6a4a;
+    --shadow: 0 18px 45px rgba(67, 45, 19, 0.12);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family:
+        "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+    background:
+        radial-gradient(
+            circle at top,
+            #fff9ef 0%,
+            var(--bg) 45%,
+            var(--bg-accent) 100%
+        );
+    color: var(--text);
+    margin: 0;
+    min-height: 100vh;
+}
+
+h2 {
+    color: var(--text);
+    margin: 0;
+}
+
+.container {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    max-width: 1700px;
+    margin: 0 auto;
+}
+
+.status-bar {
+    background: rgba(46, 36, 29, 0.92);
+    color: #fff9ef;
+    padding: 0.95rem 1.2rem;
+    text-align: center;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+    box-shadow: 0 6px 24px rgba(21, 14, 10, 0.22);
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    padding: 1.25rem;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    max-width: 300px;
+    backdrop-filter: blur(8px);
+}
+
+form label {
+    margin: 0.85rem 0 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+input[type="text"] {
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 0.4rem;
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--text);
+}
+
+button {
+    background: linear-gradient(135deg, #b85735, #8f3f25);
+    color: white;
+    border: none;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    transition:
+        transform 120ms ease,
+        box-shadow 120ms ease,
+        filter 120ms ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(143, 63, 37, 0.25);
+    filter: brightness(1.03);
+}
+
+#screen {
+    flex: 1 1 auto;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.78),
+            rgba(250, 244, 235, 0.92)
+        );
+    color: var(--text);
+    min-height: 80vh;
+    min-width: min(50vw, 700px);
+    padding: 1.25rem;
+    border-radius: 26px;
+    border: 1px solid rgba(184, 167, 140, 0.7);
+    box-shadow: var(--shadow);
+    overflow: auto;
+    backdrop-filter: blur(14px);
+}
+
+#logPanel {
+    width: min(320px, 100%);
+    background: var(--surface);
+    padding: 1rem;
+    max-width: 300px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+#chatInput input[type="text"] {
+    width: 100%;
+}
+
+#chatInput button {
+    margin-top: 0.75rem;
+    background: linear-gradient(135deg, #3d8a63, #2f6e4f);
+}
+
+#chatInput button:hover {
+    box-shadow: 0 10px 18px rgba(47, 110, 79, 0.2);
+}
+
+.log-message {
+    display: block;
+    margin-top: 0.55rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.55);
+}
+
+.clickable {
+    cursor: pointer;
+    outline: 3px solid rgba(164, 77, 47, 0.45);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 6px rgba(244, 210, 191, 0.45);
+}
+
+[hidden] {
+    display: none; /* Ensure that hidden elements are not displayed, even if they have e.g. display: flex */
+}
+
+#controlPanel {
+    position: sticky;
+    bottom: 1rem;
+    z-index: 10;
+    width: fit-content;
+    max-width: calc(100vw - 2rem);
+    margin: 0 auto 1rem;
+    padding: 0.9rem 1rem;
+    border-radius: 18px;
+    background: rgba(46, 36, 29, 0.92);
+    color: #fff9ef;
+    box-shadow: 0 20px 35px rgba(31, 20, 12, 0.28);
+}
+
+#controlPanel form {
+    max-width: none;
+    box-shadow: none;
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+@media (max-width: 1100px) {
+    .container {
+        flex-direction: column;
+    }
+
+    form,
+    #logPanel {
+        max-width: none;
+        width: 100%;
+    }
+
+    #screen {
+        min-width: 0;
+        width: 100%;
+    }
+}

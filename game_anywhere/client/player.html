@@ -5,122 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Play | GameAnywhere</title>
         <link rel="stylesheet" href="css/main.css" />
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f0f0f0;
-                color: #333;
-                margin: 0;
-                padding: 0;
-            }
-
-            h2 {
-                color: #333;
-            }
-
-            .container {
-                display: flex;
-                justify-content: space-around;
-                padding: 20px;
-            }
-
-            .status-bar {
-                background-color: #333;
-                color: white;
-                padding: 10px;
-                text-align: center;
-                font-weight: bold;
-            }
-
-            form {
-                display: flex;
-                flex-direction: column;
-                background-color: white;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-                max-width: 300px;
-            }
-
-            form label {
-                margin: 10px 0 5px;
-            }
-
-            input[type="text"] {
-                padding: 10px;
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                margin-bottom: 15px;
-                width: 100%;
-                box-sizing: border-box;
-            }
-
-            button {
-                background-color: #007bff;
-                color: white;
-                border: none;
-                padding: 10px;
-                cursor: pointer;
-                border-radius: 4px;
-            }
-
-            button:hover {
-                background-color: #0056b3;
-            }
-
-            #screen {
-                background-color: black;
-                color: white;
-                min-height: 80vh;
-                min-width: 50vw;
-                padding: 10px;
-                margin-right: 10px;
-            }
-
-            #logPanel {
-                background-color: #f8f9fa;
-                padding: 10px;
-                max-width: 300px;
-                border-radius: 8px;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            }
-
-            #chatInput input[type="text"] {
-                width: 200px;
-                padding: 8px;
-                border-radius: 4px;
-                border: 1px solid #ccc;
-            }
-
-            #chatInput button {
-                padding: 8px;
-                background-color: #28a745;
-                color: white;
-                border: none;
-                cursor: pointer;
-                border-radius: 4px;
-            }
-
-            #chatInput button:hover {
-                background-color: #218838;
-            }
-
-            .log-message {
-                display: block;
-                margin-top: 5px;
-            }
-
-            .clickable {
-                cursor: pointer;
-                background-color: greenyellow !important;
-                padding: 5px;
-                border-radius: 4px;
-            }
-
-            [hidden] {
-                display: none; /* Ensure that hidden elements are not displayed, even if they have e.g. display: flex */
-            }
-        </style>
+        <link rel="stylesheet" href="css/player.css" />
         <script src="wizard/wizard.js"></script>
         <link href="wizard/wizard-robe.css" rel="stylesheet" />
     </head>
@@ -152,7 +37,13 @@
             </form>
 
             <!-- Screen Panel -->
-            <div id="screen">Game screen content goes here...</div>
+            <div id="screen-host">
+                <template shadowrootmode="open">
+                    <link rel="stylesheet" href="css/player.css" />
+                    <link rel="stylesheet" href="css/screen.css" />
+                    <div id="screen">Game screen content goes here...</div>
+                </template>
+            </div>
 
             <!-- Chat Log and Input -->
             <div id="logPanel">
@@ -171,7 +62,7 @@
         <script>
             const CHAT_CHARACTER = "<";
 
-            const screen = document.getElementById("screen");
+            const screen = document.getElementById("screen-host").shadowRoot;
 
             var socket = undefined;
             var connectionStatusDom =
@@ -192,7 +83,7 @@
                         teamNr +
                         (usernameInCookies ? "" : "&username=" + username),
                 ).then(async (content) => {
-                    document.getElementById("screen").innerHTML =
+                    screen.getElementById("screen").innerHTML =
                         await content.text();
                 });
 
@@ -343,7 +234,7 @@
                                     diff.value;
                             } else if (diff.op == "add") {
                                 if (diff.key.slice(-5) == "/hint") {
-                                    const hinted = document.getElementById(
+                                    const hinted = screen.getElementById(
                                         diff.key.slice(0, -5),
                                     );
                                     let hint = [...hinted.childNodes].find(
@@ -365,14 +256,14 @@
                                     DOMConstructionSite.innerHTML = diff.value; // TODO: find a more elegant way of parsing HTML
                                     let appendSite =
                                         diff.key === ""
-                                            ? screen
-                                            : document.getElementById(diff.key);
+                                            ? screen.getElementById("screen")
+                                            : screen.getElementById(diff.key);
                                     appendSite.append(
                                         DOMConstructionSite.firstChild,
                                     );
                                 }
                             } else if (diff.op == "remove") {
-                                let child = document.getElementById(diff.key);
+                                let child = screen.getElementById(diff.key);
                                 let parent = child.parentNode;
                                 parent.removeChild(child);
                             } else {
