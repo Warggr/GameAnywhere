@@ -10,6 +10,7 @@ from game_anywhere.components import Component, ComponentSlotProperty
 from game_anywhere.components.component import PerPlayer, PerPlayerComponent, Pointer
 from game_anywhere.core import Game, GameSummary
 from game_anywhere.core.agent import AgentId
+from game_anywhere.ui import tag
 
 if TYPE_CHECKING:
     from game_anywhere.components import ComponentSlot
@@ -82,7 +83,13 @@ class Role(Component):
     @abstractmethod
     def wake_up(cls, game: "Werewolves", players: list[Player]): ...
 
-    HIDDEN_HTML = "(hidden role)"
+    HIDDEN_HTML = tag.img(
+        src="/assets/werewolves/cards/card_back.jpg", style="width: 50px"
+    )
+
+    @classmethod
+    def html(cls, viewer_id=None):
+        return cls.__name__
 
 
 class Werewolves(Game):

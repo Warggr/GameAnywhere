@@ -1,0 +1,3 @@
+rule image:
+    output: [f"cards/{color}_{num}.png" for color in ("blue", "green", "yellow", "white", "red") for num in range(1, 5+1)]
+    shell: "python create_card.py"

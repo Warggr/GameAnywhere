@@ -60,7 +60,11 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
         def start_initialization(self, agent_id: "AgentId", context: Context):
             if "server_room" not in context:
                 if Server._instance is None:
-                    server = Server(RoomClass=BaseGameRoom)
+                    asset_dirs = {}
+                    asset_dir = context["game"].get_asset_dir()
+                    if asset_dir is not None:
+                        asset_dirs[context["game"].__name__] = asset_dir
+                    server = Server(RoomClass=BaseGameRoom, assets=asset_dirs)
                     context["server"] = server
                     context["exit_stack"].enter_context(server)
                 else:

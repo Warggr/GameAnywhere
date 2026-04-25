@@ -11,6 +11,8 @@ from .async_resource import AsyncResource
 from .room import ServerRoom
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from .http_controlled_server import ServerEvent
 
 
@@ -51,7 +53,11 @@ all functions that are intended to be called on the network thread start with nt
 
 @Singleton
 class Server(AbstractContextManager, AsyncResource):
-    def __init__(self, RoomClass=ServerRoom):
+    def __init__(
+        self,
+        RoomClass=ServerRoom,
+        assets: dict[str, Path | str] | None = None,
+    ):
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.serverThread: Optional[Thread] = None
         self.running = False
@@ -78,6 +84,12 @@ class Server(AbstractContextManager, AsyncResource):
 
         subapp = RoomClass.http_interface(instance_dispatcher=room_dispatcher)
         self.app.add_subapp("/r/", subapp)
+        if assets is not None:
+            assets_app = web.Application()
+            assets_app.add_routes(
+                [web.static(f"/{key}/", str(path)) for key, path in assets.items()]
+            )
+            self.app.add_subapp("/assets/", assets_app)
 
     def __enter__(self):
         event_loop_started = Semaphore(0)

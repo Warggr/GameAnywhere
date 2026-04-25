@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum, auto, unique
-from typing import Any, Union
+from importlib.resources import files
+from typing import TYPE_CHECKING, Any, Union
 
 from game_anywhere.components import (
     ComponentSlot,
@@ -9,11 +10,14 @@ from game_anywhere.components import (
     List,
     PerPlayer,
 )
-from game_anywhere.components.component import PerPlayerComponent
+from game_anywhere.components.component import Component, PerPlayerComponent
 from game_anywhere.components.traditional.cards import Deck, DiscardPile
 from game_anywhere.core import GameSummary, TurnBasedGame
 from game_anywhere.core.agent import AgentId
-from game_anywhere.run_game import run_game_from_cmdline
+from game_anywhere.ui import Html, tag
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @unique
@@ -26,9 +30,19 @@ class Color(Enum):
 
 
 @dataclass
-class HanabiCard:
+class HanabiCard(Component):
     color: Color
     value: int
+
+    HIDDEN_HTML = "??"
+
+    def html(self, viewer_id=None) -> Html:  # override
+        return tag.div(
+            str(self.value),
+            style="color: "
+            + self.color.name.lower()
+            + f"; background-image: url(/assets/Hanabi/cards/{self.color.name.lower()}_{self.value}.png); height: 3em; width: 2em;",
+        )
 
 
 def default_hanabi_deck() -> list[HanabiCard]:
@@ -78,6 +92,10 @@ class Hanabi(TurnBasedGame):
             f"Expected [number_of_players], got {config}"
         )
         return int(config[0]), {}
+
+    @classmethod
+    def get_asset_dir(cls) -> Path:
+        return files("game_anywhere_examples.hanabi") / "assets"
 
     def __init__(self, agent_descriptions):
         super().__init__(agent_descriptions=agent_descriptions)
@@ -192,7 +210,3 @@ class Hanabi(TurnBasedGame):
             self.nb_hints -= 1
         else:
             raise AssertionError(f"Unrecognized choice: {choice}")
-
-
-if __name__ == "__main__":
-    run_game_from_cmdline(Hanabi)

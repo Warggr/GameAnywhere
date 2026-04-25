@@ -56,7 +56,12 @@ class HttpControlledServer(Server[GameRoom]):
     SERVER_CLOSED_DUMMY_MSG = None
 
     def __init__(self, available_games: dict[str, "Game"]):
-        super().__init__(RoomClass=GameRoom)
+        asset_dirs = {}
+        for g in available_games.values():
+            asset_dir = g.get_asset_dir()
+            if asset_dir is not None:
+                asset_dirs[g.__name__] = asset_dir
+        super().__init__(RoomClass=GameRoom, assets=asset_dirs)
         self.available_games = available_games
         # Warning: The server routes are /room, the GameRoom routes are /r.
         # (even though POST /room, GET /room/list, GET /room/1 would be more idiomatic)

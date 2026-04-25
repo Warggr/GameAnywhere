@@ -7,6 +7,8 @@ from ..ui import tag
 from .agent import Agent, AgentId
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from game_anywhere.components import Component
 
     from ..agents.descriptors import AgentDescriptor
@@ -61,6 +63,11 @@ class Game(PropertySlotMixin):
             raise NotImplementedError(
                 f"{cls.__name__} does not accept configuration options"
             )
+
+    @classmethod
+    def get_asset_dir(cls) -> Path | None:
+        """Override this to get the Path loaded as static assets by the server."""
+        return None
 
     # override
     def get_game(self):

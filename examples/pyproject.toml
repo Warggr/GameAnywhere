@@ -20,3 +20,6 @@ tic_tac_toe = "game_anywhere_examples.tic_tac_toe:TicTacToe"
 poker = "game_anywhere_examples.poker:Poker"
 werewolves = "game_anywhere_examples.werewolves:Werewolves"
 hanabi = "game_anywhere_examples.hanabi:Hanabi"
+
+[tool.setuptools.package-data]
+game_anywhere_examples = ["*/assets/**"]
