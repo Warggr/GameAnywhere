@@ -54,19 +54,18 @@ class BaseGameRoom(ServerRoom["HttpControlledServer"]):
                 text=f"Please provide a username and seat (missing: {err})"
             ) from err
         if session_id == "watch":
-            viewer_id = None
+            html = self.game.html(viewer_id=None)
         else:
             try:
                 session_id = int(session_id)
             except ValueError as err:
                 raise web.HTTPBadRequest(text="Session is not an integer") from err
             if (
-                session_id in self.session_id_to_username
-                and self.session_id_to_username[session_id] != username
+                session_id in self.sessions
+                and self.sessions[session_id].username != username
             ):
                 raise web.HTTPForbidden(text="Session not owned by authenticated user")
-            viewer_id = session_id
-        html = self.game.html(viewer_id=viewer_id)
+            html = self.game.get_html_for_agent_ref(self.sessions[session_id])
         return web.Response(body=str(html), content_type="text/html")
 
 

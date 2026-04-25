@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 import aiohttp
 from aiohttp import web
 
-from game_anywhere.core.agent import AgentId
-
 if TYPE_CHECKING:
     from .room import ServerRoom
 
@@ -217,14 +215,14 @@ class Session(Spectator):
     class TimeoutException(Exception):
         pass
 
-    def __init__(self, agent_id: AgentId, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.id = agent_id
-
     @property
     def seat_id(self) -> int:
         ((seat_id, _this),) = filter(lambda i: i[1] is self, self.room.sessions.items())
         return seat_id
+
+    @property
+    def username(self) -> str:
+        return self.room.session_id_to_username[self.seat_id]
 
     @Spectator.state.setter
     def state(self, value: "Spectator.State"):

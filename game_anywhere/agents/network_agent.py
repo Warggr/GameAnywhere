@@ -14,7 +14,6 @@ from .descriptors import AgentDescriptor
 
 if TYPE_CHECKING:
     from game_anywhere.components import ComponentSlot
-    from game_anywhere.core.agent import AgentId
 
     from .descriptors import Context
 
@@ -140,7 +139,7 @@ class JsonSchemaAgentMixin(AskMultipleTimesMixin):
 
 class NetworkAgent(JsonSchemaAgentMixin, Agent):
     class Descriptor(AgentDescriptor):
-        def start_initialization(self, agent_id: "AgentId", context: Context):
+        def start_initialization(self, agent_descriptor_number: int, context: Context):
             if "server_room" not in context:
                 if Server._instance is None:
                     asset_dirs = {}
@@ -166,16 +165,16 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
                 # context['exit_stack'].enter_context(room)
             else:
                 room = context["server_room"]
-            session = room.create_session(agent_id)
+            session = room.create_session(agent_descriptor_number)
             return session
 
         def await_initialization(self, session):
             session.reconnect_sync()
-            self.resolve_name(session.room.session_id_to_username[session.id])
+            self.resolve_name(session.username)
             return NetworkAgent(session)
 
     def __init__(self, session: Session):
-        username = session.room.session_id_to_username[session.id]
+        username = session.username
         super().__init__(username)
         self.session = session
 
@@ -208,6 +207,14 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
 
     def chat_stream(self, event_loop: asyncio.AbstractEventLoop) -> ChatStream:
         return NetworkChatStream(event_loop, self.session)
+
+    def __eq__(self, o):
+        """
+        Used for Game.get_html_for_agent_ref.
+        """
+        if isinstance(o, Session) and o is self.session:
+            return True
+        return False
 
 
 class NetworkChatStream(ChatStream):

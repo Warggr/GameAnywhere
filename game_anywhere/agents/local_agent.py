@@ -15,7 +15,6 @@ from .network_agent import AskMultipleTimesMixin
 if TYPE_CHECKING:
     from game_anywhere.agents.descriptors import Context
     from game_anywhere.components import ComponentSlot
-    from game_anywhere.core.agent import AgentId
 
 T = TypeVar("T")
 
@@ -127,8 +126,8 @@ class TextAgent(Agent, AskMultipleTimesMixin):
 
 class HumanAgent(TextAgent):
     class Descriptor(AgentDescriptor):
-        def start_initialization(self, agent_id: "AgentId", context):
-            self.resolve_name(f"Human agent {agent_id}")
+        def start_initialization(self, agent_descriptor_number: int, context):
+            self.resolve_name(f"Human agent {agent_descriptor_number}")
 
         def await_initialization(self, promise) -> "HumanAgent":
             return HumanAgent(self.name)
@@ -149,7 +148,7 @@ class PipeAgent(TextAgent):
 
     class Descriptor(AgentDescriptor):
         def start_initialization(
-            self, agent_id: "AgentId", context
+            self, agent_descriptor_number: int, context
         ) -> tuple[str, str, "Context"]:
             if "tmp_dir" not in context:
                 tmpdir = TemporaryDirectory()
@@ -165,8 +164,8 @@ class PipeAgent(TextAgent):
                 )  # delete file on exit
                 return tmp_file
 
-            infile = open_pipe(str(agent_id) + ".in")
-            outfile = open_pipe(str(agent_id) + ".out")
+            infile = open_pipe(str(agent_descriptor_number) + ".in")
+            outfile = open_pipe(str(agent_descriptor_number) + ".out")
             return infile, outfile, context
 
         def await_initialization(

@@ -8,7 +8,6 @@ if TYPE_CHECKING:
 
     from game_anywhere.components import ComponentSlot
 
-AgentId = int
 
 T = TypeVar("T")
 U = TypeVar("U")

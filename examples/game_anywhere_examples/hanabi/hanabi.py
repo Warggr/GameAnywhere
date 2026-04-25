@@ -12,8 +12,7 @@ from game_anywhere.components import (
 )
 from game_anywhere.components.component import Component, PerPlayerComponent
 from game_anywhere.components.traditional.cards import Deck, DiscardPile
-from game_anywhere.core import GameSummary, TurnBasedGame
-from game_anywhere.core.agent import AgentId
+from game_anywhere.core import AgentId, GameSummary, TurnBasedGame
 from game_anywhere.ui import Html, tag
 from game_anywhere.ui.display_styles import FlippedChips, hand_fan
 

@@ -7,7 +7,6 @@ from game_anywhere.core.agent import Agent
 
 if TYPE_CHECKING:
     from game_anywhere.core import Game
-    from game_anywhere.core.agent import AgentId
 
 AgentPromise = Any
 
@@ -23,7 +22,7 @@ class AgentDescriptor(ABC):
 
     @abstractmethod
     def start_initialization(
-        self, agent_id: "AgentId", context: Context
+        self, agent_descriptor_number: int, context: Context
     ) -> AgentPromise: ...
 
     @abstractmethod

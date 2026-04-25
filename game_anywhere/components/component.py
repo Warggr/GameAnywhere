@@ -322,7 +322,7 @@ class PerPlayerComponent(Component):
         return tag.h2(owner) + html
 
     def get_owner(self) -> "Agent":
-        return self.get_game().agents[self.owner_id]
+        return self.get_game().agents[self.owner_id - 1]
 
 
 PerPlayerComponentType = TypeVar("PerPlayerComponentType", bound=PerPlayerComponent)
@@ -372,12 +372,17 @@ class PerPlayer(
         if self.private_name not in obj.slots:
             from .containers import List
 
+            game = obj.get_game()
             per_player = [
-                self.componentClass(owner=agent, owner_id=i)
-                for i, agent in enumerate(obj.get_game().agent_descriptions)
+                self.componentClass(owner=agent, owner_id=agent_id)
+                for agent, agent_id in zip(
+                    game.agent_descriptions, game.agent_ids, strict=True
+                )
             ]
             for_all_players = List(per_player)
-            for agent_id, slot in enumerate(for_all_players.slots):
+            for agent_id, slot in zip(
+                game.agent_ids, for_all_players.slots, strict=True
+            ):
                 slot.set_owner_id(agent_id)
             slot = ComponentSlot(self.id, obj)
             obj.add_slot(self.private_name, slot)

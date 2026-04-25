@@ -17,7 +17,7 @@ from game_anywhere.ui import tag
 if TYPE_CHECKING:
     from chess import Move, Square
 
-    from game_anywhere.core.agent import AgentId
+    from game_anywhere.core import AgentId
 
 
 class ChessPiece(Component):

@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING, Generic, Iterable, TypeVar
 
 from aiohttp import web
 
-from game_anywhere.core.agent import AgentId
-
 from .async_resource import AsyncResource
 from .spectator import Session, Spectator
 
@@ -57,10 +55,12 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
         ((room_id, _this),) = filter(lambda i: i[1] is self, self.server.rooms.items())
         return room_id
 
-    def create_session(self, agent_id: AgentId) -> Session:
-        assert agent_id not in self.sessions
-        session = Session(agent_id, self)
-        self.sessions[agent_id] = session
+    def create_session(self, seat_id: SeatId | None = None) -> Session:
+        if seat_id is None:
+            seat_id = max(self.sessions.keys(), default=0) + 1
+        assert seat_id not in self.sessions
+        session = Session(self)
+        self.sessions[seat_id] = session
         return session
 
     # signals the game that it should end as soon as possible.

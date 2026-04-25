@@ -55,7 +55,7 @@ class Skull(TurnBasedGame):
         super().__init__(agent_descriptions, *args, **kwargs)
         self.starting_with = 0
 
-        for player_id, player in enumerate(self.players):
+        for player_id, player in zip(self.agent_ids, self.players, strict=True):
             player.hand_cards = List(
                 [
                     SkullCard(SkullCardType.SKULL),
@@ -72,13 +72,13 @@ class Skull(TurnBasedGame):
     def turn(self):
         self._play_round()
 
-        for index, player in enumerate(self.players):
+        for agent_id, player in zip(self.agent_ids, self.players, strict=True):
             if player.score >= 2:
-                return SimpleGameSummary(self.agent_ids[index])
+                return SimpleGameSummary(agent_id)
 
         remaining_players = self._active_players()
         if len(remaining_players) == 1:
-            return SimpleGameSummary(self.agent_ids[remaining_players[0]])
+            return SimpleGameSummary(list(self.agent_ids)[remaining_players[0]])
 
         return None
 
