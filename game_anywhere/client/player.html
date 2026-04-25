@@ -69,6 +69,23 @@
                 document.getElementById("connection-status");
             var usernameInCookies = false;
 
+            const loaded_css = new Set();
+            const loaded_js = new Set();
+
+            async function ensureJS(scriptname) {
+                if (loaded_js.has(scriptname)) return;
+                loaded_js.add(scriptname);
+                await import(scriptname);
+            }
+            async function ensureCSS(sheetname) {
+                if (loaded_css.has(sheetname)) return;
+                loaded_css.add(sheetname);
+                let link = document.createElement("link");
+                link.setAttribute("rel", "stylesheet");
+                link.setAttribute("href", sheetname);
+                document.head.appendChild(link);
+            }
+
             const connectToServer = (serverAddress) => {
                 const teamNr =
                     document.getElementById("playerId").value || "watch";
@@ -85,6 +102,9 @@
                 ).then(async (content) => {
                     screen.getElementById("screen").innerHTML =
                         await content.text();
+                    for (const elem of screen.querySelectorAll("script")) {
+                        ensureJS(elem.src);
+                    }
                 });
 
                 connectionStatusDom.textContent = "Connecting...";
@@ -231,8 +251,30 @@
                     } else if (Array.isArray(data)) {
                         for (let diff of data) {
                             if (diff.op == "replace") {
-                                document.getElementById(diff.key).innerHTML =
-                                    diff.value;
+                                let DOMConstructionSite =
+                                    document.createElement("div");
+                                DOMConstructionSite.innerHTML = diff.value;
+                                console.warn(DOMConstructionSite);
+                                let realElems = [];
+                                for (const elem of DOMConstructionSite.children) {
+                                    if (elem.nodeName == "script") {
+                                        ensureJS(elem.src);
+                                    } else if (elem.nodeName == "link") {
+                                        console.assert(
+                                            elem.rel == "stylesheet",
+                                        );
+                                        ensureCSS(elem.href);
+                                    } else {
+                                        realElems.push(elem);
+                                    }
+                                }
+                                console.assert(
+                                    realElems.length == 1,
+                                    realElems,
+                                );
+                                screen
+                                    .getElementById(diff.key)
+                                    .replaceWith(realElems[0]);
                             } else if (diff.op == "add") {
                                 if (diff.key.slice(-5) == "/hint") {
                                     const hinted = screen.getElementById(

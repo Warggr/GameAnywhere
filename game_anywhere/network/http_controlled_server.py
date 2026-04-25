@@ -7,6 +7,7 @@ from aiohttp import http, web
 from aiohttp_sse import sse_response
 
 from game_anywhere.agents.parse_descriptors import parse_game_descriptor
+from game_anywhere.ui.custom_components import get_registered_component
 
 from .game_room import GameRoom
 from .server import Server
@@ -61,7 +62,11 @@ class HttpControlledServer(Server[GameRoom]):
             asset_dir = g.get_asset_dir()
             if asset_dir is not None:
                 asset_dirs[g.__name__] = asset_dir
-        super().__init__(RoomClass=GameRoom, assets=asset_dirs)
+        super().__init__(
+            RoomClass=GameRoom,
+            assets=asset_dirs,
+            dynamic_assets=get_registered_component,
+        )
         self.available_games = available_games
         # Warning: The server routes are /room, the GameRoom routes are /r.
         # (even though POST /room, GET /room/list, GET /room/1 would be more idiomatic)

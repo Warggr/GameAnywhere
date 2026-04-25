@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING, Any, Generic, Mapping, Optional, Type, TypeVar
 from game_anywhere.ui.ui import Html, HtmlElement, tag
 
 from .utils import html as to_html
-from .utils import mask
 
 if TYPE_CHECKING:
     from game_anywhere.agents.descriptors import AgentDescriptor
     from game_anywhere.core import Agent, Game
     from game_anywhere.core.agent import AgentId
+    from game_anywhere.ui.display_styles import DisplayStyle
 
     from .containers import List
 
@@ -142,14 +142,17 @@ class WeakComponentSlot(Generic[T]):
         id_: str,
         parent: ComponentOrGame,
         content: Optional[T] = None,
+        *,
         hidden: bool = False,
         owner_id: Optional[int] = None,
+        display_as: DisplayStyle | None = None,
     ):
         self.id = id_
         self.parent = parent
         self.hidden = hidden
         self.owner_id = owner_id
         self._content = None
+        self.display_as = display_as
         if content:
             self.set(content)
 
@@ -174,14 +177,14 @@ class WeakComponentSlot(Generic[T]):
         except Component.NotAttachedToComponentTree:
             # No need to update the clients then
             return
-        game.log_component_update(self, content)
+        game.log_component_update(self)
 
     def reveal(self, to: int | None = None):
         try:
             game = self.get_game()
         except Component.NotAttachedToComponentTree:
             return
-        game.log_component_update(self, self.content, force_reveal=True, only_update=to)
+        game.log_component_update(self, force_reveal=True, only_update=to)
 
     @property
     def content(self) -> T:
@@ -216,11 +219,14 @@ class WeakComponentSlot(Generic[T]):
         )
 
     def html(self, viewer_id=None, force_reveal=False) -> HtmlElement:
-        if self.can_be_seen_by(viewer_id) or force_reveal:
-            html = to_html(self._content, viewer_id=viewer_id)
+        is_visible = self.can_be_seen_by(viewer_id) or force_reveal
+        if self.display_as is None:
+            html = to_html(self._content, viewer_id=viewer_id, visible=is_visible)
+            html = Html(html).wrap_to_one_element()
         else:
-            html = mask(self._content)
-        html = Html(html).wrap_to_one_element()
+            html = self.display_as(
+                self._content, viewer_id=viewer_id, visible=is_visible
+            )
         html.attrs["id"] = self.get_address()
         return html
 

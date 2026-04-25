@@ -1,0 +1,31 @@
+.ga-hand-fan {
+    position: relative;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    height: 200px; /* adjust depending on card size */
+}
+
+.ga-hand-fan li {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform-origin: bottom center;
+    transition: transform 0.3s ease;
+}
+
+.ga-hand-fan .card {
+    width: 100px; /* adjust */
+    height: 150px;
+}
+
+.ga-hand-fan img {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.ga-hand-fan li:hover {
+    transform: translateY(-20px) scale(1.05) rotate(var(--angle));
+    z-index: 100;
+}

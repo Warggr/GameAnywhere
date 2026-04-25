@@ -1,15 +1,30 @@
 import functools
-from typing import Any
+from typing import Any, Iterable
 
 
 class Html:
-    def __init__(self, *content):
+    def __init__(
+        self, *content, css: str | Iterable[str] = (), js: str | Iterable[str] = ()
+    ):
         self.content = content
+        self.css = set((css,) if isinstance(css, str) else css)
+        self.js = set((js,) if isinstance(js, str) else js)
+        # Gather resources all at the top
+        for child in self.content:
+            if isinstance(child, Html):
+                self.css |= child.css
+                child.css.clear()
+                self.js |= child.js
+                child.js.clear()
 
     def __str__(self):
         result = ""
         for child in self.content:
             result += str(child)
+        for link in self.css:
+            result += f'<link rel="stylesheet" href="/components/{link}"/>'
+        for link in self.js:
+            result += f'<script src="/components/{link}"/>'
         return result
 
     def __add__(self, other):
@@ -21,7 +36,7 @@ class Html:
                 total_content += [html]
             else:  # we can un-nest Html's within Html's
                 total_content += html.content
-        return Html(*total_content)
+        return Html(*total_content, css=self.css | other.css, js=self.js | other.js)
 
     def wrap_to_one_element(self) -> "HtmlElement":
         return tag.div(self)
@@ -31,8 +46,8 @@ HtmlLike = Any
 
 
 class HtmlElement(Html):
-    def __init__(self, tag_name, *children, **attrs):
-        super().__init__(*children)
+    def __init__(self, *children, tag_name, css=(), js=(), **attrs):
+        super().__init__(*children, css=css, js=js)
         self.tag_name = tag_name
         self.attrs = attrs
 
@@ -56,7 +71,7 @@ class HtmlElementMeta(type):
     def _wrap_init(init, tag_name):
         @functools.wraps(init)
         def _new_init(self, *args, **kwargs):
-            init(self, tag_name, *args, **kwargs)
+            init(self, *args, tag_name=tag_name, **kwargs)
 
         return _new_init
 

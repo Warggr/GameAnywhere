@@ -2,14 +2,11 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 from ..components.component import ComponentOrGame, PropertySlotMixin, WeakComponentSlot
-from ..components.utils import html
 from ..ui import tag
 from .agent import Agent, AgentId
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from game_anywhere.components import Component
 
     from ..agents.descriptors import AgentDescriptor
 
@@ -112,7 +109,6 @@ class Game(PropertySlotMixin):
     def log_component_update(
         self,
         slot: WeakComponentSlot,
-        new_value: "Component",
         only_update: int | None = None,
         *,
         force_reveal=False,
@@ -132,7 +128,7 @@ class Game(PropertySlotMixin):
                         {
                             "op": "replace",
                             "key": address,
-                            "value": html(new_value, viewer_id=agent_id),
+                            "value": slot.html(viewer_id=agent_id, force_reveal=True),
                         }
                     ]
                 )

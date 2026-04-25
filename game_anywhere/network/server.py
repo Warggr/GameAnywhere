@@ -2,7 +2,7 @@ import asyncio
 from contextlib import AbstractContextManager
 from functools import wraps
 from threading import Semaphore, Thread
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from aiohttp import web
 from aiohttp.web_runner import GracefulExit
@@ -57,6 +57,7 @@ class Server(AbstractContextManager, AsyncResource):
         self,
         RoomClass=ServerRoom,
         assets: dict[str, Path | str] | None = None,
+        dynamic_assets: Callable[[str, str], Path] | None = None,
     ):
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.serverThread: Optional[Thread] = None
@@ -90,6 +91,26 @@ class Server(AbstractContextManager, AsyncResource):
                 [web.static(f"/{key}/", str(path)) for key, path in assets.items()]
             )
             self.app.add_subapp("/assets/", assets_app)
+        if dynamic_assets is not None:
+
+            async def _handle_dynamic_asset(request: web.Request) -> web.Response:
+                component = request.match_info["component"]
+                filename = request.match_info["file"]
+                try:
+                    file_path = dynamic_assets(component, filename)
+                except KeyError as e:
+                    raise web.HTTPNotFound(
+                        text=f"Component {component} not found"
+                    ) from e
+                if not file_path.exists():
+                    raise web.HTTPNotFound(
+                        text=f"Resolved file {filename} not found in filesystem"
+                    )
+                return web.FileResponse(file_path)
+
+            self.app.add_routes(
+                [web.get("/components/{component}/{file}", _handle_dynamic_asset)]
+            )
 
     def __enter__(self):
         event_loop_started = Semaphore(0)

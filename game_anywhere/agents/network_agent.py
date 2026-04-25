@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
 
 from game_anywhere.core import Agent
 from game_anywhere.core.agent import ChatStream
+from game_anywhere.ui.custom_components import get_registered_component
 
 from ..network import Server
 from ..network.game_room import BaseGameRoom
@@ -64,7 +65,11 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
                     asset_dir = context["game"].get_asset_dir()
                     if asset_dir is not None:
                         asset_dirs[context["game"].__name__] = asset_dir
-                    server = Server(RoomClass=BaseGameRoom, assets=asset_dirs)
+                    server = Server(
+                        RoomClass=BaseGameRoom,
+                        assets=asset_dirs,
+                        dynamic_assets=get_registered_component,
+                    )
                     context["server"] = server
                     context["exit_stack"].enter_context(server)
                 else:

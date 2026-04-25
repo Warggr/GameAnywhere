@@ -15,6 +15,7 @@ from game_anywhere.components.traditional.cards import Deck, DiscardPile
 from game_anywhere.core import GameSummary, TurnBasedGame
 from game_anywhere.core.agent import AgentId
 from game_anywhere.ui import Html, tag
+from game_anywhere.ui.display_styles import FlippedChips, hand_fan
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -65,7 +66,7 @@ class EveryoneCanSeeItExceptMyself(ComponentSlot):
 
 
 class HanabiPerPlayerComponent(PerPlayerComponent):
-    cards = ComponentSlotProperty[List[HanabiCard]]()
+    cards = ComponentSlotProperty[List[HanabiCard]](display_as=hand_fan)
 
 
 class Hanabi(TurnBasedGame):
@@ -79,7 +80,13 @@ class Hanabi(TurnBasedGame):
             )
 
     nb_lives = ComponentSlotProperty[int]()
-    nb_hints = ComponentSlotProperty[int]()
+    nb_hints = ComponentSlotProperty[int](
+        display_as=FlippedChips(
+            front=tag.img(src="/assets/Hanabi/hint_active.png", style="width: 1em;"),
+            back=tag.img(src="/assets/Hanabi/hint_inactive.png", style="width: 1em;"),
+            maxi=8,
+        )
+    )
     deck = ComponentSlotProperty[Deck[HanabiCard]]()
     players = PerPlayer(HanabiPerPlayerComponent)
     stacks = ComponentSlotProperty[Dict[Color, List[HanabiCard]]]()
