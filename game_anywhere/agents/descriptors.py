@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from contextlib import ExitStack
-from typing import TYPE_CHECKING, Any, Generic, Type, TypeVar
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Generic, Type, TypedDict, TypeVar
 
 from game_anywhere.core.agent import Agent
 
@@ -11,10 +12,9 @@ if TYPE_CHECKING:
 AgentPromise = Any
 
 
-class Context(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self["exit_stack"] = ExitStack()
+class Context(TypedDict):
+    game: "Game"
+    exit_stack: ExitStack
 
 
 class AgentDescriptor(ABC):
@@ -36,7 +36,30 @@ class AgentDescriptor(ABC):
 GameType = TypeVar("GameType", bound="Game")
 
 
+@dataclass
+class GamePromise(Generic[GameType]):
+    """
+    Can be passed to another thread to be awaited.
+    """
+
+    agent_descriptors: list[AgentDescriptor]
+    agent_promises: list[Any]
+    game: GameType
+
+    def resolve(self) -> GameType:
+        agents = [
+            agent.await_initialization(self.agent_promises[i])
+            for i, agent in enumerate(self.agent_descriptors)
+        ]
+        self.game.set_agents(agents)
+        return self.game
+
+
 class GameDescriptor(Generic[GameType]):
+    """
+    Created when the game request is successfully parsed.
+    """
+
     def __init__(
         self,
         GameType: Type[GameType],
@@ -44,35 +67,21 @@ class GameDescriptor(Generic[GameType]):
         *game_args,
         **game_kwargs,
     ):
-        self.GameType = GameType
         self.agents_descriptors = agents_descriptors
-        self.game_args = game_args
-        self.game_kwargs = game_kwargs
+        self.game = GameType(
+            self.agents_descriptors,
+            *game_args,
+            **game_kwargs,
+        )
 
-    def start_initialization(self, context) -> list[AgentPromise]:
-        return [
+    def start_initialization(self, **context_kwargs) -> GamePromise[GameType]:
+        context: Context = {"game": self.game, "exit_stack": ExitStack()}
+        context.update(context_kwargs)
+        promises = [
             agent.start_initialization(i, context)
             for i, agent in enumerate(self.agents_descriptors)
         ]
-
-    def await_initialization(self, promises: list[AgentPromise]) -> list[Agent]:
-        return [
-            agent.await_initialization(promises[i])
-            for i, agent in enumerate(self.agents_descriptors)
-        ]
-
-    def create_agents(self, context) -> list[Agent]:
-        promises = self.start_initialization(context)
-        agents = self.await_initialization(promises)
-        return agents
-
-    def create_game(self) -> GameType:
-        game = self.GameType(
-            self.agents_descriptors,
-            *self.game_args,
-            **self.game_kwargs,
-        )
         if type(self.agents_descriptors) is not list:
             #  sorry for the code duplication with subclasses of Agent
-            self.agents_descriptors = [self.agents_descriptors] * len(game.agents)
-        return game
+            self.agents_descriptors = [self.agents_descriptors] * len(self.game.agents)
+        return GamePromise(self.agents_descriptors, promises, self.game)

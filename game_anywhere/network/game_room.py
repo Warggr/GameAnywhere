@@ -6,11 +6,12 @@ from typing import TYPE_CHECKING
 
 from aiohttp import web
 
-from ..agents.descriptors import Context
+from game_anywhere.agents.descriptors import GamePromise
+
 from .room import ServerRoom
 
 if TYPE_CHECKING:
-    from game_anywhere.agents.descriptors import AgentPromise, GameDescriptor
+    from game_anywhere.agents.descriptors import GameDescriptor
     from game_anywhere.core import Game, GameSummary
 
     from .http_controlled_server import HttpControlledServer
@@ -73,22 +74,17 @@ class GameRoom(BaseGameRoom):
     """Provides its own game, which is launched on another thread from a GameDescriptor"""
 
     def __init__(self, game_descriptor: "GameDescriptor", *args, **kwargs):
-        self.first_step = True
-        self.game = game_descriptor.create_game()
-        super().__init__(*args, game=self.game, **kwargs)
-        agent_promises: list["AgentPromise"] = game_descriptor.start_initialization(
-            Context(server_room=self)
-        )
-        self.game_thread = Thread(
-            target=self.run_game_thread, args=(game_descriptor, agent_promises)
-        )
+        super().__init__(*args, game=game_descriptor.game, **kwargs)
+        promise = game_descriptor.start_initialization(server_room=self)
+        self.game_thread = Thread(target=self.run_game_thread, args=(promise,))
         self.game_thread.start()
 
     def run_game_thread(
-        self, game_descriptor: "GameDescriptor", agent_promises: list["AgentPromise"]
+        self,
+        game_promise: GamePromise,
     ):
         # print("Starting game thread, waiting for agents…")
-        self.game.set_agents(game_descriptor.await_initialization(agent_promises))
+        self.game = game_promise.resolve()
         # print("…Agents connected")
         summary = self.game.play_game()
         # print("Game ended, interrupting agents")

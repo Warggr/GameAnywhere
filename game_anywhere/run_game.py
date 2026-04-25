@@ -1,7 +1,7 @@
 import argparse
 
 from game_anywhere.agents import agent_types, parse_agent_description
-from game_anywhere.agents.descriptors import Context, GameDescriptor
+from game_anywhere.agents.descriptors import GameDescriptor
 
 from .core.game import Game, GameSummary
 
@@ -23,17 +23,10 @@ def run_game_from_cmdline(GameType: type[Game], *args, **kwargs) -> GameSummary:
         parse_agent_description(arg) for arg in cmdline_args.agent_types
     ]
 
-    return run_game(
-        GameDescriptor(GameType, agent_descriptions, *args, **kwargs, **game_config)
+    descriptor = GameDescriptor(
+        GameType, agent_descriptions, *args, **kwargs, **game_config
     )
-
-
-def run_game(descriptor: GameDescriptor):
-    game = descriptor.create_game()
-    context = Context(game=game)
-
-    agents = descriptor.create_agents(context)
-
-    game.set_agents(agents)
+    promise = descriptor.start_initialization()
+    game = promise.resolve()
 
     return game.play_game()
