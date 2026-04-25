@@ -21,8 +21,8 @@ class ChatStream:
     @abstractmethod
     async def __anext__(self) -> str: ...
 
-    @abstractmethod
-    def close(self): ...
+    def close(self):
+        pass
 
 
 class Agent(ABC):
@@ -41,7 +41,7 @@ class Agent(ABC):
         ...
 
     @abstractmethod
-    def query(self, allowedSchema: JsonSchema): ...
+    def query(self, allowedSchema: JsonSchema) -> Any: ...
 
     @abstractmethod
     def choose_one_component_slot(

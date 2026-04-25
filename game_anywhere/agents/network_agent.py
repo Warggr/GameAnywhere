@@ -10,27 +10,59 @@ from game_anywhere.ui.custom_components import get_registered_component
 from ..network import Server
 from ..network.game_room import BaseGameRoom
 from ..network.spectator import Session, Spectator
-from .descriptors import AgentDescriptor, Context
+from .descriptors import AgentDescriptor
 
 if TYPE_CHECKING:
     from game_anywhere.components import ComponentSlot
     from game_anywhere.core.agent import AgentId
 
+    from .descriptors import Context
+
 T = TypeVar("T")
 Json = Any
 
 
-class JsonSchemaAgentMixin(ABC):
+class AskMultipleTimesMixin(ABC):
     class InvalidAnswer(Exception):
         def __init__(self, message):
             super().__init__()
             self.message = message
 
-    @abstractmethod
-    def question_with_validation(
-        self, question: Json, validation: Callable[[Any], T]
-    ) -> T: ...
+    def question_with_validation(self, question: Any, validation: Callable[[Any], T]):
+        while True:
+            answer = self.ask_question(question)
+            try:
+                answer = validation(answer)
+            except self.InvalidAnswer:
+                continue  # goto beginning_of_while_loop
+            return answer
 
+    @abstractmethod
+    def ask_question(self, question: Any) -> Any: ...
+
+    @abstractmethod
+    def criticize_answer(self, error_message) -> None: ...
+
+
+def int_validation(
+    mini: int | None = 0, maxi: int | None = None
+) -> Callable[[str], int]:
+    def _validation(answer: str):
+        try:
+            assert answer.isdigit()
+            integer = int(answer)
+            if mini is not None:
+                assert integer >= mini, f"Please choose a number higher than {mini}"
+            if maxi is not None:
+                assert integer <= maxi, f"Please choose a number higher than {maxi}"
+            return integer
+        except (ValueError, AssertionError) as err:
+            raise AskMultipleTimesMixin.InvalidAnswer(repr(err)) from err
+
+    return _validation
+
+
+class JsonSchemaAgentMixin(AskMultipleTimesMixin):
     # override
     def int_choice(self, mini: int | None = 0, maxi: int | None = None) -> int:
         jsonSchema = {"type": "integer"}
@@ -39,20 +71,70 @@ class JsonSchemaAgentMixin(ABC):
         if maxi is not None:
             jsonSchema["maximum"] = maxi
 
+        return self.question_with_validation(
+            {"type": "choice", "schema": jsonSchema}, int_validation(mini, maxi)
+        )
+
+    # override
+    def text_choice(self, options: list[str]) -> str:
+        jsonSchema = {"type": "string", "enum": options}
+
         def _validation(answer: str):
-            try:
-                assert answer.isdigit()
-                integer = int(answer)
-                if mini is not None:
-                    assert integer >= mini, f"Please choose a number higher than {mini}"
-                if maxi is not None:
-                    assert integer <= maxi, f"Please choose a number higher than {maxi}"
-                return integer
-            except (ValueError, AssertionError) as err:
-                raise self.InvalidAnswer(repr(err)) from err
+            assert answer.startswith('"') and answer.endswith(
+                '"'
+            )  # answer should be JSON text
+            answer = answer[1:-1]
+
+            if answer not in options:
+                raise NetworkAgent.InvalidAnswer(f"value {answer} not allowed")
+            return answer
 
         return self.question_with_validation(
             {"type": "choice", "schema": jsonSchema}, _validation
+        )
+
+    # override
+    def choose_one_component_slot(
+        self,
+        slots: list["ComponentSlot"],
+        indices: Optional[list[T]] = None,
+        special_options=(),
+        message: Optional[str] = None,
+    ) -> T:
+        if not indices:
+            indices = slots
+        question = {
+            "type": "choice",
+            "slots": [slot.get_address() for slot in slots],
+            "special_options": special_options,
+        }
+        if message is not None:
+            question["message"] = message
+        ids = {
+            slot.get_address(): index
+            for slot, index in zip(slots, indices, strict=True)
+        }
+
+        def _validation(answer: str) -> str:
+            if answer in ids:
+                return ids[answer]
+            elif answer in special_options:
+                return answer
+            else:
+                raise NetworkAgent.InvalidAnswer("Invalid choice, please try again!")
+
+        return self.question_with_validation(question, _validation)
+
+    # override
+    def query(self, allowedSchema):
+        def _validation(answer: str):
+            try:
+                return json.loads(answer)
+            except json.decoder.JSONDecodeError as err:
+                raise self.InvalidAnswer(str(err)) from err
+
+        return self.question_with_validation(
+            {"type": "choice", "schema": allowedSchema}, _validation
         )
 
 
@@ -112,81 +194,17 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
         self.session.send_sync(list(map(serialize_diff, diffs)))
 
     # override
-    def choose_one_component_slot(
-        self,
-        slots: list["ComponentSlot"],
-        indices: Optional[list[T]] = None,
-        special_options=(),
-        message: Optional[str] = None,
-    ) -> T:
-        if not indices:
-            indices = slots
-        question = {
-            "type": "choice",
-            "slots": [slot.get_address() for slot in slots],
-            "special_options": special_options,
-        }
-        if message is not None:
-            question["message"] = message
-        ids = {
-            slot.get_address(): index
-            for slot, index in zip(slots, indices, strict=True)
-        }
-
-        def _validation(answer: str):
-            if answer in ids:
-                return ids[answer]
-            elif answer in special_options:
-                return answer
-            else:
-                raise NetworkAgent.InvalidAnswer("Invalid choice, please try again!")
-
-        return self.question_with_validation(question, _validation)
-
-    # override
-    def text_choice(self, options: list[str]) -> str:
-        jsonSchema = {"type": "string", "enum": options}
-
-        def _validation(answer: str):
-            assert answer.startswith('"') and answer.endswith(
-                '"'
-            )  # answer should be JSON text
-            answer = answer[1:-1]
-
-            if answer not in options:
-                raise NetworkAgent.InvalidAnswer(f"value {answer} not allowed")
-            return answer
-
-        return self.question_with_validation(
-            {"type": "choice", "schema": jsonSchema}, _validation
-        )
-
-    # override
-    def query(self, allowedSchema):
-        def _validation(answer: str):
-            try:
-                return json.loads(answer)
-            except json.decoder.JSONDecodeError as err:
-                raise self.InvalidAnswer(str(err)) from err
-
-        return self.question_with_validation(
-            {"type": "choice", "schema": allowedSchema}, _validation
-        )
-
-    def question_with_validation(
-        self, question: Any, validation: Callable[[str], T]
-    ) -> T:
+    def ask_question(self, question: Json) -> str:
         while True:
             self.session.send_sync(question)
             answer = self.session.get_sync()
             if answer == Session.CLIENT_LOST_TRACK_MESSAGE:
-                continue  # goto beginning_of_while_loop # resend question
-            try:
-                answer = validation(answer)
-            except NetworkAgent.InvalidAnswer as err:
-                self.session.send_sync({"type": "error", "message": err.message})
-                continue  # goto beginning_of_while_loop
+                continue  # resend question
             return answer
+
+    # override
+    def criticize_answer(self, error_message) -> None:
+        self.session.send_sync({"type": "error", "message": error_message})
 
     def chat_stream(self, event_loop: asyncio.AbstractEventLoop) -> ChatStream:
         return NetworkChatStream(event_loop, self.session)

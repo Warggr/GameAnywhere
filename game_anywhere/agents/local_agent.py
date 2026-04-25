@@ -10,6 +10,7 @@ from game_anywhere.core import Agent
 
 from ..core.agent import ChatStream
 from .descriptors import AgentDescriptor
+from .network_agent import AskMultipleTimesMixin
 
 if TYPE_CHECKING:
     from game_anywhere.agents.descriptors import Context
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-class TextAgent(Agent):
+class TextAgent(Agent, AskMultipleTimesMixin):
     """An agent that writes to, and reads from, a text terminal.
     Mostly for debugging purposes.
     """
@@ -38,52 +39,16 @@ class TextAgent(Agent):
                 message = f"[{k}={v}] {message}"
         self._write(message)
 
-    def _get_value(self, constructor, message=None):
-        if message is None:
-            message = f"Enter a value of type {constructor}"
-        while True:
-            raw_result: str = self._read(message + ":")
-            try:
-                return constructor(raw_result)
-            except ValueError as err:
-                self._write(err)
-                self._write("Please try again.")
+    def ask_question(self, question: str) -> Any:
+        return self._read(question + ":")
 
-    def _get_integer(self, mini=None, maxi=None, message=None):
-        def _suitable_int(st):
-            i = int(st)
-            if i < mini or maxi < i:
-                raise ValueError(f"{i} is out of bounds: [{mini}, {maxi}] expected")
-            return i
-
-        if message is None:
-            message = f"Enter a value between {mini} and {maxi}"
-        return self._get_value(_suitable_int, message)
-
-    # override
-    def int_choice(self, mini: Optional[int] = 0, maxi: Optional[int] = None) -> int:
-        return self._get_integer(mini, maxi)
+    def criticize_answer(self, error_message: str) -> None:
+        self._write(error_message)
+        self._write("Please try again.")
 
     # override
     def query(self, allowedSchema):
         return json.loads(self._read(f"Please answer the query: {allowedSchema}"))
-
-    # override
-    def get_2D_choice(self, dimensions):
-        return tuple(
-            self._get_integer(
-                mini=0,
-                maxi=dim - 1,
-                message=f"[dim {i}/{len(dimensions)}] Enter a value between {0} and {dim - 1}",
-            )
-            for i, dim in enumerate(dimensions)
-        )
-
-    def choose_one(self, descriptions: list[Any], indices: list[T]) -> T:
-        for i, description in enumerate(descriptions):
-            self._write(f"[{i + 1}]", description)
-        i = self.int_choice(mini=1, maxi=len(descriptions)) - 1
-        return indices[i]
 
     # override
     def choose_one_component_slot(
@@ -91,20 +56,27 @@ class TextAgent(Agent):
         slots: list["ComponentSlot"],
         indices: Optional[list[T]] = None,
         special_options=(),
+        message: str | None = None,
     ):
         if indices is None:
             indices = slots
-        for i, option in enumerate(chain(slots, special_options)):
-            self._write(f"[{i + 1}]", option)
-        i = self._get_integer(mini=1, maxi=len(slots) + len(special_options)) - 1
+        for i, (option_addr, option) in enumerate(
+            chain(
+                map(lambda slot: (slot, slot.get_address()), slots),
+                map(lambda s: (s, s), special_options),
+            )
+        ):
+            self._write(f"[{i + 1}]", option_addr, option)
+        i = (
+            self._get_integer(
+                mini=1, maxi=len(slots) + len(special_options), message=message
+            )
+            - 1
+        )
         if i < len(indices):
             return indices[i]
         else:
             return special_options[i - len(indices)]
-
-    # override
-    def text_choice(self, options: list[str]) -> str:
-        return self.choose_one(options, options)
 
     # override
     def update(self, diff: list[Any]):
