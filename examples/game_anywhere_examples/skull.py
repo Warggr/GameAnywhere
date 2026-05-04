@@ -127,7 +127,7 @@ class Skull(TurnBasedGame):
                     )
                     continue
 
-                highest_bid = agent.int_choice(min=1, max=cards_in_play)
+                highest_bid = agent.int_choice(mini=1, maxi=cards_in_play)
                 highest_bidder = current_player
                 self.message(
                     f"{player.owner.name} bids {highest_bid}.",
@@ -150,7 +150,7 @@ class Skull(TurnBasedGame):
                 options.append("Raise")
             action = agent.text_choice(options)
             if action == "Raise":
-                highest_bid = agent.int_choice(min=minimum_raise, max=cards_in_play)
+                highest_bid = agent.int_choice(mini=minimum_raise, maxi=cards_in_play)
                 highest_bidder = current_player
                 self.message(
                     f"{player.owner.name} raises to {highest_bid}.",
