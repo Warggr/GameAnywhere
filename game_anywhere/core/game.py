@@ -39,13 +39,12 @@ class SimpleGameSummary(GameSummary):
         return self.winner
 
 
-"""
-Represents a game in progress.
-"""
-
-
 # ComponentOrGame is an ABC, so indirectly Game is also an ABC
 class Game(PropertySlotMixin):
+    """
+    Represents a game in progress.
+    """
+
     """Game lifecycle. E.g. assume a game called FooGame.
     - the FooGame class is defined as Python code
     - FooGame.parse_config() is called to parse command-line options, in particular number of agents.
@@ -142,7 +141,7 @@ class Game(PropertySlotMixin):
     def log_component_update(
         self,
         slot: WeakComponentSlot,
-        only_update: int | None = None,
+        only_update: AgentId | None = None,
         *,
         force_reveal=False,
     ):

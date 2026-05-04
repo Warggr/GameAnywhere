@@ -78,12 +78,12 @@ class TextAgent(Agent, AskMultipleTimesMixin):
             return special_options[i - len(indices)]
 
     # override
-    def update(self, diff: list[Any]):
+    def update(self, diffs: list[Any]):
         self._write("Some things were updated:")
-        for di in diff:
+        for di in diffs:
             self._write(di)
 
-    def chat_stream(self, loop: asyncio.AbstractEventLoop) -> ChatStream:
+    def chat_stream(self, event_loop: asyncio.AbstractEventLoop) -> ChatStream:
         from queue import Queue
 
         # TODO: Optimization: there might be a way of asynchronously watching multiple files
@@ -107,7 +107,7 @@ class TextAgent(Agent, AskMultipleTimesMixin):
                 # which waits for original_read
                 while True:
                     # TODO: this is often an input() call and can't be interrupted - we have to wait until the user writes something
-                    self.reading_task = loop.run_in_executor(
+                    self.reading_task = event_loop.run_in_executor(
                         None, self.original_read
                     )  # Schedule a new read
                     message = await self.reading_task

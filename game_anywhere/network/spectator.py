@@ -26,8 +26,8 @@ class Spectator:
         INTERRUPTED_BY_SERVER = 3
 
     class DisconnectedException(Exception):
-        def __init__(self, state=0):
-            self.state = state
+        def __init__(self, state: "Spectator.State | int" = 0):
+            self.state = Spectator.State(state)
 
     def __init__(self, room: "ServerRoom"):
         self.room = room
@@ -167,7 +167,7 @@ class Spectator:
     async def send(self, msg: Any) -> None:
         await self.writing_queue.put(msg)
 
-    def send_sync(self, msg: str) -> None:
+    def send_sync(self, msg: Any) -> None:
         asyncio.run_coroutine_threadsafe(self.send(msg), loop=self.loop)
 
     def get_sync(self) -> str:

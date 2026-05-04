@@ -8,7 +8,8 @@ from game_anywhere.core.agent import Agent
 if TYPE_CHECKING:
     from game_anywhere.core import Game
 
-AgentPromise = Any
+
+AgentPromise = TypeVar("AgentPromise")
 
 
 class Context(TypedDict):
@@ -16,7 +17,7 @@ class Context(TypedDict):
     exit_stack: ExitStack
 
 
-class AgentDescriptor(ABC):
+class AgentDescriptor(ABC, Generic[AgentPromise]):
     def __init__(self):
         self.name = None
 
@@ -26,7 +27,7 @@ class AgentDescriptor(ABC):
     ) -> AgentPromise: ...
 
     @abstractmethod
-    def await_initialization(self, promise: AgentPromise) -> Agent: ...
+    def await_initialization(self, promise: AgentPromise, /) -> Agent: ...
 
     def resolve_name(self, name: str):
         self.name = name
@@ -41,7 +42,7 @@ class GamePromise(Generic[GameType]):
     Can be passed to another thread to be awaited.
     """
 
-    agent_descriptors: list[AgentDescriptor]
+    agent_descriptors: list[AgentDescriptor[Any]]
     agent_promises: list[Any]
     game: GameType
 
@@ -62,7 +63,7 @@ class GameDescriptor(Generic[GameType]):
     def __init__(
         self,
         GameType: Type[GameType],
-        agents_descriptors: list[AgentDescriptor],
+        agents_descriptors: list[AgentDescriptor[Any]],
         *game_args,
         **game_kwargs,
     ):
