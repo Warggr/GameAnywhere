@@ -1,5 +1,4 @@
 import asyncio
-import json
 from itertools import chain
 from typing import TYPE_CHECKING, Generic, Iterable, TypeVar
 
@@ -30,10 +29,12 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
             return request.query["username"] + " (Guest)"
 
     def __init__(self, server: ServerType, greeter_message="Welcome to the room!"):
+        """
+        Args:
+            greeter_message: The message that will be sent to every new spectator
+        """
         self.server = server
-        self.greeter_message = (
-            greeter_message  # The message that will be sent to every new spectator
-        )
+        self.greeter_message = greeter_message
         self.spectators: list[Spectator] = []
         self.sessions: dict[SeatId, Session] = {}
         self.session_id_to_username: dict[SeatId, Username] = {}
@@ -89,20 +90,16 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
         else:
             self.spectators.remove(spectator)
             self.server.log_event(
-                json.dumps(
-                    [
-                        {
-                            "op": "replace",
-                            "key": f"/{self.room_id}/spectators",
-                            "value": len(self.spectators),
-                        }
-                    ]
-                )
+                {
+                    "op": "replace",
+                    "key": f"/{self.room_id}/spectators",
+                    "value": len(self.spectators),
+                }
             )
 
     def send(self, message: str) -> None:
         for spectator in self.get_spectators_and_sessions():
-            spectator.send(message)
+            spectator.send_sync(message)
 
     def get_spectators_and_sessions(self) -> Iterable[Spectator]:
         return chain(self.sessions.values(), self.spectators)

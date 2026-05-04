@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from typing import (
         Callable,
         Iterable,
-        Iterator,
+        Mapping,
         Optional,
     )
 
@@ -76,14 +76,16 @@ class CheckerBoard(Board, Generic[T]):
 
     # Component interface methods
 
-    def get_slots(self) -> Iterator[tuple[str, "CheckerBoard.Field"]]:
+    def get_slots(self) -> Mapping[str, "CheckerBoard.Field"]:
+        result = {}
         for i in range(self.height):
             for j in range(self.width):
-                yield self._coords_to_field_id((i, j)), self.board[i][j]
+                result[self._coords_to_field_id((i, j))] = self.board[i][j]
+        return result
 
-    def _iter_fields(
+    def _iter_coords(
         self, trans_height: int, trans_width: int, turn: float = 0
-    ) -> Iterable["CheckerBoard.Field"]:
+    ) -> Iterable[tuple[str, "CheckerBoard.Field"]]:
         reverse_transforms = {
             0: lambda i, j: (i, j),
             90: lambda i, j: (j, self.height - i - 1),
@@ -94,7 +96,7 @@ class CheckerBoard(Board, Generic[T]):
         for it in range(trans_height):
             for jt in range(trans_width):
                 i, j = rev_transform(it, jt)
-                yield self.board[i][j]
+                yield self._coords_to_field_id((i, j)), self.board[i][j]
 
     def html(self, viewer_id=None, *, turn: float = 0) -> Html:
         if turn % 180 == 0:
@@ -107,14 +109,23 @@ class CheckerBoard(Board, Generic[T]):
             )
         return Html(
             tag.div(
-                *(field.html() for field in self._iter_fields(height, width, turn)),
+                *(field.html() for _, field in self._iter_coords(height, width, turn)),
                 **{
                     "class": "checkerboard",
                     "style": f"grid-template-rows: repeat({width}, 1fr); grid-template-columns: repeat({height}, 1fr)",
                 },
             ),
             tag.style(
-                ".checkerboard{display:grid;width:100%;height:100%;gap:10px;}"
-                + " .checkerboard div{background-color:white;color:black;border:2px solid;aspect-ratio:1;}"
+                ".checkerboard{display:grid;gap:5px;}"
+                + ".checkerboard div{"
+                + "background-color:white;"
+                + "color:black;"
+                + "border:2px solid;"
+                + "aspect-ratio:1;"
+                + "border-radius:0pt;"
+                + "box-shadow:none;"
+                + "box-sizing:revert;"
+                + "padding:0pt;"
+                + "}"
             ),
         )

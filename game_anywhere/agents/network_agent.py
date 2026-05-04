@@ -141,7 +141,7 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
     class Descriptor(AgentDescriptor):
         def start_initialization(self, agent_descriptor_number: int, context: Context):
             if "server_room" not in context:
-                if Server._instance is None:
+                if "server" not in context:
                     asset_dirs = {}
                     asset_dir = context["game"].get_asset_dir()
                     if asset_dir is not None:
@@ -185,7 +185,7 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
     # override
     def update(self, diffs: list[Any]):
         def serialize_diff(diff: dict):
-            if diff["op"] in ["add", "update"]:
+            if diff["op"] in ["add", "update", "replace"]:
                 diff = diff.copy()
                 diff["value"] = str(diff["value"])
             return diff

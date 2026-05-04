@@ -66,7 +66,7 @@ class Game(PropertySlotMixin):
     @classmethod
     def parse_config(cls, config: list[str] | None) -> tuple[int, dict[str, Any]]:
         """Override this to accept configuration options"""
-        if len(config) == 0 or config is None:
+        if config is None or len(config) == 0:
             return 2, {}
         else:
             raise NotImplementedError(

@@ -74,9 +74,7 @@ class Hanabi(TurnBasedGame):
         cards_played: int
 
         def get_winner(self) -> AgentId:
-            raise NotImplementedError(
-                "There is no winner in Hanabi. It's a cooperative game."
-            )
+            return GameSummary.NO_WINNER
 
     nb_lives = ComponentSlotProperty[int]()
     nb_hints = ComponentSlotProperty[int](
@@ -103,8 +101,8 @@ class Hanabi(TurnBasedGame):
     def get_asset_dir(cls) -> Path:
         return files("game_anywhere_examples.hanabi") / "assets"
 
-    def __init__(self, agent_descriptions):
-        super().__init__(agent_descriptions=agent_descriptions)
+    def __init__(self, agent_descriptions, *args, **kwargs):
+        super().__init__(*args, agent_descriptions=agent_descriptions, **kwargs)
         self.deck = Deck(default_hanabi_deck(), shuffled=True)
         self.nb_hints = self.MAX_HINTS
         self.nb_lives = 3
@@ -157,12 +155,11 @@ class Hanabi(TurnBasedGame):
             self.players[self.get_current_agent_index()].cards.extend(self.deck.draw())
         elif choice == "Cycle card":
             card_slot = self.get_current_agent().choose_one_component_slot(
-                [
-                    slot
-                    for _, slot in self.players[
-                        self.get_current_agent_index()
-                    ].cards.get_slots()
-                ]
+                list(
+                    self.players[self.get_current_agent_index()]
+                    .cards.get_slots()
+                    .values()
+                )
             )
             card = card_slot.take()
             self.discard_pile.append(card)
