@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from itertools import count
 from typing import TYPE_CHECKING, Any, Generic, Mapping, Optional, Type, TypeVar
 
 from game_anywhere.ui.ui import Html, HtmlElement, tag
 
 from .utils import html as to_html
+from .utils import merge_classes
 
 if TYPE_CHECKING:
     from game_anywhere.agents.descriptors import AgentDescriptor
@@ -15,6 +15,14 @@ if TYPE_CHECKING:
     from .containers import List
 
 ComponentId = str
+
+
+def _display_slot_name(slot_name: str) -> str:
+    if slot_name.startswith("_"):
+        slot_name = slot_name.removeprefix("_")
+    if slot_name.startswith("@["):
+        return slot_name
+    return slot_name.replace("_", " ").strip().title()
 
 
 class ComponentOrGame(ABC):
@@ -73,12 +81,29 @@ class ComponentOrGame(ABC):
         ...
 
     def html(self, viewer_id=None) -> Any:
-        result = Html()
+        fields = []
         for slotname, slot in self.get_slots().items():
             slot_html = slot.html(viewer_id=viewer_id)
-            label = tag.label(slotname, **{"for": slot_html.attrs["id"]})
-            result += label + slot_html
-        return result
+            fields.append(
+                tag.section(
+                    tag.label(
+                        _display_slot_name(slotname),
+                        **{
+                            "class": "ga-field-label",
+                        },
+                    ),
+                    tag.div(slot_html, **{"class": "ga-field-value"}),
+                    **{"class": "ga-field"},
+                )
+            )
+
+        return tag.section(
+            *fields,
+            **{
+                "class": "ga-component",
+                "data-component": type(self).__name__,
+            },
+        )
 
 
 class PropertySlotMixin(ComponentOrGame):
@@ -218,16 +243,25 @@ class WeakComponentSlot(Generic[T]):
             viewer_id
         )
 
-    def html(self, viewer_id=None, force_reveal=False) -> HtmlElement:
+    def html(
+        self,
+        viewer_id=None,
+        force_reveal=False,
+    ) -> HtmlElement:
         is_visible = self.can_be_seen_by(viewer_id) or force_reveal
         if self.display_as is None:
             html = to_html(self._content, viewer_id=viewer_id, visible=is_visible)
-            html = Html(html).wrap_to_one_element()
+            html = html.wrap_to_one_element()
+            html.attrs["class"] = merge_classes(
+                html.attrs.get("class"),
+                "ga-slot",
+                "ga-slot--visible" if is_visible else "ga-slot--hidden",
+            )
         else:
             html = self.display_as(
                 self._content, viewer_id=viewer_id, visible=is_visible
             )
-        html.attrs["id"] = self.get_address()
+        html.attrs["data-key"] = self.id
         return html
 
     def __str__(self):
@@ -250,26 +284,12 @@ class ComponentSlot(WeakComponentSlot):
 
 
 class ComponentSlotProperty(Generic[T]):
-    _next_id = count()
-    components: dict[ComponentId, "ComponentSlotProperty"] = {}
-
     def __init__(
         self,
-        id_: Optional[ComponentId] = None,
         slotType: type[WeakComponentSlot] = ComponentSlot,
         *args,
         **kwargs,
     ):
-        if id_ is None:
-            while (
-                id_ := hex(next(ComponentSlotProperty._next_id))[2:]
-            ) in ComponentSlotProperty.components:
-                pass
-        else:
-            assert id_ not in ComponentSlotProperty.components
-        self.id = id_
-        ComponentSlotProperty.components[id_] = self
-
         self.SlotType = slotType
         self.args = args
         self.kwargs = kwargs
@@ -278,11 +298,11 @@ class ComponentSlotProperty(Generic[T]):
         assert issubclass(owner, PropertySlotMixin), (
             "The ComponentSlotProperty short-hand only works on PropertySlotMixin"
         )
-        self.private_name = "_" + name
+        self.private_name = name
 
     def __get__(self, obj: PropertySlotMixin, objtype=None) -> T:
         if self.private_name not in obj.slots:
-            slot = self.SlotType(self.id, obj, *self.args, **self.kwargs)
+            slot = self.SlotType(self.private_name, obj, *self.args, **self.kwargs)
             obj.add_slot(self.private_name, slot)
         return obj.slots[self.private_name].get()
 
@@ -295,7 +315,7 @@ class ComponentSlotProperty(Generic[T]):
                 and obj.slot is not None
             ):
                 kwargs["owner_id"] = obj.slot.owner_id
-            slot = self.SlotType(self.id, obj, *self.args, **kwargs)
+            slot = self.SlotType(self.private_name, obj, *self.args, **kwargs)
             obj.add_slot(self.private_name, slot)
             slot.set(value)  # First set and register the slot, then fill it.
             # Otherwise, it will log its update as soon as it is filled, and the clients will get confused
@@ -317,9 +337,25 @@ class PerPlayerComponent(Component):
     def html(self, viewer_id=None) -> Html:
         html = super().html(viewer_id)
         owner = self.owner.name or "(not connected)"
+        badge = None
         if self.owner_id == viewer_id:
-            owner += " (you)"
-        return tag.h2(owner) + html
+            badge = tag.span("You", **{"class": "ga-player-badge"})
+        return tag.section(
+            tag.div(
+                tag.div(owner, **{"class": "ga-player-name"}),
+                badge if badge is not None else "",
+                **{"class": "ga-player-header"},
+            ),
+            tag.div(html, **{"class": "ga-player-body"}),
+            **{
+                "class": merge_classes(
+                    "ga-player-panel",
+                    "ga-player-panel--self"
+                    if self.owner_id == viewer_id
+                    else "ga-player-panel--other",
+                )
+            },
+        )
 
     def get_owner(self) -> "Agent":
         return self.get_game().agents[self.owner_id - 1]
@@ -345,12 +381,10 @@ class PerPlayer(
 
     def __init__(
         self,
-        componentClass: type[PerPlayerComponent] | None = None,
+        componentClass: type[PerPlayerComponentType] | None = None,
         /,
-        id_: Optional[ComponentId] = None,
         **kwargs,
     ):
-        super().__init__(id_)
         if componentClass is None:
             componentClass = type.__new__(
                 type,
@@ -384,7 +418,7 @@ class PerPlayer(
                 game.agent_ids, for_all_players.slots, strict=True
             ):
                 slot.set_owner_id(agent_id)
-            slot = ComponentSlot(self.id, obj)
+            slot = ComponentSlot(self.private_name, obj)
             obj.add_slot(self.private_name, slot)
             # Fill the slot only after it is registered. See ComponentSlotProperty for explanation
             slot.set(for_all_players)

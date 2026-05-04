@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable
 
 from ..components.component import ComponentOrGame, PropertySlotMixin, WeakComponentSlot
-from ..ui import tag
 from .agent import Agent
 
 if TYPE_CHECKING:
@@ -92,6 +91,11 @@ class Game(PropertySlotMixin):
     def get_slot_address(self):
         return ""
 
+    def lookup_slot_address(self, address: str) -> "WeakComponentSlot":
+        assert address.startswith("/")
+        address = address.removeprefix("/")
+        return super().lookup_slot_address(address)
+
     # override
     def can_be_seen_by_recursive(self, viewer_id) -> bool:
         """The Game can be seen by everybody."""
@@ -102,18 +106,29 @@ class Game(PropertySlotMixin):
             agent.message(*args, **kwargs)
 
     def log_new_slot(self, obj: ComponentOrGame, slot: WeakComponentSlot):
+        """
+        Args:
+            obj: The object which has a new slot.
+            slot_relative_address: The new slot's key.
+            slot: The new slot's value.
+        """
         if self.agents[0] is None:
             return  # Return early if the agents are not initialized yet
         for agent_id, agent in zip(self.agent_ids, self.agents, strict=True):
             if obj.can_be_seen_by_recursive(agent_id):
                 update = {
                     "op": "add",
-                    "key": slot.parent.get_slot_address(),
-                    "value": tag.div(id=slot.get_address()),
+                    "key": slot.get_address(),
+                    "value": slot.html(viewer_id=agent_id),
                 }
                 agent.update([update])
 
     def log_delete_slot(self, obj: ComponentOrGame, slot_relative_address: str):
+        """
+        Args:
+            obj: The object which has one fewer slot.
+            slot_relative_address: The key of the slot that's deleted.
+        """
         if self.agents[0] is None:
             return
         for agent_id, agent in zip(self.agent_ids, self.agents, strict=True):
@@ -140,16 +155,17 @@ class Game(PropertySlotMixin):
         if self.agents[0] is None:
             return  # Return early if the agents are not initialized yet
         for agent_id, agent in agents:
-            if force_reveal or slot.can_be_seen_by_recursive(agent_id):
-                agent.update(
-                    [
-                        {
-                            "op": "replace",
-                            "key": address,
-                            "value": slot.html(viewer_id=agent_id, force_reveal=True),
-                        }
-                    ]
-                )
+            agent.update(
+                [
+                    {
+                        "op": "replace",
+                        "key": address,
+                        "value": slot.html(
+                            viewer_id=agent_id, force_reveal=force_reveal
+                        ),
+                    }
+                ]
+            )
 
     def set_agents(self, agents: list[Agent]):
         self.agents = agents

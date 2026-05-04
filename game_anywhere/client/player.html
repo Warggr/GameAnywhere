@@ -86,6 +86,34 @@
                 document.head.appendChild(link);
             }
 
+            function getLogicalParent(element) {
+                let p = element.parentElement;
+                while (p !== null && !p.hasAttribute("data-key")) {
+                    if (p.id === "screen") return null;
+                    p = p.parentElement;
+                }
+                return p;
+            }
+
+            function lookupSlot(address) {
+                let iter = screen.getElementById("screen");
+                let slot = null;
+                console.assert(address.startsWith("/"));
+                address = address.slice(1);
+                for (let segment of address.split("/")) {
+                    slot = Array.from(
+                        iter.querySelectorAll(`[data-key="${segment}"]`),
+                    ).find((el) => getLogicalParent(el) === slot);
+                    console.assert(slot.classList.contains("ga-slot"));
+                    iter = slot.firstChild;
+                }
+                return slot;
+            }
+            function lookupComponent(address) {
+                let slot = lookupSlot(address);
+                return slot.firstChild;
+            }
+
             const connectToServer = (serverAddress) => {
                 const teamNr =
                     document.getElementById("playerId").value || "watch";
@@ -145,11 +173,17 @@
                             controlPanel.appendChild(banner);
                         }
                         if (data.slots) {
-                            let slots = data.slots.map((id) =>
-                                document.getElementById(id),
-                            );
+                            let slots = data.slots.map((id) => {
+                                let e = lookupSlot(id);
+                                e.setAttribute("data-chosen", id);
+                                return e;
+                            });
                             let eventListener = (event) => {
-                                endChoices(event.currentTarget.id);
+                                endChoices(
+                                    event.currentTarget.getAttribute(
+                                        "data-chosen",
+                                    ),
+                                );
                             };
                             let endChoices = (chosenComponent) => {
                                 slots.forEach((c) => {
@@ -158,6 +192,7 @@
                                         eventListener,
                                     );
                                     c.classList.remove("clickable");
+                                    c.removeAttribute("data-chosen");
                                 });
                                 controlPanel.innerHTML = "";
                                 controlPanel.hidden = true;
@@ -254,7 +289,6 @@
                                 let DOMConstructionSite =
                                     document.createElement("div");
                                 DOMConstructionSite.innerHTML = diff.value;
-                                console.warn(DOMConstructionSite);
                                 let realElems = [];
                                 for (const elem of DOMConstructionSite.children) {
                                     if (elem.nodeName == "script") {
@@ -272,12 +306,10 @@
                                     realElems.length == 1,
                                     realElems,
                                 );
-                                screen
-                                    .getElementById(diff.key)
-                                    .replaceWith(realElems[0]);
+                                lookupSlot(diff.key).replaceWith(realElems[0]);
                             } else if (diff.op == "add") {
                                 if (diff.key.slice(-5) == "/hint") {
-                                    const hinted = screen.getElementById(
+                                    const hinted = lookupComponent(
                                         diff.key.slice(0, -5),
                                     );
                                     let hint = [...hinted.childNodes].find(
@@ -297,18 +329,35 @@
                                     let DOMConstructionSite =
                                         document.createElement("div");
                                     DOMConstructionSite.innerHTML = diff.value; // TODO: find a more elegant way of parsing HTML
+                                    diff.key = diff.key
+                                        .split("/")
+                                        .slice(0, -1)
+                                        .join("/");
                                     let appendSite =
                                         diff.key === ""
                                             ? screen.getElementById("screen")
-                                            : screen.getElementById(diff.key);
+                                            : lookupComponent(diff.key);
                                     appendSite.append(
                                         DOMConstructionSite.firstChild,
                                     );
                                 }
                             } else if (diff.op == "remove") {
-                                let child = screen.getElementById(diff.key);
-                                let parent = child.parentNode;
-                                parent.removeChild(child);
+                                let key = diff.key.split("/");
+                                let child_num = key.pop();
+                                let parent_component = lookupComponent(
+                                    key.join("/"),
+                                );
+                                let child = parent_component.querySelector(
+                                    `[data-key="${child_num}"]`,
+                                );
+                                if (parent_component.nodeName == "UL") {
+                                    // For lists, remove both the slot and the component
+                                    // TODO: also for dicts?
+                                    child.remove();
+                                } else {
+                                    // Otherwise, make the slot empty
+                                    child.innerText = "";
+                                }
                             } else {
                                 console.warn("Unrecognized diff: " + diff);
                             }

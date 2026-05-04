@@ -1,8 +1,6 @@
 from html import escape
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from game_anywhere.ui import Html
+from game_anywhere.ui import Html
 
 
 def html(obj, *args, visible: bool = True, **kwargs) -> "Html":
@@ -23,4 +21,8 @@ def html(obj, *args, visible: bool = True, **kwargs) -> "Html":
                 html = obj.HIDDEN_HTML
             except AttributeError:
                 html = "Masked " + escape(str(type(obj)))
-    return html
+    return Html(html)
+
+
+def merge_classes(*class_names: str | None) -> str:
+    return " ".join(class_name for class_name in class_names if class_name)

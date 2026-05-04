@@ -1,15 +1,16 @@
-from typing import (
-    Callable,
-    Generic,
-    Iterable,
-    Iterator,
-    Optional,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from game_anywhere.ui import Html, tag
 
 from .component import Component, ComponentSlot
+
+if TYPE_CHECKING:
+    from typing import (
+        Callable,
+        Iterable,
+        Iterator,
+        Optional,
+    )
 
 
 class Board(Component):
