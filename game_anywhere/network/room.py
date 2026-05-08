@@ -22,11 +22,8 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
         pass
 
     @staticmethod
-    def get_request_username(request: web.Request) -> str:
-        try:
-            return request.cookies["username"]
-        except KeyError:
-            return request.query["username"] + " (Guest)"
+    def get_request_username(request: web.Request) -> str | None:
+        return request.cookies.get("username", None)
 
     def __init__(self, server: ServerType, greeter_message="Welcome to the room!"):
         """
@@ -37,7 +34,7 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
         self.greeter_message = greeter_message
         self.spectators: list[Spectator] = []
         self.sessions: dict[SeatId, Session] = {}
-        self.session_id_to_username: dict[SeatId, Username] = {}
+        self.reserved_sessions: dict[SeatId, Username] = {}
 
     def __del__(self):
         # as part of their closing, all sessions should have set themselves to FREE and all spectators should have deleted themselves
@@ -137,19 +134,26 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
         except (KeyError, ValueError) as err:
             raise web.HTTPNotFound(text="No such session expected") from err
 
-        if session_id in self.session_id_to_username:
-            if (
-                self.get_request_username(request)
-                != self.session_id_to_username[session_id]
-            ):
-                raise web.HTTPForbidden(text="Session already taken")
-        else:
-            self.session_id_to_username[session_id] = self.get_request_username(request)
+        new_name_or_none = self.get_request_username(request)
+        match (
+            new_name_or_none,
+            self.reserved_sessions.get(session_id),
+        ):
+            case (None, None):
+                pass
+            case (new_name, None):
+                self.reserved_sessions[session_id] = new_name
+            case (new_name_or_none, old_name):
+                if new_name_or_none != old_name:
+                    raise web.HTTPForbidden(text="Session already taken")
 
         # this is done on the network thread, which is single-threaded.
         # There can be no race condition between reading session.state and claiming the session
         if session.state != Session.State.FREE:
             raise web.HTTPNotFound(text="Session already taken")
+        username = request.query.get("username", None) or new_name_or_none
+        if username is not None:
+            session.username = username
         return await self.nt_handle_websocket(request, session)
 
     async def nt_handle_websocket(self, request: web.Request, spectator: Spectator):

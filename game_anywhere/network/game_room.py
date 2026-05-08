@@ -47,7 +47,7 @@ class BaseGameRoom(ServerRoom["HttpControlledServer"]):
 
     async def http_get_html_view(self, request: web.Request) -> web.Response:
         try:
-            username = self.get_request_username(request)
+            username = self.get_request_username(request) or request.query["username"]
             session_id = request.query["seat"]
         except KeyError as err:
             raise web.HTTPUnauthorized(
@@ -60,10 +60,10 @@ class BaseGameRoom(ServerRoom["HttpControlledServer"]):
                 session_id = int(session_id)
             except ValueError as err:
                 raise web.HTTPBadRequest(text="Session is not an integer") from err
-            if (
-                session_id in self.sessions
-                and self.sessions[session_id].username != username
-            ):
+            if session_id not in self.sessions:
+                raise web.HTTPUnauthorized(text=f"Session {session_id} not found")
+
+            if self.sessions[session_id].username != username:
                 raise web.HTTPForbidden(text="Session not owned by authenticated user")
             html = self.game.get_html_for_agent_ref(self.sessions[session_id])
         return web.Response(body=str(html), content_type="text/html")

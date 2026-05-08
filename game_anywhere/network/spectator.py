@@ -215,14 +215,14 @@ class Session(Spectator):
     class TimeoutException(Exception):
         pass
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.username: str | None = None  # set by the server when someone connects
+
     @property
     def seat_id(self) -> int:
         ((seat_id, _this),) = filter(lambda i: i[1] is self, self.room.sessions.items())
         return seat_id
-
-    @property
-    def username(self) -> str:
-        return self.room.session_id_to_username[self.seat_id]
 
     @Spectator.state.setter
     def state(self, value: "Spectator.State"):

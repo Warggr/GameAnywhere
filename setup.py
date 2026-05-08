@@ -7,4 +7,9 @@ from setuptools import setup
 
 local_path: str = (Path(__file__).parent / "examples").as_uri()
 
-setup(extras_require={"examples": f"game-anywhere-examples @ {local_path}"})
+setup(
+    extras_require={
+        "examples": f"game-anywhere-examples @ {local_path}",
+        "testing": ["pytest", "pytest-asyncio", "pytest-aiohttp"],
+    }
+)
