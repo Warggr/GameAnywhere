@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import abstractmethod
 from collections import Counter
 from enum import Enum, auto, unique
@@ -9,11 +11,11 @@ from game_anywhere.agents.chat import Chat
 from game_anywhere.components import Component, ComponentSlotProperty
 from game_anywhere.components.component import PerPlayer, PerPlayerComponent, Pointer
 from game_anywhere.core import Game, GameSummary
-from game_anywhere.core.agent import AgentId
 from game_anywhere.ui import tag
 
 if TYPE_CHECKING:
     from game_anywhere.components import ComponentSlot
+    from game_anywhere.core import AgentId
 
 T = TypeVar("T")
 

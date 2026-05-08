@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from contextlib import AbstractContextManager
 from threading import Semaphore, Thread
