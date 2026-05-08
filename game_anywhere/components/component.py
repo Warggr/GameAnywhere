@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, Mapping, Optional, Type, TypeVar
 
@@ -8,8 +10,7 @@ from .utils import merge_classes
 
 if TYPE_CHECKING:
     from game_anywhere.agents.descriptors import AgentDescriptor
-    from game_anywhere.core import Agent, Game
-    from game_anywhere.core.agent import AgentId
+    from game_anywhere.core import Agent, AgentId, Game
     from game_anywhere.ui.display_styles import DisplayStyle
 
     from .containers import List
