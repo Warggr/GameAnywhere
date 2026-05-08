@@ -1,0 +1,15 @@
+aiohappyeyeballs==2.6.1
+aiohttp==3.13.5
+aiohttp-sse==2.2.0
+aiosignal==1.4.0
+attrs==26.1.0
+frozenlist==1.8.0
+idna==3.13
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+multidict==6.7.1
+propcache==0.4.1
+referencing==0.37.0
+rpds-py==0.30.0
+websockets==16.0
+yarl==1.23.0
