@@ -97,9 +97,15 @@ class GameRoom(BaseGameRoom):
     async def nt_close(self, summary: "GameSummary | None" = None):
         # print("nt_closing GameRoom…")
         # first close the spectators
+        players = {
+            agent_id: agent.name
+            for agent_id, agent in zip(
+                self.game.agent_ids, self.game.agents, strict=True
+            )
+        }
         metadata = GameMetadata(
             game=type(self.game),
-            players=self.session_id_to_username,
+            players=players,
             started=self.started,
             ended=datetime.now(),
             summary=summary,

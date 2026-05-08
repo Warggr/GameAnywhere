@@ -185,25 +185,43 @@
                                     room[1].spectators + " spectators",
                                 ),
                                 e(
-                                    "div",
+                                    "table",
                                     { key: "div" },
-                                    Object.entries(room[1].seats).map((seat) =>
-                                        e(
-                                            "span",
-                                            { key: seat[0] },
-                                            seat[1] == "State.FREE"
-                                                ? e(
-                                                      "a",
-                                                      {
-                                                          href: `player.html?room=${
-                                                              room[0]
-                                                          }&seat=${Number(
-                                                              seat[0],
-                                                          )}`,
-                                                      },
-                                                      "Join",
-                                                  )
-                                                : e("p", {}, seat[1]),
+                                    e(
+                                        "tbody",
+                                        {},
+                                        Object.entries(room[1].seats).map(
+                                            (seat) =>
+                                                e(
+                                                    "tr",
+                                                    { key: seat[0] },
+                                                    e(
+                                                        "td",
+                                                        { key: "name" },
+                                                        seat[1].username,
+                                                    ),
+                                                    e(
+                                                        "td",
+                                                        { key: "state" },
+                                                        seat[1].state == "FREE"
+                                                            ? e(
+                                                                  "a",
+                                                                  {
+                                                                      href: `player.html?room=${
+                                                                          room[0]
+                                                                      }&seat=${Number(
+                                                                          seat[0],
+                                                                      )}`,
+                                                                  },
+                                                                  "Join",
+                                                              )
+                                                            : e(
+                                                                  "span",
+                                                                  {},
+                                                                  seat[1].state,
+                                                              ),
+                                                    ),
+                                                ),
                                         ),
                                     ),
                                 ),
@@ -335,9 +353,9 @@
                         if (key[0] == "r") {
                             let room_id = Number.parseInt(key[1]);
                             if (key[2] == "seats") {
-                                console.assert(key.length == 4);
+                                console.assert(key.length == 5);
                                 let seat_id = Number.parseInt(key[3]);
-                                knownRooms[room_id].seats[seat_id] =
+                                knownRooms[room_id].seats[seat_id][key[4]] =
                                     update.value;
                             } else if (key[2] == "spectators") {
                                 console.assert(key.length == 3);

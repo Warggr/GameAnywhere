@@ -230,8 +230,8 @@ class Session(Spectator):
         self.room.server.log_event(
             {
                 "op": "replace",
-                "key": f"/r/{self.room.room_id}/seats/{self.seat_id}",
-                "value": str(value),
+                "key": f"/r/{self.room.room_id}/seats/{self.seat_id}/state",
+                "value": value.name,
             }
         )
 

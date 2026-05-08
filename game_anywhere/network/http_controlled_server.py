@@ -22,7 +22,10 @@ if TYPE_CHECKING:
 def json_encode_server_room(room: "ServerRoom") -> dict:
     return {
         "spectators": len(room.spectators),
-        "seats": {key: str(value.state) for key, value in room.sessions.items()},
+        "seats": {
+            key: {"username": value.username, "state": value.state.name}
+            for key, value in room.sessions.items()
+        },
     }
 
 

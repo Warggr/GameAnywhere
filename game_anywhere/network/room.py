@@ -154,6 +154,13 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
         username = request.query.get("username", None) or new_name_or_none
         if username is not None:
             session.username = username
+            self.server.log_event(
+                {
+                    "op": "replace",
+                    "key": f"/r/{self.room_id}/seats/{session_id}/username",
+                    "value": username,
+                }
+            )
         return await self.nt_handle_websocket(request, session)
 
     async def nt_handle_websocket(self, request: web.Request, spectator: Spectator):
