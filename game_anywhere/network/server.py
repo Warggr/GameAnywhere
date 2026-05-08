@@ -1,6 +1,5 @@
 import asyncio
 from contextlib import AbstractContextManager
-from functools import wraps
 from threading import Semaphore, Thread
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -16,32 +15,6 @@ if TYPE_CHECKING:
     from .http_controlled_server import ServerEvent
 
 
-def Singleton(cls):
-    cls._instance = None
-
-    def get_instance(cls, *args, **kwargs):
-        """warning: no guarantee that the returned instance will actually have been created with the given args"""
-        if cls._instance is None:
-            cls._instance = cls(*args, **kwargs)
-        return cls._instance
-
-    cls.get_instance = get_instance
-
-    old__new__ = cls.__new__
-
-    @wraps(cls.__new__)
-    def _wrapper(cls, *args, **kwargs):
-        assert cls._instance is None, (
-            "An instance already exists. Please use get_instance"
-        )
-        cls._instance = old__new__(cls)  # object.__new__ takes no *args
-        # the default __new__ takes care of removing those
-        return cls._instance
-
-    cls.__new__ = _wrapper
-    return cls
-
-
 RoomId = int
 
 """
@@ -51,7 +24,6 @@ all functions that are intended to be called on the network thread start with nt
 """
 
 
-@Singleton
 class Server(AbstractContextManager, AsyncResource):
     def __init__(
         self,

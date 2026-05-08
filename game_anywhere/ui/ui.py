@@ -65,25 +65,8 @@ class HtmlElement(Html):
 
 
 class HtmlElementMeta(type):
-    _tags: dict[str, type["HtmlElement"]] = {}
-
-    @staticmethod
-    def _wrap_init(init, tag_name):
-        @functools.wraps(init)
-        def _new_init(self, *args, **kwargs):
-            init(self, *args, tag_name=tag_name, **kwargs)
-
-        return _new_init
-
     def __getattr__(cls, attrname) -> type[HtmlElement]:
-        try:
-            return HtmlElementMeta._tags[attrname]
-        except KeyError:
-            tag_class = type.__new__(type, attrname, (HtmlElement,), {})
-            tag_class.__init__ = HtmlElementMeta._wrap_init(
-                tag_class.__init__, tag_name=attrname
-            )
-            return tag_class
+        return functools.partial(HtmlElement, tag_name=attrname)
 
 
 class tag(metaclass=HtmlElementMeta):
