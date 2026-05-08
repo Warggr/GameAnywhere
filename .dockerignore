@@ -5,5 +5,7 @@ build/
 #IDEs
 .idea/
 venv/
+.venv/
 
 Dockerfile
+fly.toml
