@@ -1,3 +1,0 @@
-[submodule "client/wizard"]
-	path = game_anywhere/client/wizard
-	url = https://github.com/warggr/json-grammar-wizard
