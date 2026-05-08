@@ -1,10 +1,10 @@
-# fly.toml app configuration file generated for gameanywhere on 2026-05-08T20:34:14Z
+# fly.toml app configuration file generated for gameanywhere on 2026-05-08T22:22:38Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
 app = 'gameanywhere'
-primary_region = 'cdg'
+primary_region = 'fra'
 
 [build]
   builder = 'paketobuildpacks/builder:base'
