@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum, auto, unique
 from importlib.resources import files
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Union
 
 from game_anywhere.components import (
     ComponentSlot,
@@ -90,12 +90,9 @@ class Hanabi(TurnBasedGame):
     discard_pile = ComponentSlotProperty[DiscardPile[HanabiCard]]()
     MAX_HINTS = 8
 
-    @classmethod
-    def parse_config(cls, config: list[str] | None) -> tuple[int, dict[str, Any]]:
-        assert config is not None and len(config) == 1, (
-            f"Expected [number_of_players], got {config}"
-        )
-        return int(config[0]), {}
+    CONFIG_SCHEMA = {
+        "properties": {"_num_players": {"type": "integer", "minimum": 3, "maximum": 6}}
+    }
 
     @classmethod
     def get_asset_dir(cls) -> Path:

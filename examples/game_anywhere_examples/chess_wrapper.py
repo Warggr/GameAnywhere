@@ -108,24 +108,16 @@ class Chess(TurnBasedGame):
         self.board = ChessBoard(chess.Board(), self.agents_to_colors)
         self.captured = List[ChessPiece]([])
 
-    @classmethod
-    def parse_config(cls, config: list[str] | None) -> tuple[int, dict]:
-        if config is None or len(config) == 0:
-            shuffle = False
-        else:
-            try:
-                (shuffle,) = config
-                shuffle = {
-                    "shuffle": True,
-                    "true": True,
-                    "no-shuffle": False,
-                    "false": False,
-                }[shuffle.lower()]
-            except (KeyError, ValueError) as err:
-                raise ValueError(
-                    "Chess only takes one parameter: shuffle (or true, no-shuffle, false)"
-                ) from err
-        return 2, {"shuffle_colors": shuffle}
+    CONFIG_SCHEMA = {
+        "properties": {
+            "_num_players": {"const": 2},
+            "shuffle_colors": {
+                "type": "boolean",
+                "default": True,
+                "help": "Randomly choose which player plays white.",
+            },
+        },
+    }
 
     def apply_move(self, move: Move):
         is_castling = self.board.impl.is_castling(move)

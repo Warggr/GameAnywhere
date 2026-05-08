@@ -40,14 +40,11 @@ class PlayerBoard(PerPlayerComponent):
 class Skull(TurnBasedGame):
     players = PerPlayer(PlayerBoard)
 
-    @classmethod
-    def parse_config(cls, config: list[str] | None) -> tuple[int, dict]:
-        if config is None:
-            num_players = 2
-        else:
-            (num_players,) = config
-            num_players = int(num_players)
-        return num_players, {}
+    CONFIG_SCHEMA = {
+        "type": "object",
+        "properties": {"_num_players": {"type": "integer", "minimum": 3, "maximum": 6}},
+        "required": ["_num_players"],
+    }
 
     def __init__(self, agent_descriptions, *args, **kwargs):
         if not 3 <= len(agent_descriptions) <= 6:

@@ -1,9 +1,33 @@
 import argparse
 
-from game_anywhere.agents import agent_types, parse_agent_description
 from game_anywhere.agents.descriptors import GameDescriptor
 
 from .core.game import Game, GameSummary
+
+
+def PipeAgent(*args, **kwargs):
+    from game_anywhere.agents.local_agent import PipeAgent
+
+    return PipeAgent(*args, **kwargs)
+
+
+def HumanAgent(*args, **kwargs):
+    from game_anywhere.agents.local_agent import HumanAgent
+
+    return HumanAgent(*args, **kwargs)
+
+
+def NetworkAgent(*args, **kwargs):
+    from game_anywhere.agents.network_agent import NetworkAgent
+
+    return NetworkAgent(*args, **kwargs)
+
+
+agent_types = {
+    "network": NetworkAgent,
+    "human": HumanAgent,
+    "pipe": PipeAgent,
+}
 
 
 def run_game_from_cmdline(GameType: type[Game], *args, **kwargs) -> GameSummary:
@@ -20,7 +44,7 @@ def run_game_from_cmdline(GameType: type[Game], *args, **kwargs) -> GameSummary:
         parser.error(str(err))
 
     agent_descriptions = [
-        parse_agent_description(arg) for arg in cmdline_args.agent_types
+        agent_types[arg].Descriptor() for arg in cmdline_args.agent_types
     ]
 
     descriptor = GameDescriptor(

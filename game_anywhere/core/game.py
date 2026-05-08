@@ -63,15 +63,30 @@ class Game(PropertySlotMixin):
         self.agents: list[Agent] | list[None] = [None] * nb_agents
         self.agent_descriptions = agent_descriptions
 
+    CONFIG_SCHEMA = {
+        "properties": {
+            "_num_players": {"const": 2},
+        },
+    }
+
     @classmethod
-    def parse_config(cls, config: list[str] | None) -> tuple[int, dict[str, Any]]:
-        """Override this to accept configuration options"""
-        if config is None or len(config) == 0:
-            return 2, {}
-        else:
-            raise NotImplementedError(
-                f"{cls.__name__} does not accept configuration options"
-            )
+    def parse_config(cls, **kwargs) -> tuple[int, dict[str, Any]]:
+        """Override this for advanced configuration option management.
+        Args:
+            **kwargs: an object conforming to cls.CONFIG_SCHEMA.
+        Returns:
+            num_agents: the number of agents.
+        Raises:
+            jsonschema.ValidationError: if the object does not conform.
+            ValueError: if the object conforms, but is semantically invalid.
+        """
+        from jsonschema import validate
+
+        full_schema = cls.CONFIG_SCHEMA.copy()
+        full_schema["type"] = "object"
+        full_schema["properties"] = full_schema["properties"].copy()
+        validate(kwargs, schema=full_schema)
+        return kwargs.pop("_num_players"), kwargs
 
     @property
     def agent_ids(self) -> Iterable[AgentId]:

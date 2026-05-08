@@ -24,6 +24,8 @@
             integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
             crossorigin="anonymous"
         ></script>
+        <script src="wizard/wizard.js"></script>
+        <link href="wizard/wizard-robe.css" rel="stylesheet" />
         <script>
             "use strict";
             const e = React.createElement;
@@ -79,25 +81,17 @@
             <span id="connection-status"></span>
             <div id="status-rooms"></div>
             <button onclick="loadRooms()">Reload</button>
-            <form action="javascript:createNewRoom();">
-                <select id="gameType">
-                    <script>
-                        fetch("/room", { method: "OPTIONS" })
-                            .then((res) => res.json())
-                            .then((json) =>
-                                json.enum.forEach((val) => {
-                                    let optionDOM =
-                                        document.createElement("option");
-                                    optionDOM.name = val;
-                                    optionDOM.textContent = val;
-                                    document
-                                        .getElementById("gameType")
-                                        .appendChild(optionDOM);
-                                }),
-                            );
-                    </script>
-                </select>
-                <input type="text" name="game_args" />
+            <form action="/room" method="/post" onsubmit="createNewRoom(event)">
+                <script>
+                    console.log(document.currentScript);
+                    const form = document.currentScript.parentNode;
+                    fetch("/room", { method: "OPTIONS" })
+                        .then((res) => res.json())
+                        .then((json) => {
+                            let formContent = makeWord(json);
+                            form.insertBefore(formContent, form.childNodes[0]);
+                        });
+                </script>
                 <button type="submit">Start a new game</button>
             </form>
             <form method="get" action="player.html">
@@ -139,14 +133,12 @@
             if (username != null) {
                 toggleLogin(username);
             }
-            function createNewRoom() {
-                const gameType = document.getElementById("gameType").value;
-                const gameArgs =
-                    document.getElementById("gameType").nextElementSibling
-                        .value;
+            function createNewRoom(event) {
+                event.preventDefault();
+                const gameArgs = readWord(form.childNodes[0]);
                 fetch("/room", {
                     method: "POST",
-                    body: JSON.stringify({ game: gameType, args: gameArgs }),
+                    body: JSON.stringify(gameArgs),
                 })
                     .then(async (response) => {
                         if (response.status >= 400) {

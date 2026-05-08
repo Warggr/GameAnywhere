@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict
 from aiohttp import http, web
 from aiohttp_sse import sse_response
 
-from game_anywhere.agents.parse_descriptors import parse_game_descriptor
+from game_anywhere.agents.descriptors import GameDescriptor
+from game_anywhere.agents.network_agent import NetworkAgent
 from game_anywhere.ui.custom_components import get_registered_component
 
 from .game_room import GameRoom
@@ -89,10 +90,14 @@ class HttpControlledServer(Server):
         self.games: list["GameMetadata"] = []
 
     async def http_create_room(self, request: web.Request) -> web.Response:
-        default_description = {"agents": "network"}
+        body = await request.json()
         try:
-            game_description = parse_game_descriptor(
-                await request.json(), self.available_games, default_description
+            game_type = self.available_games[body.pop("_id")]
+            num_players, game_kwargs = game_type.parse_config(**body)
+            game_description = GameDescriptor(
+                game_type,
+                [NetworkAgent.Descriptor() for _ in range(num_players)],
+                **game_kwargs,
             )
             room_id, room = self.new_room(room=GameRoom(game_description, server=self))
         except Exception as ex:
@@ -127,9 +132,20 @@ class HttpControlledServer(Server):
         return channel
 
     def http_options_create_room(self, request: web.Request) -> web.Response:
-        return web.json_response(
-            {"enum": list(self.available_games.keys())}, headers={"Allow": "POST"}
-        )
+        defs = {}
+        for game_name, game in self.available_games.items():
+            schema = game.CONFIG_SCHEMA.copy()
+            schema["type"] = "object"
+            schema["properties"] = schema["properties"].copy()
+            schema["properties"]["_id"] = {"const": game_name}
+            schema["required"] = schema.get("required", []) + ["_id", "_num_players"]
+            defs[game_name] = schema
+        schema = {
+            "$id": "/schema",
+            "oneOf": [{"$ref": "#/$defs/" + val} for val in defs],
+            "$defs": defs,
+        }
+        return web.json_response(schema, headers={"Allow": "POST"})
 
     async def http_login(self, request: web.Request) -> web.Response:
         login_data = await request.json()

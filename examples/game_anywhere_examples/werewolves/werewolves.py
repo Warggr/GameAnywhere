@@ -108,11 +108,33 @@ class Werewolves(Game):
     players = PerPlayer(Player)
     mayor = ComponentSlotProperty(slotType=Pointer)
 
+    CONFIG_SCHEMA = {
+        "properties": {
+            "all_roles": {
+                "type": "array",
+                "items": {"enum": ...},  # filled out at the bottom of this script
+                "minItems": 6,
+            },
+            "_num_players": {"type": "integer", "minimum": 6},
+        }
+    }
+
     @classmethod
     def parse_config(
-        cls, config: list[str]
-    ) -> dict[Literal["all_roles"], list[type[Role]]]:
-        return {"all_roles": [Role.all[rolename] for rolename in config]}
+        cls, _num_players: int | None = None, all_roles: list[str] | None = None
+    ) -> tuple[int, dict]:
+        match _num_players, all_roles:
+            case None, None:
+                raise ValueError("One of _num_players or all_roles must be provided")
+            case _num_players, None:
+                all_roles = DEFAULT_ROLES[:_num_players]
+            case None, all_roles:
+                _num_players = len(all_roles)
+            case _num_players, all_roles:
+                assert len(all_roles) == _num_players
+        return _num_players, {
+            "all_roles": [Role.all[rolename] for rolename in all_roles]
+        }
 
     def __init__(self, agent_descriptions, all_roles: list[type[Role]]):
         super().__init__(agent_descriptions, nb_agents=len(all_roles))
@@ -345,6 +367,28 @@ class Witch(Role):
         super().__init__()
         self.has_healing_potion, self.has_poison = True, True
 
+
+DEFAULT_ROLES = [
+    "Werewolf",
+    "Werewolf",
+    "Seer",
+    "Witch",
+    "Villager",
+    "Villager",
+    "Villager",
+    "Villager",
+    "Cupid",
+    "Villager",
+    "Villager",
+    "Villager",
+    "Werewolf",
+    "Villager",
+    "Villager",
+    "Werewolf",
+]
+Werewolves.CONFIG_SCHEMA["properties"]["all_roles"]["items"]["enum"] = list(
+    Role.all.keys()
+)
 
 if __name__ == "__main__":
     from game_anywhere.run_game import run_game_from_cmdline

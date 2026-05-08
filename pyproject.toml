@@ -14,6 +14,7 @@ dependencies = [
     "aiohttp>=3.9.0",
     "aiohttp-sse",
     "websockets",
+    "jsonschema",
 ]
 requires-python = ">= 3.11"
 # A hack for the dependency on the `examples` subdir.
