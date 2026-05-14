@@ -22,10 +22,10 @@ function layoutFan(container) {
 
 class FanHand extends HTMLElement {
 	connectedCallback() {
-		this.update = () => layoutFan(this);
+		this.update = () => layoutFan(this.firstElementChild);
 
 		this.observer = new MutationObserver(this.update);
-		this.observer.observe(this, { childList: true });
+		this.observer.observe(this.firstElementChild, { childList: true });
 
 		this.update();
 	}

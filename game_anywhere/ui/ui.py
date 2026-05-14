@@ -1,5 +1,5 @@
 import functools
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 
 class Html:
@@ -24,7 +24,7 @@ class Html:
         for link in self.css:
             result += f'<link rel="stylesheet" href="/components/{link}"/>'
         for link in self.js:
-            result += f'<script src="/components/{link}"/>'
+            result += f'<script src="/components/{link}"></script>'
         return result
 
     def __add__(self, other):
@@ -64,9 +64,43 @@ class HtmlElement(Html):
         return self
 
 
+class VoidTag(Html):
+    """
+    See https://developer.mozilla.org/en-US/docs/Glossary/Void_element.
+    These must be handled specially because we must not use a closing </tag>.
+    """
+
+    def __init__(self, tag_name, **attrs):
+        super().__init__()
+        self.tag_name = tag_name
+        self.attrs = attrs
+
+    def __str__(self):
+        result = f"<{self.tag_name}"
+        for key, value in self.attrs.items():
+            result += f' {key}="{value}"'
+        result += "/>"
+        return result
+
+
 class HtmlElementMeta(type):
-    def __getattr__(cls, attrname) -> type[HtmlElement]:
-        return functools.partial(HtmlElement, tag_name=attrname)
+    def __getattr__(cls, attrname) -> Callable[..., HtmlElement | VoidTag]:
+        if attrname in [
+            "area",
+            "base",
+            "br",
+            "col",
+            "embed",
+            "hr",
+            "img",
+            "link",
+            "source",
+            "track",
+            "wbr",
+        ]:
+            return functools.partial(VoidTag, tag_name=attrname)
+        else:
+            return functools.partial(HtmlElement, tag_name=attrname)
 
 
 class tag(metaclass=HtmlElementMeta):
