@@ -112,20 +112,37 @@ class Werewolves(Game):
 
     CONFIG_SCHEMA = {
         "properties": {
-            "all_roles": {
-                "type": "array",
-                "items": {"enum": ...},  # filled out at the bottom of this script
-                "minItems": 6,
-            },
-            "_num_players": {"type": "integer", "minimum": 6},
-        }
+            "roles": {
+                "anyOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "all_roles": {
+                                "type": "array",
+                                "items": {
+                                    "enum": ...  # filled out at the bottom of this script
+                                },
+                                "minItems": 6,
+                            },
+                        },
+                        "required": ["all_roles"],
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "_num_players": {"type": "integer", "minimum": 6},
+                        },
+                        "required": ["_num_players"],
+                    },
+                ]
+            }
+        },
+        "required": ["roles"],
     }
 
     @classmethod
-    def parse_config(
-        cls, _num_players: int | None = None, all_roles: list[str] | None = None
-    ) -> tuple[int, dict]:
-        match _num_players, all_roles:
+    def parse_config(cls, roles: dict) -> tuple[int, dict]:
+        match roles.get("_num_players", None), roles.get("all_roles", None):
             case None, None:
                 raise ValueError("One of _num_players or all_roles must be provided")
             case _num_players, None:
@@ -139,7 +156,7 @@ class Werewolves(Game):
         }
 
     def __init__(self, agent_descriptions, all_roles: list[type[Role]]):
-        super().__init__(agent_descriptions, nb_agents=len(all_roles))
+        super().__init__(agent_descriptions)
         self.werewolf_kill: Player | None = None
         self.other_kills: list[Player] = []
         self.lovers: tuple[Player, Player] | None = None
@@ -388,9 +405,11 @@ DEFAULT_ROLES = [
     "Villager",
     "Werewolf",
 ]
-Werewolves.CONFIG_SCHEMA["properties"]["all_roles"]["items"]["enum"] = list(
+# fmt: off
+Werewolves.CONFIG_SCHEMA["properties"]["roles"]["anyOf"][0]["properties"]["all_roles"]["items"]["enum"] = list(
     Role.all.keys()
 )
+# fmt: on
 
 if __name__ == "__main__":
     from game_anywhere.run_game import run_game_from_cmdline

@@ -93,7 +93,7 @@ class Hanabi(TurnBasedGame):
     MAX_HINTS = 8
 
     CONFIG_SCHEMA = {
-        "properties": {"_num_players": {"type": "integer", "minimum": 3, "maximum": 6}}
+        "properties": {"_num_players": {"type": "integer", "minimum": 3, "maximum": 5}}
     }
 
     @classmethod
