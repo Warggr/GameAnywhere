@@ -26,34 +26,41 @@ def _display_slot_name(slot_name: str) -> str:
     return slot_name.replace("_", " ").strip().title()
 
 
-class ComponentOrGame(ABC):
+class AbstractComponent(ABC):
     """We're creating a hierarchy with a Game at the top, which can contain multiple ComponentSlots.
     Each ComponentSlot can contain one Component. Components in turn can have multiple ComponentSlots.
     I.e. each Component has a ComponentSlot as a parent/slot, and each ComponentSlot has a ComponentOrGame as a parent.
     """
 
-    @abstractmethod
-    def get_slots(self) -> Mapping[str, "WeakComponentSlot"]:
-        """Return a list of slots with names."""
-        ...
+    class NotAttachedToComponentTree(Exception):
+        pass
 
-    def log_added_slot(self, slot: "WeakComponentSlot"):
+    def __init__(self):
+        super().__init__()
+        self.slot: Optional["ComponentSlot"] = None
+
+    def get_game(self) -> "Game":
+        """Overridden by Game."""
+        if self.slot is None:
+            raise self.NotAttachedToComponentTree()
+        return self.slot.parent.get_game()
+
+    def get_slot_address(self):
+        if self.slot is None:
+            return "(detached)"
+        return self.slot.get_address()
+
+    def reveal(self, *args, **kwargs):
+        self.slot.reveal(*args, **kwargs)
+
+    def can_be_seen_by_recursive(self, viewer_id) -> bool:
+        """Whether there's a component higher up in the component hierarchy that blocks visibility of this slot."""
         try:
-            self.get_game().log_new_slot(self, slot)
-        except Component.NotAttachedToComponentTree:
-            pass
-
-    def log_deleted_slot(self, slot_name: str):
-        try:
-            self.get_game().log_delete_slot(self, slot_name)
-        except Component.NotAttachedToComponentTree:
-            pass
-
-    @abstractmethod
-    def get_game(self) -> "Game": ...
-
-    @abstractmethod
-    def get_slot_address(self) -> str: ...
+            return self.slot.can_be_seen_by_recursive(viewer_id)
+        except self.NotAttachedToComponentTree as err:
+            raise AssertionError(
+                "This method should be called only on components on the tree"
+            ) from err
 
     def _lookup_slot_nonrecursive(self, slot_id: str) -> "WeakComponentSlot":
         """Overridden by subclasses"""
@@ -77,11 +84,28 @@ class ComponentOrGame(ABC):
                 return self._lookup_slot_nonrecursive(toplevel)
 
     @abstractmethod
-    def can_be_seen_by_recursive(self, viewer_id) -> bool:
-        """Whether there's a component higher up in the component hierarchy that blocks visibility of this slot."""
+    def html(self, viewer_id: AgentId | None = None) -> Any: ...
+
+
+class AbstractComposite(AbstractComponent):
+    @abstractmethod
+    def get_slots(self) -> Mapping[str, "WeakComponentSlot"]:
+        """Return a list of slots with names."""
         ...
 
-    def html(self, viewer_id=None) -> Any:
+    def log_added_slot(self, slot: "WeakComponentSlot"):
+        try:
+            self.get_game().log_new_slot(self, slot)
+        except self.NotAttachedToComponentTree:
+            pass
+
+    def log_deleted_slot(self, slot_name: str):
+        try:
+            self.get_game().log_delete_slot(self, slot_name)
+        except self.NotAttachedToComponentTree:
+            pass
+
+    def html(self, viewer_id: AgentId | None = None) -> Any:
         fields = []
         for slotname, slot in self.get_slots().items():
             slot_html = slot.html(viewer_id=viewer_id)
@@ -107,8 +131,9 @@ class ComponentOrGame(ABC):
         )
 
 
-class PropertySlotMixin(ComponentOrGame):
+class Composite(AbstractComposite):
     def __init__(self):
+        super().__init__()
         self.slots: dict[str, "WeakComponentSlot"] = {}
 
     def add_slot(self, slot_name: str, slot: "WeakComponentSlot"):
@@ -123,38 +148,15 @@ class PropertySlotMixin(ComponentOrGame):
         return self.slots
 
 
-class AbstractComponent(ComponentOrGame):
-    class NotAttachedToComponentTree(Exception):
-        pass
+class Component(AbstractComponent):
+    def get_slots(self):
+        return {}
 
-    def __init__(self):
-        super().__init__()
-        self.slot: Optional["ComponentSlot"] = None
+    def log_added_slot(self, slot: "WeakComponentSlot"):
+        raise NotImplementedError()
 
-    def get_game(self) -> "Game":
-        if self.slot is None:
-            raise Component.NotAttachedToComponentTree()
-        return self.slot.parent.get_game()
-
-    def get_slot_address(self):
-        if self.slot is None:
-            return "(detached)"
-        return self.slot.get_address()
-
-    def reveal(self, *args, **kwargs):
-        self.slot.reveal(*args, **kwargs)
-
-    def can_be_seen_by_recursive(self, viewer_id) -> bool:
-        try:
-            return self.slot.can_be_seen_by_recursive(viewer_id)
-        except self.NotAttachedToComponentTree as err:
-            raise AssertionError(
-                "This method should be called only on components on the tree"
-            ) from err
-
-
-class Component(AbstractComponent, PropertySlotMixin):
-    pass
+    def log_deleted_slot(self, slot_name: str):
+        raise NotImplementedError()
 
 
 """ Typically, ComponentTreeNodes are Components. But we also support raw values, e.g. booleans. """
@@ -166,7 +168,7 @@ class WeakComponentSlot(Generic[T]):
     def __init__(
         self,
         id_: str,
-        parent: ComponentOrGame,
+        parent: AbstractComponent,
         content: Optional[T] = None,
         *,
         hidden: bool = False,
@@ -208,7 +210,7 @@ class WeakComponentSlot(Generic[T]):
     def reveal(self, to: int | None = None):
         try:
             game = self.get_game()
-        except Component.NotAttachedToComponentTree:
+        except AbstractComponent.NotAttachedToComponentTree:
             return
         game.log_component_update(self, force_reveal=True, only_update=to)
 
@@ -231,7 +233,7 @@ class WeakComponentSlot(Generic[T]):
     def set_owner_id(self, owner_id: int):
         """Owner IDs are inherited down the component tree by default, so this is a recursive method"""
         self.owner_id = owner_id
-        if type(self._content) is Component:
+        if type(self._content) is Composite:
             for child in self._content.get_slots().values():
                 child.set_owner_id(owner_id)
 
@@ -295,24 +297,25 @@ class ComponentSlotProperty(Generic[T]):
         self.args = args
         self.kwargs = kwargs
 
-    def __set_name__(self, owner: Type[PropertySlotMixin], name):
-        assert issubclass(owner, PropertySlotMixin), (
-            "The ComponentSlotProperty short-hand only works on PropertySlotMixin"
+    def __set_name__(self, owner: Type[Composite], name):
+        assert issubclass(owner, Composite), (
+            "The ComponentSlotProperty short-hand only works on Composite"
         )
         self.private_name = name
 
-    def __get__(self, obj: PropertySlotMixin, objtype=None) -> T:
+    def __get__(self, obj: Composite, objtype=None) -> T:
         if self.private_name not in obj.slots:
             slot = self.SlotType(self.private_name, obj, *self.args, **self.kwargs)
             obj.add_slot(self.private_name, slot)
         return obj.slots[self.private_name].get()
 
-    def __set__(self, obj: PropertySlotMixin, value: T):
+    def __set__(self, obj: Composite, value: T):
         if self.private_name not in obj.slots:
             kwargs = self.kwargs.copy()
             if (
                 "owner_id" not in self.kwargs
                 and isinstance(obj, AbstractComponent)
+                and hasattr(obj, "slot")  # filters out Game
                 and obj.slot is not None
             ):
                 kwargs["owner_id"] = obj.slot.owner_id
@@ -326,7 +329,7 @@ class ComponentSlotProperty(Generic[T]):
             assert value.slot == obj.slots[self.private_name]
 
 
-class PerPlayerComponent(Component):
+class PerPlayerComponent(Composite):
     def __init__(self, owner: "AgentDescriptor", owner_id: "AgentId", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.owner = owner
@@ -401,9 +404,7 @@ class PerPlayer(
             )
         self.componentClass = componentClass
 
-    def __get__(
-        self, obj: PropertySlotMixin, objtype=None
-    ) -> "List[PerPlayerComponentType]":
+    def __get__(self, obj: Composite, objtype=None) -> "List[PerPlayerComponentType]":
         if self.private_name not in obj.slots:
             from .containers import List
 
@@ -427,5 +428,5 @@ class PerPlayer(
             slot = obj.slots[self.private_name]
         return slot.get()
 
-    def __set__(self, obj: PropertySlotMixin, value: Any):
+    def __set__(self, obj: Composite, value: Any):
         raise NotImplementedError("Cannot set a PerPlayer")

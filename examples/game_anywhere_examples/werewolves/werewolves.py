@@ -8,7 +8,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Iterable, Literal, TypeVar
 
 from game_anywhere.agents.chat import Chat
-from game_anywhere.components import Component, ComponentSlotProperty
+from game_anywhere.components import ComponentSlotProperty, Composite
 from game_anywhere.components.component import PerPlayer, PerPlayerComponent, Pointer
 from game_anywhere.core import Game, GameSummary
 from game_anywhere.ui import tag
@@ -46,18 +46,7 @@ class Player(PerPlayerComponent):
     role = ComponentSlotProperty(hidden=True)
 
 
-class RoleCard(Component):
-    """A very simple class representing a role card."""
-
-    def __init__(self, role: str):
-        super().__init__()
-        self.role = role
-
-    def __str__(self):
-        return self.role
-
-
-class Role(Component):
+class Role(Composite):
     """Represents a role, including powers as methods, current state of the role (e.g. power already used), etc.
     Role is basically a discriminated union of all possible roles,
     and they have a `card` slot that is the discriminant.
@@ -79,7 +68,7 @@ class Role(Component):
     def __init__(self):
         super().__init__()
         self.allegiance = self.ALLEGIANCE
-        self.card = RoleCard(type(self).__name__)
+        self.card = type(self).__name__
 
     @classmethod
     @abstractmethod

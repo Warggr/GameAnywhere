@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 
 from game_anywhere.ui import Html, tag
 
-from .component import Component, ComponentSlot
+from .component import AbstractComposite, Component, ComponentSlot
 
 if TYPE_CHECKING:
     from typing import (
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     )
 
 
-class Board(Component):
+class Board(AbstractComposite):
     # TODO: a board that's as general as possible
     pass
 

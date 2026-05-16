@@ -90,6 +90,7 @@ T = TypeVar("T")
 
 class Deck(Generic[T], Component):
     def __init__(self, cards: Iterable[T], shuffled=False):
+        super().__init__()
         self.cards = list(cards)
         if shuffled:
             self.shuffle()

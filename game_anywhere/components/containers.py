@@ -11,14 +11,14 @@ from typing import (
 
 from game_anywhere.ui import Html, tag
 
-from .component import AbstractComponent, ComponentSlot
+from .component import AbstractComponent, AbstractComposite, ComponentSlot
 from .utils import html as to_html
 from .utils import merge_classes
 
 T = TypeVar("T", bound=AbstractComponent)
 
 
-class List(AbstractComponent, Generic[T], MutableSequence[T]):
+class List(AbstractComposite, Generic[T], MutableSequence[T]):
     def __init__(
         self, args=(), *, slotClass: type[ComponentSlot] = ComponentSlot, **kwargs
     ):
@@ -116,7 +116,7 @@ class List(AbstractComponent, Generic[T], MutableSequence[T]):
 Key = TypeVar("Key", bound=str)
 
 
-class Dict(AbstractComponent, Generic[Key, T], MutableMapping[Key, T]):
+class Dict(AbstractComposite, Generic[Key, T], MutableMapping[Key, T]):
     def __init__(
         self,
         content: dict[Key, T] | None = None,

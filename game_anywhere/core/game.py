@@ -3,12 +3,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable
 
-from ..components.component import ComponentOrGame, PropertySlotMixin, WeakComponentSlot
+from ..components.component import Composite, WeakComponentSlot
 from .agent import Agent
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from game_anywhere.components import AbstractComponent
     from game_anywhere.ui import Html
 
     from ..agents.descriptors import AgentDescriptor
@@ -42,7 +43,7 @@ class SimpleGameSummary(GameSummary):
 
 
 # ComponentOrGame is an ABC, so indirectly Game is also an ABC
-class Game(PropertySlotMixin):
+class Game(Composite):
     """
     Represents a game in progress.
     """
@@ -121,7 +122,7 @@ class Game(PropertySlotMixin):
         for agent in self.agents:
             agent.message(*args, **kwargs)
 
-    def log_new_slot(self, obj: ComponentOrGame, slot: WeakComponentSlot):
+    def log_new_slot(self, obj: AbstractComponent, slot: WeakComponentSlot):
         """
         Args:
             obj: The object which has a new slot.
@@ -139,7 +140,7 @@ class Game(PropertySlotMixin):
                 }
                 agent.update([update])
 
-    def log_delete_slot(self, obj: ComponentOrGame, slot_relative_address: str):
+    def log_delete_slot(self, obj: AbstractComponent, slot_relative_address: str):
         """
         Args:
             obj: The object which has one fewer slot.
