@@ -2,45 +2,125 @@
 <html>
     <head>
         <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Lobby | GameAnywhere</title>
         <link rel="stylesheet" href="css/main.css" />
     </head>
+    <body class="app-page">
+        <header class="app-header">
+            <a class="brand" href="index.html">Game Anywhere</a>
+        </header>
 
-    <body>
-        <div id="app">
-            <h1>{{ game.game }}</h1>
-
-            <div class="game-link-field">
-                <label for="game-link">Invite link:</label>
-                <div class="copyable-link">
-                    <input type="text" :value="invite_link()" readonly />
-                    <button
-                        type="button"
-                        onclick="copyGameLink(event.target.parentNode.firstElementChild)"
-                    >
-                        Copy
-                    </button>
+        <main id="app" class="app-shell">
+            <section class="hero">
+                <div class="hero-copy">
+                    <h1>{{ game.game || "Lobby" }}</h1>
                 </div>
-            </div>
-            <table>
-                <tr v-for="user in game.seats">
-                    <td>{{ user.username }}</td>
-                    <td>{{ user.state }}</td>
-                </tr>
-            </table>
-            <form
-                v-if="game.num_players?.const == Object.keys(game.seats).length"
-                method="post"
-                :action="`/lobby/${ room_id }/finalize`"
-                onsubmit="finalizeRoom(event)"
-            >
-                <button type="submit">Start game</button>
-            </form>
-            <span v-else
-                >Still waiting for {{ game.num_players?.const -
-                Object.keys(game.seats).length }} players...</span
-            >
-        </div>
+
+                <aside class="sidebar">
+                    <section class="connection-card">
+                        <h2>Server Connection</h2>
+                        <div class="meta-list">
+                            <div class="meta-row">
+                                <span>Status</span>
+                                <strong>{{ connection_status }}</strong>
+                            </div>
+                            <div class="meta-row">
+                                <span>Server</span>
+                                <strong>{{ server_host }}</strong>
+                            </div>
+                            <div class="meta-row">
+                                <span>Room</span>
+                                <strong>{{ room_id || "Unknown" }}</strong>
+                            </div>
+                            <div class="meta-row">
+                                <span>Seat</span>
+                                <strong>{{ seat_id || "Joining..." }}</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="login-card">
+                        <h2>Login</h2>
+                        <form
+                            v-if="username === undefined"
+                            class="form-stack"
+                            @submit.prevent="login"
+                        >
+                            <div class="field">
+                                <label for="login-username">Username</label>
+                                <input
+                                    id="login-username"
+                                    type="text"
+                                    v-model="login_username"
+                                />
+                            </div>
+                            <button type="submit">Login</button>
+                        </form>
+                        <form
+                            v-else
+                            class="form-stack"
+                            @submit.prevent="logout"
+                        >
+                            <div class="status-line">
+                                <span>Logged in as</span>
+                                <strong>{{ username }}</strong>
+                            </div>
+                            <button class="secondary" type="submit">
+                                Log out
+                            </button>
+                        </form>
+                    </section>
+                </aside>
+            </section>
+
+            <section class="page-grid">
+                <div class="panel">
+                    <h2>Invite Link</h2>
+                    <div class="copyable-link">
+                        <input type="text" :value="invite_link()" readonly />
+                        <button type="button" @click="copyInviteLink($event)">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Players</h2>
+                    <div class="seats-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>State</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="(user, seat) in game.seats"
+                                    :key="seat"
+                                >
+                                    <td>{{ user.username || "Guest" }}</td>
+                                    <td>{{ user.state }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <form
+                        v-if="ready_to_start"
+                        class="form-stack"
+                        method="post"
+                        :action="`/lobby/${ room_id }/finalize`"
+                        onsubmit="finalizeRoom(event)"
+                    >
+                        <button type="submit">Start game</button>
+                    </form>
+                    <span v-else class="status-pill"
+                        >Still waiting for {{ waiting_count }} players...</span
+                    >
+                </div>
+            </section>
+        </main>
         <script type="module">
             import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
             import { applyPatch } from "https://unpkg.com/fast-json-patch/index.mjs";
@@ -48,9 +128,17 @@
             createApp({
                 data() {
                     const params = new URLSearchParams(window.location.search);
+                    const cookieUsername = document.cookie
+                        .split("; ")
+                        .find((row) => row.startsWith("username="))
+                        ?.split("=")[1];
                     return {
                         room_id: params.get("room"),
                         seat_id: params.get("seat"),
+                        server_host: window.location.host,
+                        connection_status: "Connecting...",
+                        username: cookieUsername,
+                        login_username: cookieUsername || "",
                         game: {
                             seats: [],
                             spectators: 0,
@@ -58,6 +146,27 @@
                             game: undefined,
                         },
                     };
+                },
+                computed: {
+                    player_count() {
+                        return Object.keys(this.game.seats).length;
+                    },
+                    expected_count() {
+                        return this.game.num_players?.const;
+                    },
+                    waiting_count() {
+                        if (this.expected_count === undefined) return 0;
+                        return Math.max(
+                            this.expected_count - this.player_count,
+                            0,
+                        );
+                    },
+                    ready_to_start() {
+                        return (
+                            this.expected_count !== undefined &&
+                            this.expected_count == this.player_count
+                        );
+                    },
                 },
 
                 async mounted() {
@@ -124,19 +233,36 @@
                         url.searchParams.delete("seat");
                         return url;
                     },
+                    async copyInviteLink(event) {
+                        const link = this.invite_link().toString();
+                        try {
+                            await navigator.clipboard.writeText(link);
+                        } catch (err) {
+                            const input =
+                                event.target.parentNode.firstElementChild;
+                            input.select();
+                            document.execCommand("copy");
+                        }
+                    },
+                    login() {
+                        fetch("/login", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                username: this.login_username,
+                            }),
+                        }).then((_response) => {
+                            this.username = this.login_username;
+                        });
+                    },
+                    logout() {
+                        document.cookie =
+                            "username=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/";
+                        this.username = undefined;
+                    },
                 },
             }).mount("#app");
         </script>
         <script>
-            async function copyGameLink(input) {
-                try {
-                    await navigator.clipboard.writeText(input.value);
-                } catch (err) {
-                    input.select();
-                    document.execCommand("copy");
-                }
-            }
-
             function finalizeRoom(event) {
                 event.preventDefault();
                 fetch(event.target.action, { method: event.target.method })

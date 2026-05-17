@@ -31,74 +31,97 @@
             const e = React.createElement;
         </script>
     </head>
-    <body>
-        <nav class="navbar navbar-expand-lg">
-            <h1 class="navbar-brand">Game Anywhere</h1>
-            <button
-                class="navbar-toggler"
-                type="button"
-                data-toggle="collapse"
-                data-target="#navbarSupportedContent"
-                aria-controls="navbarSupportedContent"
-                aria-expanded="false"
-                aria-label="Toggle navigation"
-            >
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <body class="app-page">
+        <header class="app-header">
+            <a class="brand" href="index.html">Game Anywhere</a>
+            <section class="login-card">
                 <form
                     id="login-form"
-                    class="form-inline my-2 my-lg-0"
+                    class="inline-form"
                     action="javascript:login()"
                 >
-                    <label for="username">Username</label>
-                    <input
-                        id="username"
-                        name="username"
-                        type="text"
-                        class="form-control mr-sm-2"
-                    />
-                    <button
-                        type="submit"
-                        class="btn btn-outline-success my-2 my-sm-0"
-                    >
-                        Login
-                    </button>
+                    <div class="field">
+                        <label for="login-username">Username</label>
+                        <input
+                            id="login-username"
+                            name="username"
+                            type="text"
+                        />
+                    </div>
+                    <button type="submit">Login</button>
                 </form>
                 <form
                     id="logout-form"
-                    class="form-inline my-2 my-lg-0"
+                    class="inline-form"
                     action="javascript:logout()"
                     hidden
                 >
-                    <p>Logged in as <span id="display-username"></span></p>
-                    <button type="submit">Log out</button>
+                    <div class="status-line">
+                        <span>Logged in as</span>
+                        <strong id="display-username"></strong>
+                    </div>
+                    <button class="secondary" type="submit">Log out</button>
                 </form>
-            </div>
-        </nav>
-        <div class="indexMainDiv">
-            <span id="connection-status"></span>
-            <form action="/room" method="/post" onsubmit="createNewRoom(event)">
-                <script>
-                    console.log(document.currentScript);
-                    const form = document.currentScript.parentNode;
-                    fetch("/room", { method: "OPTIONS" })
-                        .then((res) => res.json())
-                        .then((json) => {
-                            let formContent = makeWord(json);
-                            form.insertBefore(formContent, form.childNodes[0]);
-                        });
-                </script>
-                <button type="submit">Start a new game</button>
-            </form>
-            <form method="get" action="player.html">
-                <input type="text" name="room" />
-                <input type="text" name="seat" />
-                <button type="submit">Join a game with a code</button>
-            </form>
-            <div id="status-room-histories"></div>
-        </div>
+            </section>
+        </header>
+
+        <main class="app-shell">
+            <section class="hero">
+                <div class="hero-copy">
+                    <h1>Game Anywhere</h1>
+                </div>
+                <div class="stack">
+                    <section class="panel">
+                        <h2>Start a New Game</h2>
+                        <span id="connection-status" class="status-pill"></span>
+                        <form
+                            id="create-room-form"
+                            class="form-stack"
+                            action="/room"
+                            method="post"
+                            onsubmit="createNewRoom(event)"
+                        >
+                            <script>
+                                const form = document.currentScript.parentNode;
+                                fetch("/room", { method: "OPTIONS" })
+                                    .then((res) => res.json())
+                                    .then((json) => {
+                                        let formContent = makeWord(json);
+                                        form.insertBefore(
+                                            formContent,
+                                            form.childNodes[0],
+                                        );
+                                    });
+                            </script>
+                            <button type="submit">Start game</button>
+                        </form>
+                    </section>
+                    <section class="panel">
+                        <h2>Join a Game</h2>
+                        <form
+                            class="inline-form"
+                            method="get"
+                            action="player.html"
+                        >
+                            <div class="field">
+                                <label for="join-room">Room ID</label>
+                                <input id="join-room" type="text" name="room" />
+                            </div>
+                            <div class="field">
+                                <label for="join-seat">Seat</label>
+                                <input id="join-seat" type="text" name="seat" />
+                            </div>
+                            <button type="submit">Join room</button>
+                        </form>
+                    </section>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Recent Games</h2>
+                <div id="status-room-histories" class="history-table"></div>
+            </section>
+        </main>
         <script>
             function toggleLogin(username) {
                 document.getElementById("login-form").hidden =
@@ -111,7 +134,8 @@
                 }
             }
             function login() {
-                let username_form = document.getElementById("username").value;
+                let username_form =
+                    document.getElementById("login-username").value;
                 fetch("/login", {
                     method: "POST",
                     body: JSON.stringify({ username: username_form }),
@@ -126,7 +150,7 @@
             }
             const username = document.cookie
                 .split("; ")
-                .find((row) => row.startsWith("username"))
+                .find((row) => row.startsWith("username="))
                 ?.split("=")[1];
             if (username != null) {
                 toggleLogin(username);
@@ -164,7 +188,10 @@
             var knownHistory;
             // TODO: move to an actual front-end reactive framework instead of just using React for the convenience syntax
             function renderHistory(games) {
-                if (games.length == 0) historyRoot.render("(no games saved)");
+                if (games.length == 0)
+                    historyRoot.render(
+                        e("div", { className: "empty-state" }, "No games saved"),
+                    );
                 else
                     historyRoot.render(
                         e("table", {}, [
