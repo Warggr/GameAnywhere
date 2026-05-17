@@ -195,7 +195,7 @@ class Hanabi(TurnBasedGame):
                     hint_value.append(
                         {
                             "op": "add",
-                            "key": slot.get_address() + "/hint",
+                            "path": slot.get_address() + "/hint",
                             "value": f"is {hint_key}",
                         }
                     )
@@ -203,7 +203,7 @@ class Hanabi(TurnBasedGame):
                     hint_value.append(
                         {
                             "op": "add",
-                            "key": slot.get_address() + "/hint",
+                            "path": slot.get_address() + "/hint",
                             "value": f"is not {hint_key}",
                         }
                     )

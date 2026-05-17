@@ -154,7 +154,7 @@ class HttpControlledServer(Server):
         self.log_event(
             {
                 "op": "add",
-                "key": f"/s/{len(self.games)}",
+                "path": f"/s/{len(self.games)}",
                 "value": json_encode_game_metadata(metadata),
             }
         )

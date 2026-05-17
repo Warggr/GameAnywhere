@@ -306,11 +306,11 @@
                                     realElems.length == 1,
                                     realElems,
                                 );
-                                lookupSlot(diff.key).replaceWith(realElems[0]);
+                                lookupSlot(diff.path).replaceWith(realElems[0]);
                             } else if (diff.op == "add") {
-                                if (diff.key.slice(-5) == "/hint") {
+                                if (diff.path.slice(-5) == "/hint") {
                                     const hinted = lookupComponent(
-                                        diff.key.slice(0, -5),
+                                        diff.path.slice(0, -5),
                                     );
                                     let hint = [...hinted.childNodes].find(
                                         (node) =>
@@ -329,20 +329,20 @@
                                     let DOMConstructionSite =
                                         document.createElement("div");
                                     DOMConstructionSite.innerHTML = diff.value; // TODO: find a more elegant way of parsing HTML
-                                    diff.key = diff.key
+                                    diff.path = diff.path
                                         .split("/")
                                         .slice(0, -1)
                                         .join("/");
                                     let appendSite =
-                                        diff.key === ""
+                                        diff.path === ""
                                             ? screen.getElementById("screen")
-                                            : lookupComponent(diff.key);
+                                            : lookupComponent(diff.path);
                                     appendSite.append(
                                         DOMConstructionSite.firstChild,
                                     );
                                 }
                             } else if (diff.op == "remove") {
-                                let key = diff.key.split("/");
+                                let key = diff.path.split("/");
                                 let child_num = key.pop();
                                 let parent_component = lookupComponent(
                                     key.join("/"),

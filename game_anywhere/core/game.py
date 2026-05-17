@@ -128,7 +128,7 @@ class Game(Composite):
             if obj.can_be_seen_by_recursive(agent_id):
                 update = {
                     "op": "add",
-                    "key": slot.get_address(),
+                    "path": slot.get_address(),
                     "value": slot.html(viewer_id=agent_id),
                 }
                 agent.update([update])
@@ -145,7 +145,7 @@ class Game(Composite):
             if obj.can_be_seen_by_recursive(agent_id):
                 update = {
                     "op": "remove",
-                    "key": obj.get_slot_address() + "/" + slot_relative_address,
+                    "path": obj.get_slot_address() + "/" + slot_relative_address,
                 }
                 agent.update([update])
 
@@ -167,7 +167,7 @@ class Game(Composite):
                 [
                     {
                         "op": "replace",
-                        "key": address,
+                        "path": address,
                         "value": slot.html(
                             viewer_id=agent_id, force_reveal=force_reveal
                         ),
