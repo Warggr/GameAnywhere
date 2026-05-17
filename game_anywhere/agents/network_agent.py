@@ -15,6 +15,8 @@ from ..network.spectator import Session, Spectator
 from .descriptors import AgentDescriptor
 
 if TYPE_CHECKING:
+    from typing import Sequence
+
     from game_anywhere.components import ComponentSlot
     from game_anywhere.core import Game
 
@@ -98,7 +100,7 @@ class JsonSchemaAgentMixin(AskMultipleTimesMixin):
     # override
     def choose_one_component_slot(
         self,
-        slots: list["ComponentSlot"],
+        slots: Sequence["ComponentSlot"],
         indices: Optional[list[T]] = None,
         special_options=(),
         message: Optional[str] = None,
@@ -141,8 +143,10 @@ class JsonSchemaAgentMixin(AskMultipleTimesMixin):
 
 
 class NetworkAgent(JsonSchemaAgentMixin, Agent):
-    class Descriptor(AgentDescriptor):
-        def start_initialization(self, agent_descriptor_number: int, context: Context):
+    class Descriptor(AgentDescriptor[tuple[Lobby, int] | Session]):
+        def start_initialization(
+            self, agent_descriptor_number: int, context: Context
+        ) -> tuple[Lobby, int]:
             if "server_room" not in context:
                 if "server" not in context:
                     asset_dirs = {}

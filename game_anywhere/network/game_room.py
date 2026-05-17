@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from itertools import count
 from threading import Thread
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from aiohttp import http, web
 

@@ -125,7 +125,7 @@ class TextAgent(Agent, AskMultipleTimesMixin):
 
 
 class HumanAgent(TextAgent):
-    class Descriptor(AgentDescriptor):
+    class Descriptor(AgentDescriptor[None]):
         def start_initialization(self, agent_descriptor_number: int, context):
             self.resolve_name(f"Human agent {agent_descriptor_number}")
 

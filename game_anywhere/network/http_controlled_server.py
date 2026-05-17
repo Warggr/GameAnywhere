@@ -42,7 +42,7 @@ def json_encode_game_metadata(metadata: "GameMetadata") -> dict:
 class HttpControlledServer(Server):
     SERVER_CLOSED_DUMMY_MSG = None
 
-    def __init__(self, available_games: dict[str, "Game"]):
+    def __init__(self, available_games: dict[str, type[Game]]):
         asset_dirs = {}
         for g in available_games.values():
             asset_dir = g.get_asset_dir()

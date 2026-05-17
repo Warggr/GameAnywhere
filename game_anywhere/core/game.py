@@ -101,11 +101,6 @@ class Game(Composite):
     def get_slot_address(self):
         return ""
 
-    def lookup_slot_address(self, address: str) -> "WeakComponentSlot":
-        assert address.startswith("/")
-        address = address.removeprefix("/")
-        return super().lookup_slot_address(address)
-
     # override
     def can_be_seen_by_recursive(self, viewer_id) -> bool:
         """The Game can be seen by everybody."""
@@ -133,7 +128,7 @@ class Game(Composite):
                 }
                 agent.update([update])
 
-    def log_delete_slot(self, obj: AbstractComponent, slot_relative_address: str):
+    def log_delete_slot(self, obj: AbstractComponent, slot_relative_address: Any):
         """
         Args:
             obj: The object which has one fewer slot.
@@ -145,7 +140,7 @@ class Game(Composite):
             if obj.can_be_seen_by_recursive(agent_id):
                 update = {
                     "op": "remove",
-                    "path": obj.get_slot_address() + "/" + slot_relative_address,
+                    "path": obj.get_slot_address() + "/" + str(slot_relative_address),
                 }
                 agent.update([update])
 

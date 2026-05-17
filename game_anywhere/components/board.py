@@ -15,7 +15,10 @@ if TYPE_CHECKING:
     )
 
 
-class Board(AbstractComposite):
+KeyType = TypeVar("KeyType")
+
+
+class Board(AbstractComposite[KeyType], Generic[KeyType]):
     # TODO: a board that's as general as possible
     pass
 
@@ -23,7 +26,7 @@ class Board(AbstractComposite):
 T = TypeVar("T", bound=Component)
 
 
-class CheckerBoard(Board, Generic[T]):
+class CheckerBoard(Board[tuple[int, int]], Generic[T]):
     class Field(ComponentSlot):
         pass
 
@@ -33,7 +36,7 @@ class CheckerBoard(Board, Generic[T]):
         super().__init__()
         self.width = width
         self.height = height
-        self.board: list[list[Optional[T]]] = [
+        self.board: list[list["CheckerBoard.Field"]] = [
             [None for i in range(width)] for j in range(height)
         ]
         if fill is None:
@@ -41,7 +44,7 @@ class CheckerBoard(Board, Generic[T]):
         for i in range(width):
             for j in range(height):
                 self.board[i][j] = CheckerBoard.Field(
-                    id_=self._coords_to_field_id((i, j)),
+                    id_=(i, j),
                     parent=self,
                     content=fill(),
                 )
@@ -55,20 +58,9 @@ class CheckerBoard(Board, Generic[T]):
     def __setitem__(self, index: tuple[int, int], val: Optional[T]):
         self.board[index[0]][index[1]].set(val)
 
-    def all_fields(self) -> Iterable[tuple[tuple[int, int], Optional[T]]]:
-        return (
-            ((i, j), self.board[i][j])
-            for j in range(self.width)
-            for i in range(self.height)
-        )
-
     def get_slot(self, index: tuple[int, int]) -> "CheckerBoard.Field":
         i, j = index
         return self.board[i][j]
-
-    @staticmethod
-    def _coords_to_field_id(coords: tuple[int, int]):
-        return f"{coords[0]},{coords[1]}"
 
     def get_size(self) -> int:
         return self.width * self.height
@@ -78,16 +70,16 @@ class CheckerBoard(Board, Generic[T]):
 
     # Component interface methods
 
-    def get_slots(self) -> Mapping[str, "CheckerBoard.Field"]:
+    def get_slots(self) -> Mapping[tuple[int, int], "CheckerBoard.Field"]:
         result = {}
         for i in range(self.height):
             for j in range(self.width):
-                result[self._coords_to_field_id((i, j))] = self.board[i][j]
+                result[(i, j)] = self.board[i][j]
         return result
 
     def _iter_coords(
         self, trans_height: int, trans_width: int, turn: float = 0
-    ) -> Iterable[tuple[str, "CheckerBoard.Field"]]:
+    ) -> Iterable[tuple[tuple[int, int], "CheckerBoard.Field"]]:
         reverse_transforms = {
             0: lambda i, j: (i, j),
             90: lambda i, j: (j, self.height - i - 1),
@@ -98,7 +90,7 @@ class CheckerBoard(Board, Generic[T]):
         for it in range(trans_height):
             for jt in range(trans_width):
                 i, j = rev_transform(it, jt)
-                yield self._coords_to_field_id((i, j)), self.board[i][j]
+                yield (i, j), self.board[i][j]
 
     def html(self, viewer_id=None, *, turn: float = 0) -> Html:
         if turn % 180 == 0:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from itertools import count
 from typing import (
     Generic,
@@ -44,7 +46,7 @@ class List(AbstractComposite, Generic[T], MutableSequence[T]):
 
         def _slot_constructor(**more_kwargs):
             obj = slotClass(
-                id_=str(next(self.slot_keys)), parent=self, **kwargs, **more_kwargs
+                id_=next(self.slot_keys), parent=self, **kwargs, **more_kwargs
             )
             obj.display_as = display_as_li
             return obj
@@ -54,7 +56,7 @@ class List(AbstractComposite, Generic[T], MutableSequence[T]):
         self.slots = slots
 
     # Component interface methods
-    def get_slots(self) -> Mapping[str, "ComponentSlot"]:
+    def get_slots(self) -> Mapping[int, "ComponentSlot"]:
         return dict((slot.id, slot) for slot in self.slots)
 
     def html(self, viewer_id=None) -> Html:
@@ -113,10 +115,10 @@ class List(AbstractComposite, Generic[T], MutableSequence[T]):
         return copy
 
 
-Key = TypeVar("Key", bound=str)
+Key = TypeVar("Key")
 
 
-class Dict(AbstractComposite, Generic[Key, T], MutableMapping[Key, T]):
+class Dict(AbstractComposite[Key], Generic[Key, T], MutableMapping[Key, T]):
     def __init__(
         self,
         content: dict[Key, T] | None = None,
@@ -136,7 +138,7 @@ class Dict(AbstractComposite, Generic[Key, T], MutableMapping[Key, T]):
         self.slots: dict[Key, ComponentSlot] = slots
 
     # Component interface methods
-    def get_slots(self) -> Mapping[str, ComponentSlot]:
+    def get_slots(self) -> Mapping[Key, ComponentSlot]:
         return self.slots
 
     def html(self, viewer_id=None) -> Html:
@@ -162,7 +164,7 @@ class Dict(AbstractComposite, Generic[Key, T], MutableMapping[Key, T]):
 
     def __delitem__(self, __key: Key):
         del self.slots[__key]
-        self.log_deleted_slot(str(__key))
+        self.log_deleted_slot(__key)
 
     def __getitem__(self, __key) -> T:
         return self.slots[__key].get()

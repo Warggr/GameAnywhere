@@ -1,15 +1,18 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from contextlib import ExitStack
 from dataclasses import dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Generic, Type, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Generic, Sequence, TypedDict, TypeVar
 
 from game_anywhere.core.agent import Agent
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from typing import Any, Callable, NotRequired
 
     from game_anywhere.core import Game
+    from game_anywhere.network import Lobby, Server
 
 
 AgentPromise = TypeVar("AgentPromise")
@@ -18,6 +21,8 @@ AgentPromise = TypeVar("AgentPromise")
 class Context(TypedDict):
     game: type["Game"]
     exit_stack: ExitStack
+    server: NotRequired[Server]
+    server_room: NotRequired[Lobby]
 
 
 class AgentDescriptor(ABC, Generic[AgentPromise]):
@@ -77,8 +82,8 @@ class GameDescriptor(Generic[GameType]):
 
     def __init__(
         self,
-        GameType: Type[GameType],
-        agents_descriptors: list[AgentDescriptor[Any]],
+        GameType: type[GameType],
+        agents_descriptors: Sequence[AgentDescriptor[Any]],
         *game_args,
         **game_kwargs,
     ):

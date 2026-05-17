@@ -62,34 +62,16 @@ class AbstractComponent(ABC):
                 "This method should be called only on components on the tree"
             ) from err
 
-    def _lookup_slot_nonrecursive(self, slot_id: str) -> "WeakComponentSlot":
-        """Overridden by subclasses"""
-        slots = [slot for slot in self.slots.values() if slot.slot_id == slot_id]
-        if len(slots) == 0:
-            raise KeyError(slot_id)
-        elif len(slots) >= 2:
-            raise AssertionError("Multiple slots with ID " + slot_id)
-        return slots[0]
-
-    def lookup_slot_address(self, address: str) -> "WeakComponentSlot":
-        address = address.split("/", maxsplit=1)
-        match address:
-            case toplevel, relative:
-                return (
-                    self._lookup_slot_nonrecursive(toplevel)
-                    .get()
-                    .lookup_slot_address(relative)
-                )
-            case toplevel:
-                return self._lookup_slot_nonrecursive(toplevel)
-
     @abstractmethod
     def html(self, viewer_id: AgentId | None = None) -> Any: ...
 
 
-class AbstractComposite(AbstractComponent):
+KeyType = TypeVar("KeyType")
+
+
+class AbstractComposite(AbstractComponent, Generic[KeyType]):
     @abstractmethod
-    def get_slots(self) -> Mapping[str, "WeakComponentSlot"]:
+    def get_slots(self) -> Mapping[KeyType, "WeakComponentSlot"]:
         """Return a list of slots with names."""
         ...
 
@@ -99,7 +81,7 @@ class AbstractComposite(AbstractComponent):
         except self.NotAttachedToComponentTree:
             pass
 
-    def log_deleted_slot(self, slot_name: str):
+    def log_deleted_slot(self, slot_name: KeyType):
         try:
             self.get_game().log_delete_slot(self, slot_name)
         except self.NotAttachedToComponentTree:
@@ -112,7 +94,7 @@ class AbstractComposite(AbstractComponent):
             fields.append(
                 tag.section(
                     tag.label(
-                        _display_slot_name(slotname),
+                        _display_slot_name(str(slotname)),
                         **{
                             "class": "ga-field-label",
                         },
@@ -131,7 +113,7 @@ class AbstractComposite(AbstractComponent):
         )
 
 
-class Composite(AbstractComposite):
+class Composite(AbstractComposite[str]):
     def __init__(self):
         super().__init__()
         self.slots: dict[str, "WeakComponentSlot"] = {}
@@ -149,14 +131,7 @@ class Composite(AbstractComposite):
 
 
 class Component(AbstractComponent):
-    def get_slots(self):
-        return {}
-
-    def log_added_slot(self, slot: "WeakComponentSlot"):
-        raise NotImplementedError()
-
-    def log_deleted_slot(self, slot_name: str):
-        raise NotImplementedError()
+    pass
 
 
 """ Typically, ComponentTreeNodes are Components. But we also support raw values, e.g. booleans. """
@@ -167,7 +142,7 @@ T = TypeVar("T", bound=ComponentTreeNode)
 class WeakComponentSlot(Generic[T]):
     def __init__(
         self,
-        id_: str,
+        id_: Any,
         parent: AbstractComponent,
         content: Optional[T] = None,
         *,
@@ -185,15 +160,15 @@ class WeakComponentSlot(Generic[T]):
             self.set(content)
 
     def get_address(self):
-        return self.parent.get_slot_address() + "/" + self.id
+        return self.parent.get_slot_address() + "/" + str(self.id)
 
     def get_game(self) -> "Game":
         return self.parent.get_game()
 
-    def get(self) -> T:
+    def get(self) -> T | None:
         return self._content
 
-    def set(self, content: T):
+    def set(self, content: T | None):
         self._content = content
         if isinstance(content, AbstractComponent):
             content.slot = self
@@ -215,14 +190,14 @@ class WeakComponentSlot(Generic[T]):
         game.log_component_update(self, force_reveal=True, only_update=to)
 
     @property
-    def content(self) -> T:
+    def content(self) -> T | None:
         return self.get()
 
     @content.setter
     def content(self, content: T):
         self.set(content)
 
-    def take(self) -> T:
+    def take(self) -> T | None:
         result = self._content
         self.set(None)
         return result

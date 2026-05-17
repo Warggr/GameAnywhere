@@ -50,7 +50,7 @@ class TicTacToe(TurnBasedGame):
         if self.get_current_turn() == TOTAL_MOVES:
             return SimpleGameSummary(SimpleGameSummary.NO_WINNER)
 
-        fields = [field for _, field in self.board.all_fields() if field.empty()]
+        fields = [field for _, field in self.board.get_slots().items() if field.empty()]
         assert len(fields) > 0, self.get_current_turn()
         field = self.get_current_agent().choose_one_component_slot(fields, fields)
         field.content = TicTacToeMark(self.get_current_agent_index())

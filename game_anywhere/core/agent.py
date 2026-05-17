@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 
 from game_anywhere.protocols import JsonSchema
 
 if TYPE_CHECKING:
     import asyncio
+    from typing import Sequence
 
     from game_anywhere.components import ComponentSlot
 
@@ -45,7 +48,7 @@ class Agent(ABC):
     @abstractmethod
     def choose_one_component_slot(
         self,
-        slots: list["ComponentSlot"],
+        slots: Sequence["ComponentSlot"],
         indices: Optional[list[T]] = None,
         special_options: Sequence[U] = (),
         message: str | None = None,
