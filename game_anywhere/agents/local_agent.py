@@ -129,7 +129,10 @@ class HumanAgent(TextAgent):
         def start_initialization(self, agent_descriptor_number: int, context):
             self.resolve_name(f"Human agent {agent_descriptor_number}")
 
-        def await_initialization(self, promise) -> "HumanAgent":
+        def is_initialized(self, promise: None) -> bool:
+            return True
+
+        def await_initialization(self, promise: None) -> "HumanAgent":
             return HumanAgent(self.name)
 
     def _write(self, *objects, **kwargs):
@@ -167,6 +170,9 @@ class PipeAgent(TextAgent):
             infile = open_pipe(str(agent_descriptor_number) + ".in")
             outfile = open_pipe(str(agent_descriptor_number) + ".out")
             return infile, outfile, context
+
+        def is_initialized(self, promise: tuple[str, str, "Context"]) -> bool:
+            return True
 
         def await_initialization(
             self, promise: tuple[str, str, "Context"]

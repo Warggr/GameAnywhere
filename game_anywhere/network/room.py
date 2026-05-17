@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 from itertools import chain
-from typing import TYPE_CHECKING, Generic, Iterable, TypeVar
+from typing import TYPE_CHECKING, TypedDict
 
 from aiohttp import web
 
@@ -8,16 +10,24 @@ from .async_resource import AsyncResource
 from .spectator import Session, Spectator
 
 if TYPE_CHECKING:
+    from typing import Any, Callable, Iterable, Literal
+
     from .server import Server
 
 SeatId = int
 Username = str
 
 
-ServerType = TypeVar("ServerType", bound="Server")
+class JsonPatch(TypedDict):
+    op: Literal["add", "replace", "remove"]
+    path: str
+    value: Any
 
 
-class ServerRoom(AsyncResource, Generic[ServerType]):
+ServerEvent = JsonPatch
+
+
+class ServerRoom(AsyncResource):
     class CouldntConnect(Exception):
         pass
 
@@ -25,7 +35,9 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
     def get_request_username(request: web.Request) -> str | None:
         return request.cookies.get("username", None)
 
-    def __init__(self, server: ServerType, greeter_message="Welcome to the room!"):
+    def __init__(
+        self, server: Server, greeter_message: Any | Callable[[], Any] | None = None
+    ):
         """
         Args:
             greeter_message: The message that will be sent to every new spectator
@@ -77,21 +89,23 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
             await asyncio.wait(spectators_still_running)
         self.server.delete_room(self)
 
-    def report_afk(self, spectator: Spectator):
+    async def nt_report_afk(self, spectator: Spectator):
         assert spectator.state in [
             Spectator.State.FREE,
             Spectator.State.INTERRUPTED_BY_SERVER,
-        ]
+        ], spectator.state
         if type(spectator) is Session:
             pass
         else:
             self.spectators.remove(spectator)
-            self.server.log_event(
-                {
-                    "op": "replace",
-                    "key": f"/{self.room_id}/spectators",
-                    "value": len(self.spectators),
-                }
+            self.server.loop.create_task(
+                self.log_event(
+                    {
+                        "op": "replace",
+                        "path": "/spectators",
+                        "value": len(self.spectators),
+                    }
+                )
             )
 
     def send(self, message: str) -> None:
@@ -100,6 +114,13 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
 
     def get_spectators_and_sessions(self) -> Iterable[Spectator]:
         return chain(self.sessions.values(), self.spectators)
+
+    async def log_event(self, event: ServerEvent):
+        event = [event]  # JSON patch has to be a list of patches
+        promises = [
+            spectator.send(event) for spectator in self.get_spectators_and_sessions()
+        ]
+        await asyncio.gather(*promises)
 
     # this is a class method, and the middleware takes care of binding it to
     # the proper instance. See @class Server.
@@ -118,12 +139,14 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
     async def nt_add_spectator(self, request: web.Request):
         spectator = Spectator(self)
         self.spectators.append(spectator)
-        self.server.log_event(
-            {
-                "op": "replace",
-                "key": f"/r/{self.room_id}/spectators",
-                "value": len(self.spectators),
-            }
+        self.server.loop.create_task(
+            self.log_event(
+                {
+                    "op": "replace",
+                    "path": "/spectators",
+                    "value": len(self.spectators),
+                }
+            )
         )
         return await self.nt_handle_websocket(request, spectator)
 
@@ -154,12 +177,14 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
         username = request.query.get("username", None) or new_name_or_none
         if username is not None:
             session.username = username
-            self.server.log_event(
-                {
-                    "op": "replace",
-                    "key": f"/r/{self.room_id}/seats/{session_id}/username",
-                    "value": username,
-                }
+            self.server.loop.create_task(
+                self.log_event(
+                    {
+                        "op": "replace",
+                        "path": f"/seats/{session_id}/username",
+                        "value": username,
+                    }
+                )
             )
         return await self.nt_handle_websocket(request, session)
 
@@ -167,8 +192,11 @@ class ServerRoom(AsyncResource, Generic[ServerType]):
         ws = web.WebSocketResponse()
         try:
             await spectator.on_connect(request, ws)
-            if type(spectator) is not Session:
-                await spectator.send(self.greeter_message)
+            if self.greeter_message is not None:
+                greeter_message = self.greeter_message
+                if callable(greeter_message):
+                    greeter_message = greeter_message()
+                await spectator.send(greeter_message)
             await spectator.run()
             # the websocket is closed as soon as the method execution finishes, i.e. now
         except asyncio.CancelledError:  # cancelled by server, or the game ended

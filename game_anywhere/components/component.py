@@ -411,9 +411,7 @@ class PerPlayer(
             game = obj.get_game()
             per_player = [
                 self.componentClass(owner=agent, owner_id=agent_id)
-                for agent, agent_id in zip(
-                    game.agent_descriptions, game.agent_ids, strict=True
-                )
+                for agent, agent_id in zip(game.agents, game.agent_ids, strict=True)
             ]
             for_all_players = List(per_player)
             for agent_id, slot in zip(

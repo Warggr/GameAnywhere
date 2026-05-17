@@ -51,4 +51,4 @@ def test_instantiate_game(game_class: type[Game]):
     schema["type"] = "object"
     kwargs = random_object(schema, generator)
     num_agents, kwargs = game_class.parse_config(**kwargs)
-    _ = game_class(agent_descriptions=["mock" for _ in range(num_agents)], **kwargs)
+    _ = game_class([None for _ in range(num_agents)], **kwargs)

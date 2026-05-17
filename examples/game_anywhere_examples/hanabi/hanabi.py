@@ -100,15 +100,15 @@ class Hanabi(TurnBasedGame):
     def get_asset_dir(cls) -> Path:
         return files("game_anywhere_examples.hanabi") / "assets"
 
-    def __init__(self, agent_descriptions, *args, **kwargs):
-        super().__init__(*args, agent_descriptions=agent_descriptions, **kwargs)
+    def __init__(self, agents, *args, **kwargs):
+        super().__init__(agents, *args, **kwargs)
         self.deck = Deck(default_hanabi_deck(), shuffled=True)
         self.nb_hints = self.MAX_HINTS
         self.nb_lives = 3
         self.stacks = Dict[Color, List]()
         self.discard_pile = DiscardPile()
 
-        nb_players = len(agent_descriptions)
+        nb_players = len(agents)
         assert 2 <= nb_players <= 5, "Hanabi can be played only between 2 and 5 players"
         CARDS_PER_PLAYER = 5 if nb_players <= 3 else 4
         for i, player in enumerate(self.players):

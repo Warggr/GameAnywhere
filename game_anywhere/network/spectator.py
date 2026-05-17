@@ -1,7 +1,7 @@
 import asyncio
 from enum import Enum, unique
 from threading import Condition, Lock
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import aiohttp
 from aiohttp import web
@@ -78,7 +78,7 @@ class Spectator:
     # this is not necessary here since we have actual coroutines instead of callbacks
     async def on_connect(
         self, request: web.Request, websocket: web.WebSocketResponse
-    ) -> Awaitable[web.WebSocketResponse]:
+    ) -> web.WebSocketResponse:
         assert self.state == Spectator.State.FREE
         self.state = Spectator.State.CLAIMED
         self.ws = websocket
@@ -110,7 +110,7 @@ class Spectator:
             # signal anyone that waits for an incoming message
             with self.protect_reading_queue:
                 self.signal_reading_queue.notify()
-            self.room.report_afk(self)
+            await self.room.nt_report_afk(self)
 
     async def read_all_messages(self):
         async for msg in self.ws:
@@ -227,12 +227,14 @@ class Session(Spectator):
     @Spectator.state.setter
     def state(self, value: "Spectator.State"):
         self._state = value
-        self.room.server.log_event(
-            {
-                "op": "replace",
-                "key": f"/r/{self.room.room_id}/seats/{self.seat_id}/state",
-                "value": value.name,
-            }
+        self.loop.create_task(
+            self.room.log_event(
+                {
+                    "op": "replace",
+                    "path": f"/seats/{self.seat_id}/state",
+                    "value": value.name,
+                }
+            )
         )
 
     def reconnect_sync(self) -> None:

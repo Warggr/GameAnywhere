@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from asyncio.queues import Queue
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING
 
 from aiohttp import http, web
 from aiohttp_sse import sse_response
@@ -12,33 +12,13 @@ from game_anywhere.agents.descriptors import GameDescriptor
 from game_anywhere.agents.network_agent import NetworkAgent
 from game_anywhere.ui.custom_components import get_registered_component
 
-from .game_room import GameRoom
+from .game_room import BaseGameRoom, Lobby
 from .server import Server
 
 if TYPE_CHECKING:
     from game_anywhere.core import Game, GameSummary
 
     from .game_room import GameMetadata
-    from .room import ServerRoom
-
-
-def json_encode_server_room(room: "ServerRoom") -> dict:
-    return {
-        "spectators": len(room.spectators),
-        "seats": {
-            key: {"username": value.username, "state": value.state.name}
-            for key, value in room.sessions.items()
-        },
-    }
-
-
-class JsonPatch(TypedDict):
-    op: Literal["add", "replace", "remove"]
-    key: str
-    value: Any
-
-
-ServerEvent = JsonPatch
 
 
 def json_encode_game_summary(summary: "GameSummary") -> dict:
@@ -69,7 +49,7 @@ class HttpControlledServer(Server):
             if asset_dir is not None:
                 asset_dirs[g.__name__] = asset_dir
         super().__init__(
-            RoomClass=GameRoom,
+            RoomClasses={"r": BaseGameRoom, "lobby": Lobby},
             assets=asset_dirs,
             dynamic_assets=get_registered_component,
         )
@@ -80,7 +60,6 @@ class HttpControlledServer(Server):
         self.app.add_routes(
             [
                 web.post("/room", self.http_create_room),
-                web.get("/room/list", self.http_get_rooms),
                 web.get("/watch", self.http_watch_server),
                 web.options("/room", self.http_options_create_room),
                 web.get("/logs/list", self.http_list_games),
@@ -101,21 +80,18 @@ class HttpControlledServer(Server):
                 [NetworkAgent.Descriptor() for _ in range(num_players)],
                 **game_kwargs,
             )
-            room_id, room = self.new_room(room=GameRoom(game_description, server=self))
+            room_id, _ = self.new_room(
+                room=Lobby(
+                    game_type,
+                    list(range(num_players)),
+                    game_description=game_description,
+                    server=self,
+                )
+            )
         except Exception as ex:
             raise web.HTTPBadRequest(text=str(ex)) from ex
-        self.log_event(
-            {
-                "op": "add",
-                "key": f"/r/{room_id}",
-                "value": json_encode_server_room(room),
-            },
-        )
-        return web.json_response(room_id, status=http.HTTPStatus.CREATED)
-
-    def http_get_rooms(self, request: web.Request) -> web.Response:
-        return web.json_response(
-            text=json.dumps(self.rooms, default=json_encode_server_room)
+        return web.Response(
+            status=http.HTTPStatus.CREATED, headers={"Location": f"/lobby/{room_id}"}
         )
 
     async def http_watch_server(self, request: web.Request) -> web.StreamResponse:
@@ -182,11 +158,6 @@ class HttpControlledServer(Server):
                 "value": json_encode_game_metadata(metadata),
             }
         )
-
-    def log_event(self, event: ServerEvent):
-        event_str = json.dumps([event])  # JSON patch has to be a list of patches
-        for queue in self.event_queues:
-            queue.put_nowait(event_str)
 
     # override
     def nt_interrupt(self):

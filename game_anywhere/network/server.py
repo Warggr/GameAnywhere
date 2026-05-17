@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import AbstractContextManager
+from itertools import count
 from threading import Semaphore, Thread
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -13,31 +14,45 @@ from .room import ServerRoom
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Mapping
 
     from .http_controlled_server import ServerEvent
 
 
 RoomId = int
 
-"""
-Convention:
-all functions that are intended to be called on the network thread start with nt_
-    (or with http_ for HTTP request handler)
-"""
-
 
 class Server(AbstractContextManager, AsyncResource):
+    """Handles all network connections.
+
+    Can be used in two modes:
+    - sync mode: the network thread is just the thread in which the Server has been created
+    - async mode: the Server is used as a context manager. It creates its own network thread, and closes it when __exit__ is called.
+
+    Convention:
+    all functions that are intended to be called on the network thread start with nt_
+        (or with http_ for HTTP request handler)
+    """
+
     def __init__(
         self,
-        RoomClass=ServerRoom,
+        RoomClasses: Mapping[str, type[ServerRoom]] | None = None,
         assets: dict[str, Path | str] | None = None,
         dynamic_assets: Callable[[str, str], Path] | None = None,
     ):
+        """
+        Args:
+            RoomClasses: room types supported by the server. Defaults to `{"r": ServerRoom}`
+        """
+        if RoomClasses is None:
+            RoomClasses = {"r": ServerRoom}
+
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.serverThread: Optional[Thread] = None
         self.running = False
         self.rooms: dict[RoomId, ServerRoom] = {}
         self.app = web.Application()
+        self.room_ids = count()
 
         # Ideally we would want one sub-app for each room, but aiohttp doesn't
         # allow adding subapps at runtime. So instead, we create one big
@@ -54,11 +69,13 @@ class Server(AbstractContextManager, AsyncResource):
             if roomId not in self.rooms:
                 raise web.HTTPNotFound(text=f"Room {roomId} not found")
             # Using room.<handler_function> instead of the unbound ServerRoom.<handler_function>.
-            # by specifying self manually. TODO: this is very non-idiomatic and bad
+            # by specifying self manually.
+            # TODO: only allow this if the handler is linked to the game room type
             return await handler(self=self.rooms[roomId], request=request)
 
-        subapp = RoomClass.http_interface(instance_dispatcher=room_dispatcher)
-        self.app.add_subapp("/r/", subapp)
+        for prefix, RoomClass in RoomClasses.items():
+            subapp = RoomClass.http_interface(instance_dispatcher=room_dispatcher)
+            self.app.add_subapp(f"/{prefix}/", subapp)
         if assets is not None:
             assets_app = web.Application()
             assets_app.add_routes(
@@ -146,14 +163,14 @@ class Server(AbstractContextManager, AsyncResource):
     def new_room(self, room: ServerRoom | None = None) -> tuple[RoomId, ServerRoom]:
         if room is None:
             room = ServerRoom(server=self)
-        roomId = len(self.rooms)
+        roomId = next(self.room_ids)
         self.rooms[roomId] = room
         # this would be the idiomatic way of doing it, but unfortunately you can't add subapps at runtime
         # self.app.add_subapp('/' + str(roomId), room.http_interface())
         return roomId, room
 
     def delete_room(self, room: ServerRoom) -> None:
-        room_key = [key for (key, value) in self.rooms.items() if value is room][0]
+        (room_key,) = [key for (key, value) in self.rooms.items() if value is room]
         del self.rooms[room_key]
 
     def log_event(self, event: "ServerEvent") -> None:

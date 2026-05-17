@@ -12,8 +12,6 @@ if TYPE_CHECKING:
     from game_anywhere.components import AbstractComponent
     from game_anywhere.ui import Html
 
-    from ..agents.descriptors import AgentDescriptor
-
 
 """
 An AgentId identifies one of the players.
@@ -54,17 +52,12 @@ class Game(Composite):
       the type of the agents are often clear from the context - when they are not, i.e. in run_game_from_cmdline,
       there's extra logic to determine them from the command-line arguments
     - FooGame is instantiated: game = FooGame(...)
-      from now on the html() method can be called (we know how many agents there are so we can show what an emtpy board looks like)
-    - we wait for the agents to connect and then call set_agents - now the game can start
     - play_game is called (typically)
     """
 
-    def __init__(self, agent_descriptions: list["AgentDescriptor"]):
+    def __init__(self, agents: list[Agent]):
         super().__init__()
-        nb_agents = len(agent_descriptions)
-        # TODO: maybe a state pattern with AgentDescriptors and Agents, instead of setting them to None at the beginning
-        self.agents: list[Agent] | list[None] = [None] * nb_agents
-        self.agent_descriptions = agent_descriptions
+        self.agents = agents
 
     CONFIG_SCHEMA = {
         "properties": {
@@ -169,8 +162,6 @@ class Game(Composite):
             agents = zip(self.agent_ids, self.agents, strict=True)
         else:
             agents = [(only_update, self.agents[only_update])]
-        if self.agents[0] is None:
-            return  # Return early if the agents are not initialized yet
         for agent_id, agent in agents:
             agent.update(
                 [
@@ -183,9 +174,6 @@ class Game(Composite):
                     }
                 ]
             )
-
-    def set_agents(self, agents: list[Agent]):
-        self.agents = agents
 
     def get_html_for_agent_ref(self, agent_ref: Any) -> "Html":
         """

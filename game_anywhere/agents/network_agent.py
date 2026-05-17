@@ -10,12 +10,13 @@ from game_anywhere.core.agent import ChatStream
 from game_anywhere.ui.custom_components import get_registered_component
 
 from ..network import Server
-from ..network.game_room import BaseGameRoom
+from ..network.game_room import BaseGameRoom, Lobby
 from ..network.spectator import Session, Spectator
 from .descriptors import AgentDescriptor
 
 if TYPE_CHECKING:
     from game_anywhere.components import ComponentSlot
+    from game_anywhere.core import Game
 
     from .descriptors import Context
 
@@ -149,7 +150,7 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
                     if asset_dir is not None:
                         asset_dirs[context["game"].__name__] = asset_dir
                     server = Server(
-                        RoomClass=BaseGameRoom,
+                        RoomClasses={"r": BaseGameRoom, "lobby": Lobby},
                         assets=asset_dirs,
                         dynamic_assets=get_registered_component,
                     )
@@ -157,23 +158,42 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
                     context["exit_stack"].enter_context(server)
                 else:
                     server = context["server"]
-                if "game" in context:
-                    _room_id, room = server.new_room(
-                        BaseGameRoom(game=context["game"], server=server)
+                _room_id, room = server.new_room(
+                    Lobby(
+                        game_type=context["game"],
+                        expected=(agent_descriptor_number,),
+                        server=server,
                     )
-                else:
-                    _room_id, room = server.new_room()
+                )
+                promise_num = 0
                 context["server_room"] = room
                 # context['exit_stack'].enter_context(room)
             else:
                 room = context["server_room"]
-            session = room.create_session(agent_descriptor_number)
-            return session
+                promise_num = len(room.expected)
+                room.expected.add(agent_descriptor_number)
+            return room, promise_num
 
-        def await_initialization(self, session):
-            session.reconnect_sync()
+        def is_initialized(self, pair: tuple[Lobby, int] | Session) -> bool:
+            if isinstance(pair, tuple):
+                lobby, i = pair
+                return len(lobby.sessions) > i
+            else:
+                return True
+
+        def await_initialization(self, pair: tuple[Lobby, int] | Session):
+            if isinstance(pair, tuple):
+                lobby, i = pair
+                session = lobby.wait_for_session(i)
+                session.reconnect_sync()
+            else:
+                session = pair
             self.resolve_name(session.username)
             return NetworkAgent(session)
+
+        def set_game(self, game: Game, context: Context):
+            if not context["server_room"].finalized:
+                context["server_room"].nt_finalize(game)
 
     def __init__(self, session: Session):
         username = session.username
