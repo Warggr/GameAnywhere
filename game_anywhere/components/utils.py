@@ -20,7 +20,7 @@ def html(obj, *args, visible: bool = True, **kwargs) -> "Html":
             try:
                 html = obj.HIDDEN_HTML
             except AttributeError:
-                html = "Masked " + escape(str(type(obj)))
+                html = "Masked " + escape(type(obj).__name__)
     return Html(html)
 
 

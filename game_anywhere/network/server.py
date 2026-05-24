@@ -152,7 +152,7 @@ class Server(AbstractContextManager, AsyncResource):
             room.nt_interrupt()
 
     def close(self):
-        self.loop.call_soon_threadsafe(self.interrupt_and_close())
+        asyncio.run_coroutine_threadsafe(self.interrupt_and_close(), self.loop)
         self.loop.stop()
         self.serverThread.join()
 

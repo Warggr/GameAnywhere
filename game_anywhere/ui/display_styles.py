@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Generic, Optional, Protocol, TypeVar
 
 from game_anywhere.components.containers import List
-from game_anywhere.components.utils import html
 
 from .custom_components import register_component
 from .ui import HtmlElement, tag
@@ -68,9 +67,8 @@ register_component(
 
 def hand_fan(obj: List, viewer_id=None, visible: bool = True) -> "Html":
     assert isinstance(obj, List), "only lists can be displayed in a fan layout!"
-    elements = [
-        html(o, viewer_id=viewer_id, visible=visible) for o in obj.get_slots().values()
-    ]
+    assert visible, "Hand fan cannot be completely hidden"
+    elements = [o.html(viewer_id=viewer_id) for o in obj.get_slots().values()]
     return HtmlElement(
         tag.ul(*elements),
         tag_name="ga-hand-fan",

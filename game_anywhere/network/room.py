@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from itertools import chain
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from aiohttp import web
 
@@ -21,7 +21,7 @@ Username = str
 class JsonPatch(TypedDict):
     op: Literal["add", "replace", "remove"]
     path: str
-    value: Any
+    value: NotRequired[Any]
 
 
 ServerEvent = JsonPatch

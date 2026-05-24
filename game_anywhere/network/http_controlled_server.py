@@ -117,7 +117,7 @@ class HttpControlledServer(Server):
             schema["properties"] = schema["properties"].copy()
             schema["properties"]["_id"] = {"const": game_name}
             schema["required"] = schema.get("required", ["_num_players"])
-            schema["required"].append("_id")
+            schema["required"] = schema["required"] + ["_id"]
             defs[game_name] = schema
         schema = {
             "$id": "/schema",

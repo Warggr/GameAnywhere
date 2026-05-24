@@ -167,9 +167,13 @@
                     );
                     const socket = new WebSocket(socket_url);
 
-                    socket.onopen = (event) => {};
+                    socket.onopen = (event) => {
+                        this.connection_status = "Connected";
+                    };
                     socket.onerror = console.error;
-                    socket.onclose = (event) => {};
+                    socket.onclose = (event) => {
+                        this.connection_status = "Disconnected";
+                    };
                     socket.onmessage = async (message) => {
                         this.handle_message(JSON.parse(message.data));
                     };

@@ -213,7 +213,7 @@ class WeakComponentSlot(Generic[T]):
                 child.set_owner_id(owner_id)
 
     def can_be_seen_by(self, viewer_id=None):
-        return not self.hidden or viewer_id == self.owner_id
+        return not self.hidden or (viewer_id is not None and viewer_id == self.owner_id)
 
     def can_be_seen_by_recursive(self, viewer_id=None) -> bool:
         """Whether there's a component higher up in the component hierarchy that blocks visibility of this slot."""
@@ -230,15 +230,15 @@ class WeakComponentSlot(Generic[T]):
         if self.display_as is None:
             html = to_html(self._content, viewer_id=viewer_id, visible=is_visible)
             html = html.wrap_to_one_element()
-            html.attrs["class"] = merge_classes(
-                html.attrs.get("class"),
-                "ga-slot",
-                "ga-slot--visible" if is_visible else "ga-slot--hidden",
-            )
         else:
             html = self.display_as(
                 self._content, viewer_id=viewer_id, visible=is_visible
             )
+        html.attrs["class"] = merge_classes(
+            html.attrs.get("class"),
+            "ga-slot",
+            "ga-slot--visible" if is_visible else "ga-slot--hidden",
+        )
         html.attrs["data-key"] = self.id
         return html
 
