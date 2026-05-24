@@ -97,15 +97,13 @@ class ServerRoom(AsyncResource):
         if type(spectator) is Session:
             pass
         else:
-            self.spectators.remove(spectator)
-            self.server.loop.create_task(
-                self.log_event(
-                    {
-                        "op": "replace",
-                        "path": "/spectators",
-                        "value": len(self.spectators),
-                    }
-                )
+            index = self.spectators.index(spectator)
+            self.spectators.pop(index)
+            self.log_event_nosync(
+                {
+                    "op": "remove",
+                    "path": f"/spectators/{index}",
+                }
             )
 
     def send(self, message: str) -> None:
@@ -143,14 +141,12 @@ class ServerRoom(AsyncResource):
     async def nt_add_spectator(self, request: web.Request):
         spectator = Spectator(self)
         self.spectators.append(spectator)
-        self.server.loop.create_task(
-            self.log_event(
-                {
-                    "op": "replace",
-                    "path": "/spectators",
-                    "value": len(self.spectators),
-                }
-            )
+        self.log_event_nosync(
+            {
+                "op": "add",
+                "path": "/spectators/-",
+                "value": {},
+            }
         )
         return await self.nt_handle_websocket(request, spectator)
 

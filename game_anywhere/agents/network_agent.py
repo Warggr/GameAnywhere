@@ -140,7 +140,7 @@ class JsonSchemaAgentMixin(AskMultipleTimesMixin):
 class NetworkAgent(JsonSchemaAgentMixin, Agent):
     CLIENT_LOST_TRACK_MESSAGE = "?"
 
-    class Descriptor(AgentDescriptor[tuple[Lobby, int] | Session]):
+    class Descriptor(AgentDescriptor[tuple[Lobby, int]]):
         def start_initialization(
             self, agent_descriptor_number: int, context: Context
         ) -> tuple[Lobby, int]:
@@ -175,25 +175,18 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
                 room.expected.add(agent_descriptor_number)
             return room, promise_num
 
-        def is_initialized(self, pair: tuple[Lobby, int] | Session) -> bool:
-            if isinstance(pair, tuple):
-                lobby, i = pair
-                return len(lobby.sessions) > i
-            else:
-                return True
+        def is_initialized(self, pair: tuple[Lobby, int]) -> bool:
+            lobby, i = pair
+            return len(lobby.spectators) > i
 
-        def await_initialization(self, pair: tuple[Lobby, int] | Session):
-            if isinstance(pair, tuple):
-                lobby, i = pair
-                session = lobby.wait_for_session(i)
-                session.reconnect_sync()
-            else:
-                session = pair
+        def await_initialization(self, pair: tuple[Lobby, int]):
+            lobby, i = pair
+            session = lobby.wait_for_session_sync(i)
             self.resolve_name(session.username)
             return NetworkAgent(session)
 
         def set_game(self, game: Game, context: Context):
-            if not context["server_room"].finalized:
+            if not context["server_room"].finalized.is_set():
                 context["server_room"].nt_finalize(game)
 
     def __init__(self, session: Session):

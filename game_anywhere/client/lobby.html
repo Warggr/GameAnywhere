@@ -33,10 +33,6 @@
                                 <span>Room</span>
                                 <strong>{{ room_id || "Unknown" }}</strong>
                             </div>
-                            <div class="meta-row">
-                                <span>Seat</span>
-                                <strong>{{ seat_id || "Joining..." }}</strong>
-                            </div>
                         </div>
                     </section>
 
@@ -92,16 +88,14 @@
                             <thead>
                                 <tr>
                                     <th>Username</th>
-                                    <th>State</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr
-                                    v-for="(user, seat) in game.seats"
+                                    v-for="(user, seat) in game.spectators"
                                     :key="seat"
                                 >
-                                    <td>{{ user.username || "Guest" }}</td>
-                                    <td>{{ user.state }}</td>
+                                    <td>{{ user.name || "Guest" }}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -132,14 +126,13 @@
                         ?.split("=")[1];
                     return {
                         room_id: params.get("room"),
-                        seat_id: params.get("seat"),
+                        seat_id: undefined,
                         server_host: window.location.host,
                         connection_status: "Connecting...",
                         username: cookieUsername,
                         login_username: cookieUsername || "",
                         game: {
-                            seats: [],
-                            spectators: 0,
+                            spectators: [],
                             num_players: undefined,
                             game: undefined,
                         },
@@ -147,7 +140,7 @@
                 },
                 computed: {
                     player_count() {
-                        return Object.keys(this.game.seats).length;
+                        return this.game.spectators.length;
                     },
                     expected_count() {
                         return this.game.num_players?.const;
@@ -168,33 +161,9 @@
                 },
 
                 async mounted() {
-                    let players_loaded = fetch("/lobby/" + this.room_id + "/")
-                        .then((response) => response.json())
-                        .then((game) => (this.game = game));
-
-                    const base_url = new URL(
-                        "/lobby/" + this.room_id + "/enter",
-                        window.location.href,
-                    );
-                    let socket_relative_url;
-                    if (this.seat_id === null) {
-                        const response = await fetch(base_url);
-                        socket_relative_url = response.headers.get("Location");
-                        socket_relative_url = socket_relative_url.substring(3);
-                        console.assert(socket_relative_url.startsWith("ws/"));
-                        this.seat_id = socket_relative_url;
-                        let new_url = new URL(window.location.href);
-                        new_url.searchParams.append(
-                            "seat",
-                            socket_relative_url,
-                        );
-                        window.history.replaceState({}, null, new_url);
-                    } else {
-                        socket_relative_url = this.seat_id;
-                    }
                     const socket_url = new URL(
-                        "ws/" + socket_relative_url,
-                        base_url,
+                        "/lobby/" + this.room_id + "/ws/watch",
+                        window.location.href,
                     );
                     const socket = new WebSocket(socket_url);
 
@@ -202,26 +171,30 @@
                     socket.onerror = console.error;
                     socket.onclose = (event) => {};
                     socket.onmessage = async (message) => {
-                        await players_loaded;
                         this.handle_message(JSON.parse(message.data));
                     };
+                    this.socket = socket;
                 },
                 methods: {
                     handle_message(message) {
-                        if (
-                            message.length == 1 &&
-                            message[0].op == "finalize"
-                        ) {
-                            message = message[0];
-                            let url = new URL(
-                                "player.html",
-                                window.location.href,
-                            );
-                            console.assert(message.location.startsWith("/r/"));
-                            const room_id = message.location.substring(3);
-                            url.searchParams.append("seat", this.seat_id);
-                            url.searchParams.append("room", room_id);
-                            window.location.replace(url);
+                        if (message.type == "finalize") {
+                            if (message.seat_id !== undefined) {
+                                console.log("Set seat_id:", message.seat_id);
+                                this.seat_id = message.seat_id;
+                            } else {
+                                console.assert(this.seat_id !== undefined);
+                                let url = new URL(
+                                    "player.html",
+                                    window.location.href,
+                                );
+                                console.assert(
+                                    message.location.startsWith("/r/"),
+                                );
+                                const room_id = message.location.substring(3);
+                                url.searchParams.append("seat", this.seat_id);
+                                url.searchParams.append("room", room_id);
+                                window.location.replace(url);
+                            }
                             return;
                         }
                         this.game = applyPatch(

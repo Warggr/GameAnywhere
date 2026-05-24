@@ -3,13 +3,15 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from itertools import count
 from threading import Thread
 from typing import TYPE_CHECKING, Sequence
 
-from aiohttp import http, web
+from aiohttp import web
 
 from .room import ServerRoom
+from .spectator import Spectator
 
 if TYPE_CHECKING:
     from typing import Sequence
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
 
     from .room import SeatId, Username
     from .server import Server
+    from .spectator import Session
 
 
 @dataclass
@@ -89,10 +92,11 @@ class Lobby(ServerRoom):
                 ],
             },
         )
-        self.session_ids = count()
+        self.spectator_names = {}
         self.game_type = game_type
-        self.finalized = False
+        self.finalized = asyncio.Event()
         self.game_thread = None
+        self.guest_ids = count()
         # TODO: at that point we could split it into a Lobby and a GameOwningLobby
         if game_description is not None:
             self.expected = set()
@@ -101,6 +105,7 @@ class Lobby(ServerRoom):
             assert self.expected == set(expected)
         else:
             self.expected = set(expected)
+            self.game_promise = None
 
     # override
     @classmethod
@@ -108,31 +113,30 @@ class Lobby(ServerRoom):
         router = super().http_interface(instance_dispatcher)
 
         @web.middleware
-        def close_lobby_once_game_is_started(
+        async def close_lobby_once_game_is_started(
             request: web.Request, handler: web.RequestHandler, self: Lobby | None = None
         ):
-            if self is not None and self.finalized:
+            if request.match_info.http_exception is not None:
+                return await handler(request)
+            if self is not None and self.finalized.is_set():
                 raise web.HTTPNotFound(
-                    text=f"Lobby {request.match_info['room']} is already closed"
+                    text=f"Lobby {request.match_info['roomId']} is already closed"
                 )
-            return handler(self=self, request=request)
+            return await handler(self=self, request=request)
 
         router.middlewares.append(close_lobby_once_game_is_started)
         router.add_routes(
             [
                 web.get(r"/{roomId:\d+}/", cls.http_list_connected),
-                web.get(r"/{roomId:\d+}/enter", cls.http_enter_lobby),
             ]
         )
         return router
 
     def _serialized_state(self) -> dict:
         return {
-            "spectators": len(self.spectators),
-            "seats": {
-                key: {"username": value.username, "state": value.state.name}
-                for key, value in self.sessions.items()
-            },
+            "spectators": [
+                {"name": self.spectator_names[spec]} for spec in self.spectators
+            ],
             "num_players": {"const": len(self.expected)},
             "game": self.game_type.__name__,
         }
@@ -140,30 +144,9 @@ class Lobby(ServerRoom):
     async def http_list_connected(self, request: web.Request) -> web.Response:
         return web.json_response(self._serialized_state())
 
-    async def http_enter_lobby(self, request: web.Request):
-        new_id = next(self.session_ids)
-        return web.Response(
-            status=http.HTTPStatus.CREATED, headers={"Location": f"ws/{new_id}"}
-        )
-
     # override
     async def nt_connect_session(self, request: web.Request):
-        seat_id = SeatId(request.match_info["seat"])
-        if seat_id not in self.sessions:
-            session = self.create_session(seat_id=seat_id)
-            self.server.loop.create_task(
-                self.log_event(
-                    {
-                        "op": "add",
-                        "path": f"/seats/{seat_id}",
-                        "value": {"username": None, "state": session.state.name},
-                    }
-                )
-            )
-        return await super().nt_connect_session(request)
-
-    async def http_finalize_player_list(self, request: web.Request) -> web.Response:
-        assert self.game_promise is not None
+        raise web.HTTPBadRequest(text="Lobby doesn't take Sessions")
 
     def login_channel(self, message, spectator):
         if message["op"] == "replace" and message["path"] == "name":
@@ -179,44 +162,62 @@ class Lobby(ServerRoom):
         else:
             raise ValueError("Unrecognized message")
 
-        if len(self.sessions) != len(self.expected):
-            raise web.HTTPConflict(
-                text=f"Wrong number of players: {len(self.sessions)}, {len(self.expected)} expected"
+    # override
+    async def nt_add_spectator(self, request: web.Request):
+        # Logging only to previous agents (the new spectator will receive the full state as a greeter_message)
+        username = request.query.get("username", None)
+        if username is None:
+            username = f"guest{next(self.guest_ids)}"
+        await self.log_event(
+            {
+                "op": "add",
+                "path": "/spectators/-",
+                "value": {"name": username},
+            }
+        )
+        spectator = Spectator(self)
+        self.spectators.append(spectator)
+        self.spectator_names[spectator] = username
+        spectator.add_channel(
+            "players", partial(self.login_channel, spectator=spectator)
+        )
+        return await self.nt_handle_websocket(request, spectator)
+
+    def finalize_player_list(self):
+        if len(self.spectators) != len(self.expected):
+            raise ValueError(
+                f"Wrong number of players: {len(self.sessions)}, {len(self.expected)} expected"
             )
 
-        for i, (session, promise_i) in enumerate(
-            zip(self.sessions.values(), self.expected, strict=True)
-        ):
-            promise = self.game_promise.agent_promises[promise_i]
-            _self, _i = promise
-            assert _self is self and _i == i
-            self.game_promise.agent_promises[promise_i] = session
-        assert all(
-            [
-                descriptor.is_initialized(promise)
-                for descriptor, promise in zip(
-                    self.game_promise.agent_descriptors,
-                    self.game_promise.agent_promises,
-                    strict=True,
-                )
-            ]
-        )
-        game = self.game_promise.resolve()
+        self.finalized.set()
+        assert self.finalized.is_set()
+        if self.game_promise is not None:
+            assert all(
+                [
+                    descriptor.is_initialized(promise)
+                    for descriptor, promise in zip(
+                        self.game_promise.agent_descriptors,
+                        self.game_promise.agent_promises,
+                        strict=True,
+                    )
+                ]
+            )
 
-        self.game_thread = Thread(target=self.run_game_thread, args=(game,))
-        self.game_thread.start()
-        self.nt_finalize(game)
-        return web.Response(status=http.HTTPStatus.CREATED)
+            self.game_thread = Thread(target=self.run_game_thread)
+            self.game_thread.start()
 
-    def nt_finalize(self, game: Game):
-        new_room = BaseGameRoom(game, self.server)
-        new_room_id, _ = self.server.new_room(new_room)
-        self.server.loop.create_task(self.transfer_sessions(new_room))
+    def gt_finalize(self, game: Game):
+        self.new_room = BaseGameRoom(game, self.server)
+        new_room_id, _ = self.server.new_room(self.new_room)
+        self.server.loop.create_task(self.transfer_sessions(self.new_room))
 
     async def transfer_sessions(self, other_room: ServerRoom):
-        await self.log_event({"op": "finalize", "location": f"/r/{other_room.room_id}"})
+        assert not other_room.reserved_sessions and not other_room.sessions
+        # TODO: if spectator is reserved, reserve it on the other_room
+        for seatid, session in self.sessions.items():
+            other_room.sessions[seatid] = session
+            session.room = other_room
 
-        other_room.sessions = self.sessions
         await asyncio.gather(
             *(
                 spectator.send(
@@ -226,12 +227,11 @@ class Lobby(ServerRoom):
             )
         )
         self.sessions = {}
-        other_room.reserved_sessions = self.reserved_sessions
-        self.reserved_sessions = {}
-        for session in other_room.sessions.values():
-            session.room = other_room
 
-    def run_game_thread(self, game: Game):
+    def run_game_thread(self):
+        game = self.game_promise.resolve()
+        self.gt_finalize(game)
+
         started = datetime.now()
 
         summary = game.play_game()
@@ -265,3 +265,22 @@ class Lobby(ServerRoom):
                 # print("Game thread ended")
             except Exception:
                 print("Game thread ended with an exception")
+
+    def wait_for_session_sync(self, i: int) -> Session:
+        from threading import Event
+
+        event = Event()
+
+        async def _nt_wait(callback):
+            assert self.finalized.is_set()
+            await self.finalized.wait()
+            event.set()
+
+        asyncio.run_coroutine_threadsafe(_nt_wait(event), self.server.loop)
+        event.wait()
+        assert self.finalized.is_set()
+        session = self.create_session()
+        session.ws = self.spectators[i].ws
+        session.send_sync({"type": "finalize", "seat_id": session.seat_id})
+        session.username = self.spectator_names[self.spectators[i]]
+        return session
