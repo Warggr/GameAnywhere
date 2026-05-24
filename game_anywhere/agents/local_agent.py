@@ -10,9 +10,11 @@ from game_anywhere.core import Agent
 
 from ..core.agent import ChatStream
 from .descriptors import AgentDescriptor
-from .network_agent import AskMultipleTimesMixin
+from .network_agent import AskMultipleTimesMixin, int_validation
 
 if TYPE_CHECKING:
+    from typing import Sequence
+
     from game_anywhere.agents.descriptors import Context
     from game_anywhere.components import ComponentSlot
 
@@ -49,10 +51,15 @@ class TextAgent(Agent, AskMultipleTimesMixin):
     def query(self, allowedSchema):
         return json.loads(self._read(f"Please answer the query: {allowedSchema}"))
 
+    def _get_integer(self, mini: int | None, maxi: int | None, message: str):
+        return self.question_with_validation(
+            message, int_validation(mini=mini, maxi=maxi)
+        )
+
     # override
     def choose_one_component_slot(
         self,
-        slots: list["ComponentSlot"],
+        slots: Sequence["ComponentSlot"],
         indices: Optional[list[T]] = None,
         special_options=(),
         message: str | None = None,
@@ -68,7 +75,9 @@ class TextAgent(Agent, AskMultipleTimesMixin):
             self._write(f"[{i + 1}]", option_addr, option)
         i = (
             self._get_integer(
-                mini=1, maxi=len(slots) + len(special_options), message=message
+                mini=1,
+                maxi=len(slots) + len(special_options),
+                message=(message or "Choose one"),
             )
             - 1
         )
@@ -76,6 +85,28 @@ class TextAgent(Agent, AskMultipleTimesMixin):
             return indices[i]
         else:
             return special_options[i - len(indices)]
+
+    # override
+    def text_choice(self, options: list[str]) -> str:
+        for i, opt in enumerate(options):
+            self._write(f"[{i + 1}]", opt)
+        i = (
+            self._get_integer(
+                mini=1, maxi=len(options), message="Please choose an option"
+            )
+            - 1
+        )
+        return options[i]
+
+    def int_choice(self, mini: int | None = 0, maxi: int | None = None):
+        bounds = []
+        if mini is not None:
+            bounds.append(f" higher than {mini}")
+        if maxi is not None:
+            bounds.append(f" lower than {maxi}")
+        return self._get_integer(
+            mini=mini, maxi=maxi, message="Please enter an integer" + "and".join(bounds)
+        )
 
     # override
     def update(self, diffs: list[Any]):
