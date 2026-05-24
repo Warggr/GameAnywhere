@@ -190,7 +190,11 @@
             function renderHistory(games) {
                 if (games.length == 0)
                     historyRoot.render(
-                        e("div", { className: "empty-state" }, "No games saved"),
+                        e(
+                            "div",
+                            { className: "empty-state" },
+                            "No games saved",
+                        ),
                     );
                 else
                     historyRoot.render(

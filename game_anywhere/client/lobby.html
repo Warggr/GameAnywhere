@@ -109,9 +109,7 @@
                     <form
                         v-if="ready_to_start"
                         class="form-stack"
-                        method="post"
-                        :action="`/lobby/${ room_id }/finalize`"
-                        onsubmit="finalizeRoom(event)"
+                        @submit="finalizeRoom($event)"
                     >
                         <button type="submit">Start game</button>
                     </form>
@@ -226,7 +224,10 @@
                             window.location.replace(url);
                             return;
                         }
-                        applyPatch(this.game, message);
+                        this.game = applyPatch(
+                            this.game,
+                            message.patch,
+                        ).newDocument;
                     },
                     invite_link() {
                         let url = new URL(window.location.href);
@@ -259,20 +260,17 @@
                             "username=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/";
                         this.username = undefined;
                     },
+                    finalizeRoom(event) {
+                        event.preventDefault();
+                        this.socket.send(
+                            JSON.stringify({
+                                channel: "players",
+                                op: "finalize",
+                            }),
+                        );
+                    },
                 },
             }).mount("#app");
-        </script>
-        <script>
-            function finalizeRoom(event) {
-                event.preventDefault();
-                fetch(event.target.action, { method: event.target.method })
-                    .then(async (response) => {
-                        if (response.status >= 400) {
-                            throw new Error(await response.text());
-                        }
-                    })
-                    .catch(alert);
-            }
         </script>
     </body>
 </html>

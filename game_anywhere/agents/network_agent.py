@@ -53,7 +53,7 @@ def int_validation(
 ) -> Callable[[str], int]:
     def _validation(answer: str):
         try:
-            assert answer.isdigit()
+            # Should already be an int, but this way we catch e.g. floats
             integer = int(answer)
             if mini is not None:
                 assert integer >= mini, f"Please choose a number higher than {mini}"
@@ -84,11 +84,6 @@ class JsonSchemaAgentMixin(AskMultipleTimesMixin):
         jsonSchema = {"type": "string", "enum": options}
 
         def _validation(answer: str):
-            assert answer.startswith('"') and answer.endswith(
-                '"'
-            )  # answer should be JSON text
-            answer = answer[1:-1]
-
             if answer not in options:
                 raise NetworkAgent.InvalidAnswer(f"value {answer} not allowed")
             return answer
@@ -143,6 +138,8 @@ class JsonSchemaAgentMixin(AskMultipleTimesMixin):
 
 
 class NetworkAgent(JsonSchemaAgentMixin, Agent):
+    CLIENT_LOST_TRACK_MESSAGE = "?"
+
     class Descriptor(AgentDescriptor[tuple[Lobby, int] | Session]):
         def start_initialization(
             self, agent_descriptor_number: int, context: Context
@@ -203,6 +200,8 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
         username = session.username
         super().__init__(username)
         self.session = session
+        self.in_channel = Session.SyncChannel(session)
+        session.add_channel("game", self.in_channel)
 
     # override
     def message(self, message, **kwargs) -> None:
@@ -216,16 +215,22 @@ class NetworkAgent(JsonSchemaAgentMixin, Agent):
                 diff["value"] = str(diff["value"])
             return diff
 
-        self.session.send_sync(list(map(serialize_diff, diffs)))
+        self.session.send_sync(
+            {"type": "game_update", "patch": list(map(serialize_diff, diffs))}
+        )
 
     # override
     def ask_question(self, question: Json) -> str:
         while True:
             self.session.send_sync(question)
-            answer = self.session.get_sync()
-            if answer == Session.CLIENT_LOST_TRACK_MESSAGE:
+            answer = self.in_channel.get_sync()
+            if set(answer.keys()) != {"channel", "data"}:
+                self.session.send_sync(
+                    {"channel": "error", "msg": "Unrecognized game message"}
+                )
+            if answer["data"] == self.CLIENT_LOST_TRACK_MESSAGE:
                 continue  # resend question
-            return answer
+            return answer["data"]
 
     # override
     def criticize_answer(self, error_message) -> None:

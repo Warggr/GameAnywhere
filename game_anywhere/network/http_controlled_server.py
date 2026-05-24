@@ -71,8 +71,8 @@ class HttpControlledServer(Server):
         self.games: list["GameMetadata"] = []
 
     async def http_create_room(self, request: web.Request) -> web.Response:
-        body = await request.json()
         try:
+            body = await request.json()
             game_type = self.available_games[body.pop("_id")]
             num_players, game_kwargs = game_type.parse_config(**body)
             game_description = GameDescriptor(

@@ -118,9 +118,13 @@ class ServerRoom(AsyncResource):
     async def log_event(self, event: ServerEvent):
         event = [event]  # JSON patch has to be a list of patches
         promises = [
-            spectator.send(event) for spectator in self.get_spectators_and_sessions()
+            spectator.send({"type": "room_update", "patch": event})
+            for spectator in self.get_spectators_and_sessions()
         ]
         await asyncio.gather(*promises)
+
+    def log_event_nosync(self, event: ServerEvent):
+        self.server.loop.create_task(self.log_event(event))
 
     # this is a class method, and the middleware takes care of binding it to
     # the proper instance. See @class Server.

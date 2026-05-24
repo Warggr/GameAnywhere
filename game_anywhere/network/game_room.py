@@ -82,9 +82,12 @@ class Lobby(ServerRoom):
         super().__init__(
             *args,
             **kwargs,
-            greeter_message=lambda: [
-                {"op": "replace", "path": "", "value": self._serialized_state()}
-            ],
+            greeter_message=lambda: {
+                "type": "room_update",
+                "patch": [
+                    {"op": "replace", "path": "", "value": self._serialized_state()}
+                ],
+            },
         )
         self.session_ids = count()
         self.game_type = game_type
@@ -119,7 +122,6 @@ class Lobby(ServerRoom):
             [
                 web.get(r"/{roomId:\d+}/", cls.http_list_connected),
                 web.get(r"/{roomId:\d+}/enter", cls.http_enter_lobby),
-                web.post(r"/{roomId:\d+}/finalize", cls.http_finalize_player_list),
             ]
         )
         return router
@@ -163,6 +165,20 @@ class Lobby(ServerRoom):
     async def http_finalize_player_list(self, request: web.Request) -> web.Response:
         assert self.game_promise is not None
 
+    def login_channel(self, message, spectator):
+        if message["op"] == "replace" and message["path"] == "name":
+            self.log_event_nosync(
+                {
+                    "op": "replace",
+                    "path": f"/spectators/{self.spectators.index(spectator)}/name",
+                    "value": message["value"],
+                }
+            )
+        elif message["op"] == "finalize":
+            self.finalize_player_list()
+        else:
+            raise ValueError("Unrecognized message")
+
         if len(self.sessions) != len(self.expected):
             raise web.HTTPConflict(
                 text=f"Wrong number of players: {len(self.sessions)}, {len(self.expected)} expected"
@@ -201,6 +217,14 @@ class Lobby(ServerRoom):
         await self.log_event({"op": "finalize", "location": f"/r/{other_room.room_id}"})
 
         other_room.sessions = self.sessions
+        await asyncio.gather(
+            *(
+                spectator.send(
+                    {"type": "finalize", "location": f"/r/{other_room.room_id}"}
+                )
+                for spectator in self.get_spectators_and_sessions()
+            )
+        )
         self.sessions = {}
         other_room.reserved_sessions = self.reserved_sessions
         self.reserved_sessions = {}

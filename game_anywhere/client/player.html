@@ -119,8 +119,6 @@
 
         <div id="controlPanel" hidden></div>
         <script>
-            const CHAT_CHARACTER = "<";
-
             const screen = document.getElementById("screen-host").shadowRoot;
 
             var socket = undefined;
@@ -217,7 +215,11 @@
                 socket.onopen = (event) => {
                     connectionStatusDom.textContent = "Connected";
                     initialized = false;
-                    DOMLoaded.then(() => socket.send("?")); // In case we just reconnected and the server is waiting for us to answer a question
+                    DOMLoaded.then(() =>
+                        socket.send(
+                            JSON.stringify({ channel: "game", data: "?" }),
+                        ),
+                    ); // In case we just reconnected and the server is waiting for us to answer a question
                     // TODO: we could already send the request and only wait before processing the response
                 };
                 socket.onclose = (event) => {
@@ -259,14 +261,12 @@
                                 });
                                 controlPanel.innerHTML = "";
                                 controlPanel.hidden = true;
-                                if (
-                                    chosenComponent.startsWith(CHAT_CHARACTER)
-                                ) {
-                                    console.warn(
-                                        "Warning: sent data starts with /, the chat character",
-                                    );
-                                }
-                                socket.send(chosenComponent);
+                                socket.send(
+                                    JSON.stringify({
+                                        channel: "game",
+                                        data: chosenComponent,
+                                    }),
+                                );
                             };
                             slots.forEach((c) => {
                                 c.addEventListener("click", eventListener);
@@ -293,7 +293,12 @@
                             let btn_handler = (event) => {
                                 event.preventDefault();
                                 let answer = event.target.textContent;
-                                socket.send(JSON.stringify(answer));
+                                socket.send(
+                                    JSON.stringify({
+                                        channel: "game",
+                                        data: answer,
+                                    }),
+                                );
                                 controlPanel.removeChild(form);
                                 controlPanel.hidden = true;
                             };
@@ -318,16 +323,12 @@
                             form.onsubmit = (event) => {
                                 event.preventDefault();
                                 let answer = readWord(formContent);
-                                if (
-                                    JSON.stringify(answer).startsWith(
-                                        CHAT_CHARACTER,
-                                    )
-                                ) {
-                                    console.warn(
-                                        "Sent content will be interpreted as chat message",
-                                    );
-                                }
-                                socket.send(JSON.stringify(answer));
+                                socket.send(
+                                    JSON.stringify({
+                                        channel: "game",
+                                        data: answer,
+                                    }),
+                                );
                                 controlPanel.removeChild(form);
                                 controlPanel.hidden = true;
                             };
@@ -346,8 +347,9 @@
                         }
                     } else if (data.type === "message") {
                         addLogLine(`<b>${data.sender}: </b>${data.text}`);
-                    } else if (Array.isArray(data)) {
-                        for (let diff of data) {
+                    } else if (data.type === "game_update") {
+                        console.assert(Array.isArray(data.patch));
+                        for (let diff of data.patch) {
                             if (diff.op == "replace") {
                                 let DOMConstructionSite =
                                     document.createElement("div");
@@ -513,7 +515,7 @@
 
             function sendChatLine(form) {
                 let line = form.firstElementChild.value;
-                socket.send(CHAT_CHARACTER + line);
+                socket.send(JSON.stringify({ channel: "chat", data: line }));
                 addLogLine("<b>You: </b>" + line);
             }
             function addLogLine(line) {
