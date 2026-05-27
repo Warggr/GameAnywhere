@@ -36,7 +36,9 @@ class ServerRoom(AsyncResource):
         return request.cookies.get("username", None)
 
     def __init__(
-        self, server: Server, greeter_message: Any | Callable[[], Any] | None = None
+        self,
+        server: Server,
+        greeter_message: Any | Callable[[Spectator], Any] | None = None,
     ):
         """
         Args:
@@ -195,7 +197,7 @@ class ServerRoom(AsyncResource):
             if self.greeter_message is not None:
                 greeter_message = self.greeter_message
                 if callable(greeter_message):
-                    greeter_message = greeter_message()
+                    greeter_message = greeter_message(spectator)
                 await spectator.send(greeter_message)
             await spectator.run()
             # the websocket is closed as soon as the method execution finishes, i.e. now

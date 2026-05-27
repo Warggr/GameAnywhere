@@ -94,8 +94,29 @@
                                 <tr
                                     v-for="(user, seat) in game.spectators"
                                     :key="seat"
+                                    :class="{ 'own-player-row': isCurrentUser(seat) }"
                                 >
-                                    <td>{{ user.name || "Guest" }}</td>
+                                    <td>
+                                        <form
+                                            v-if="isCurrentUser(seat)"
+                                            class="player-name-form"
+                                            @submit.prevent="submitNameChange"
+                                        >
+                                            <input
+                                                :id="`player-name-${seat}`"
+                                                type="text"
+                                                v-model="name_draft"
+                                                @focus="name_editing = true"
+                                                @blur="finishNameEdit"
+                                                @keydown.esc.prevent="resetNameDraft"
+                                                aria-label="Your username"
+                                            />
+                                            <span class="status-pill">You</span>
+                                        </form>
+                                        <span v-else
+                                            >{{ user.name || "Guest" }}</span
+                                        >
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -130,12 +151,15 @@
                         server_host: window.location.host,
                         connection_status: "Connecting...",
                         username: cookieUsername,
-                        login_username: cookieUsername || "",
+                        login_username: cookieUsername,
                         game: {
                             spectators: [],
                             num_players: undefined,
                             game: undefined,
+                            you: undefined,
                         },
+                        name_draft: "",
+                        name_editing: false,
                     };
                 },
                 computed: {
@@ -158,6 +182,11 @@
                             this.expected_count == this.player_count
                         );
                     },
+                    current_user() {
+                        const index = this.game.you?.spectator_index;
+                        if (index === undefined) return undefined;
+                        return this.game.spectators[index];
+                    },
                 },
 
                 async mounted() {
@@ -165,6 +194,12 @@
                         "/lobby/" + this.room_id + "/ws/watch",
                         window.location.href,
                     );
+                    if (this.login_username) {
+                        socket_url.searchParams.append(
+                            "username",
+                            this.login_username,
+                        );
+                    }
                     const socket = new WebSocket(socket_url);
 
                     socket.onopen = (event) => {
@@ -201,10 +236,24 @@
                             }
                             return;
                         }
+                        const oldIndex = this.game.you?.spectator_index;
+                        const removedBeforeMe = message.patch.filter(
+                            (patch) =>
+                                patch.op === "remove" &&
+                                patch.path.startsWith("/spectators/") &&
+                                Number(patch.path.split("/")[2]) < oldIndex,
+                        ).length;
                         this.game = applyPatch(
                             this.game,
                             message.patch,
                         ).newDocument;
+                        if (removedBeforeMe > 0) {
+                            this.game.you.spectator_index =
+                                oldIndex - removedBeforeMe;
+                        }
+                        if (!this.name_editing) {
+                            this.resetNameDraft();
+                        }
                     },
                     invite_link() {
                         let url = new URL(window.location.href);
@@ -236,6 +285,38 @@
                         document.cookie =
                             "username=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/";
                         this.username = undefined;
+                    },
+                    isCurrentUser(seat) {
+                        return seat === this.game.you?.spectator_index;
+                    },
+                    finishNameEdit() {
+                        this.name_editing = false;
+                        this.submitNameChange();
+                    },
+                    resetNameDraft() {
+                        this.name_draft =
+                            this.current_user?.name ||
+                            this.game.you?.name ||
+                            "";
+                    },
+                    submitNameChange() {
+                        this.name_editing = false;
+                        const newName = this.name_draft.trim();
+                        const currentName = this.current_user?.name || "";
+                        if (newName === "" || newName === currentName) {
+                            this.resetNameDraft();
+                            return;
+                        }
+                        this.socket.send(
+                            JSON.stringify({
+                                channel: "players",
+                                op: "replace",
+                                path: "/name",
+                                value: newName,
+                            }),
+                        );
+                        this.resetNameDraft(); // wait for the server to confirm the name change
+                        //this.username = newName;
                     },
                     finalizeRoom(event) {
                         event.preventDefault();

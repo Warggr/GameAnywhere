@@ -4,7 +4,6 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
-from itertools import count
 from threading import Thread
 from typing import TYPE_CHECKING, Sequence
 
@@ -85,10 +84,20 @@ class Lobby(ServerRoom):
         super().__init__(
             *args,
             **kwargs,
-            greeter_message=lambda: {
+            greeter_message=lambda spectator: {
                 "type": "room_update",
                 "patch": [
-                    {"op": "replace", "path": "", "value": self._serialized_state()}
+                    {
+                        "op": "replace",
+                        "path": "",
+                        "value": self._serialized_state()
+                        | {
+                            "you": {
+                                "spectator_index": self.spectators.index(spectator),
+                                "name": self.spectator_names[spectator],
+                            }
+                        },
+                    }
                 ],
             },
         )
@@ -96,7 +105,6 @@ class Lobby(ServerRoom):
         self.game_type = game_type
         self.finalized = asyncio.Event()
         self.game_thread = None
-        self.guest_ids = count()
         # TODO: at that point we could split it into a Lobby and a GameOwningLobby
         if game_description is not None:
             self.expected = set()
@@ -149,12 +157,21 @@ class Lobby(ServerRoom):
         raise web.HTTPBadRequest(text="Lobby doesn't take Sessions")
 
     def login_channel(self, message, spectator):
-        if message["op"] == "replace" and message["path"] == "name":
+        if message["op"] == "replace" and message["path"] == "/name":
+            new_name = message["value"]
+            if not isinstance(new_name, str) or not new_name.strip():
+                raise ValueError("Name must be a non-empty string")
+            if any(
+                new_name == taken_name for taken_name in self.spectator_names.values()
+            ):
+                raise ValueError("Username already taken")
+            new_name = new_name.strip()
+            self.spectator_names[spectator] = new_name
             self.log_event_nosync(
                 {
                     "op": "replace",
                     "path": f"/spectators/{self.spectators.index(spectator)}/name",
-                    "value": message["value"],
+                    "value": new_name,
                 }
             )
         elif message["op"] == "finalize":
@@ -162,12 +179,30 @@ class Lobby(ServerRoom):
         else:
             raise ValueError("Unrecognized message")
 
+    async def nt_report_afk(self, spectator: Spectator):
+        await super().nt_report_afk(spectator)
+        self.spectator_names.pop(spectator, None)
+
     # override
     async def nt_add_spectator(self, request: web.Request):
         # Logging only to previous agents (the new spectator will receive the full state as a greeter_message)
         username = request.query.get("username", None)
         if username is None:
-            username = f"guest{next(self.guest_ids)}"
+            username = "guest"
+        if any(username == taken_name for taken_name in self.spectator_names.values()):
+            original_username = username
+            i = 0
+            while True:
+                i += 1
+                username = original_username + str(i)
+                if any(
+                    username == taken_name
+                    for taken_name in self.spectator_names.values()
+                ):
+                    continue
+                else:
+                    break
+
         await self.log_event(
             {
                 "op": "add",

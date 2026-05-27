@@ -336,6 +336,20 @@ tr:last-child td {
     overflow-x: auto;
 }
 
+.own-player-row {
+    background: var(--surface-strong);
+}
+
+.player-name-form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.player-name-form input {
+    max-width: 18rem;
+}
+
 .empty-state {
     color: var(--text-muted);
     padding: 1rem;
