@@ -38,6 +38,7 @@ class PlayerBoard(PerPlayerComponent):
 
 
 class Skull(TurnBasedGame):
+    current_bid = ComponentSlotProperty[int | None]()
     players = PerPlayer(PlayerBoard)
 
     CONFIG_SCHEMA = {
@@ -65,6 +66,7 @@ class Skull(TurnBasedGame):
             )
             player.played_cards = List([], hidden=True, owner_id=player_id)
             player.score = 0
+        self.current_bid = None
 
     def turn(self):
         self._play_round()
@@ -93,7 +95,6 @@ class Skull(TurnBasedGame):
         for player_index in turn_order:
             self._play_one_card(player_index, mandatory=True)
 
-        highest_bid: int | None = None
         highest_bidder: int | None = None
         passed: set[int] = set()
         current_player = self._next_active_player(
@@ -124,13 +125,13 @@ class Skull(TurnBasedGame):
                     )
                     continue
 
-                highest_bid = agent.int_choice(mini=1, maxi=cards_in_play)
+                self.current_bid = agent.int_choice(mini=1, maxi=cards_in_play)
                 highest_bidder = current_player
                 self.message(
-                    f"{player.owner.name} bids {highest_bid}.",
+                    f"{player.owner.name} bids {self.current_bid}.",
                     sender=player.owner.name,
                 )
-                if highest_bid == cards_in_play:
+                if self.current_bid == cards_in_play:
                     break
                 current_player = self._next_active_player(
                     (current_player + 1) % len(self.players), active_players
@@ -140,20 +141,22 @@ class Skull(TurnBasedGame):
             if current_player == highest_bidder:
                 break
 
-            minimum_raise = highest_bid + 1
+            minimum_raise = self.current_bid + 1
             can_raise = minimum_raise <= cards_in_play
             options = ["Pass"]
             if can_raise:
                 options.append("Raise")
             action = agent.text_choice(options)
             if action == "Raise":
-                highest_bid = agent.int_choice(mini=minimum_raise, maxi=cards_in_play)
+                self.current_bid = agent.int_choice(
+                    mini=minimum_raise, maxi=cards_in_play
+                )
                 highest_bidder = current_player
                 self.message(
-                    f"{player.owner.name} raises to {highest_bid}.",
+                    f"{player.owner.name} raises to {self.current_bid}.",
                     sender=player.owner.name,
                 )
-                if highest_bid == cards_in_play:
+                if self.current_bid == cards_in_play:
                     break
             else:
                 passed.add(current_player)
@@ -163,8 +166,8 @@ class Skull(TurnBasedGame):
                 (current_player + 1) % len(self.players), active_players
             )
 
-        assert highest_bidder is not None and highest_bid is not None
-        self._resolve_challenge(highest_bidder, highest_bid)
+        assert highest_bidder is not None and self.current_bid is not None
+        self._resolve_challenge(highest_bidder, self.current_bid)
 
     def _resolve_challenge(self, challenger_index: int, target: int):
         challenger = self.players[challenger_index]
@@ -245,6 +248,7 @@ class Skull(TurnBasedGame):
             if player_index in skip_players:
                 continue
             self._collect_played_cards(player_index)
+        self.current_bid = None
 
     def _collect_played_cards(self, player_index: int):
         player = self.players[player_index]
