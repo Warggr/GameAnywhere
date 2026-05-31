@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from itertools import count
 from typing import (
+    TYPE_CHECKING,
     Generic,
-    Iterable,
-    Iterator,
-    Mapping,
     MutableMapping,
     MutableSequence,
     TypeVar,
@@ -14,8 +12,10 @@ from typing import (
 from game_anywhere.ui import Html, tag
 
 from .component import AbstractComponent, AbstractComposite, ComponentSlot
-from .utils import html as to_html
-from .utils import merge_classes
+
+if TYPE_CHECKING:
+    from typing import Iterable, Iterator, Mapping, Sequence
+
 
 T = TypeVar("T", bound=AbstractComponent)
 
@@ -31,24 +31,10 @@ class List(AbstractComposite, Generic[T], MutableSequence[T]):
         # This makes syncing more easy.
         self.slot_keys = count()
 
-        def display_as_li(obj, viewer_id=None, visible=True):
-            html = to_html(obj, viewer_id=viewer_id, visible=visible)
-            html = tag.li(
-                html,
-                **{
-                    "class": merge_classes(
-                        "ga-slot",
-                        "ga-slot--visible" if visible else "ga-slot--hidden",
-                    )
-                },
-            )
-            return html
-
-        def _slot_constructor(**more_kwargs):
+        def _slot_constructor(**more_kwargs) -> ComponentSlot:
             obj = slotClass(
                 id_=next(self.slot_keys), parent=self, **kwargs, **more_kwargs
             )
-            obj.display_as = display_as_li
             return obj
 
         self.slot_constructor = _slot_constructor
@@ -59,9 +45,12 @@ class List(AbstractComposite, Generic[T], MutableSequence[T]):
     def get_slots(self) -> Mapping[int, "ComponentSlot"]:
         return dict((slot.id, slot) for slot in self.slots)
 
-    def html(self, viewer_id=None) -> Html:
-        items = [slot.html(viewer_id=viewer_id) for slot in self.slots]
-        return tag.ul(*items)
+    def wrap_slot_html(self, slot_html, key: int, is_visible=True):
+        slot_html = tag.li(slot_html)
+        return super().wrap_slot_html(slot_html, key, is_visible=is_visible)
+
+    def merge_slot_html(self, items: Sequence[Html]) -> Html:
+        return tag.ul(*items, **{"class": "ga-list"})
 
     # list interface methods - the most basic ones
 
@@ -71,7 +60,7 @@ class List(AbstractComposite, Generic[T], MutableSequence[T]):
     def append(self, value: T):
         slot = self.slot_constructor()
         self.slots.append(slot)
-        self.log_added_slot(slot)
+        self.log_added_slot(slot.id, slot)
         # set slot content separately, so that the slot can decide itself how it wants to log the update event (and take e.g. the hidden flag into account).
         # TODO: there might be a cleaner way of doing this
         slot.set(value)
@@ -141,15 +130,15 @@ class Dict(AbstractComposite[Key], Generic[Key, T], MutableMapping[Key, T]):
     def get_slots(self) -> Mapping[Key, ComponentSlot]:
         return self.slots
 
-    def html(self, viewer_id=None) -> Html:
-        items = [
-            tag.section(
-                tag.div(str(key), **{"class": "ga-dict-key"}),
-                tag.div(slot.html(viewer_id=viewer_id), **{"class": "ga-dict-value"}),
-                **{"class": "ga-dict-entry"},
-            )
-            for key, slot in self.slots.items()
-        ]
+    def wrap_slot_html(self, slot_html, key: Key, *args, **kwargs):
+        slot_html = tag.section(
+            tag.div(str(key), **{"class": "ga-dict-key"}),
+            tag.div(slot_html, **{"class": "ga-dict-value"}),
+            **{"class": "ga-dict-entry"},
+        )
+        return super().wrap_slot_html(slot_html, key, *args, **kwargs)
+
+    def merge_slot_html(self, items: Sequence[Html]) -> Html:
         return tag.div(*items, **{"class": "ga-dict"})
 
     # Dict interface methods - the most basic ones
@@ -159,7 +148,7 @@ class Dict(AbstractComposite[Key], Generic[Key, T], MutableMapping[Key, T]):
         else:
             slot = self.slot_constructor(id_=__key, parent=self)
             self.slots[__key] = slot
-            self.log_added_slot(slot)
+            self.log_added_slot(__key, slot)
         slot.set(__value)
 
     def __delitem__(self, __key: Key):

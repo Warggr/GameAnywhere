@@ -6,16 +6,20 @@ class Html:
     def __init__(
         self, *content, css: str | Iterable[str] = (), js: str | Iterable[str] = ()
     ):
-        self.content = content
         self.css = set((css,) if isinstance(css, str) else css)
         self.js = set((js,) if isinstance(js, str) else js)
-        # Gather resources all at the top
-        for child in self.content:
+        # Gather resources all at the top and flatten nested HTML
+        self.content = []
+        for child in content:
             if isinstance(child, Html):
                 self.css |= child.css
                 child.css.clear()
                 self.js |= child.js
                 child.js.clear()
+            if type(child) is Html:
+                self.content += child.content
+            else:
+                self.content.append(child)
 
     def __str__(self):
         result = ""
@@ -39,7 +43,13 @@ class Html:
         return Html(*total_content, css=self.css | other.css, js=self.js | other.js)
 
     def wrap_to_one_element(self) -> "HtmlElement":
-        return tag.div(self)
+        if len(self.content) == 1 and isinstance(self.content[0], HtmlElement):
+            child = self.content[0]
+            assert not child.css and not child.js
+            child.css = self.css
+            child.js = self.js
+            return child
+        return tag.div(*self.content, js=self.js, css=self.css)
 
 
 HtmlLike = Any
@@ -62,6 +72,10 @@ class HtmlElement(Html):
 
     def wrap_to_one_element(self):
         return self
+
+    def add_classes(self, *classes: str):
+        old_classes = self.attrs.get("class", "").split(" ")
+        self.attrs["class"] = " ".join(list(old_classes) + list(classes))
 
 
 class VoidTag(Html):

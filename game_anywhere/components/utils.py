@@ -8,19 +8,16 @@ def html(obj, *args, visible: bool = True, **kwargs) -> "Html":
     Returns an HTML representation of the object.
     Semantics are similar to e.g. the str() function, which returns a str representation.
     """
-    if obj is None:
-        html = ""
-    else:
-        if visible:
-            if hasattr(obj, "html"):
-                html = obj.html(*args, **kwargs)
-            else:
-                html = escape(str(obj))
+    if visible:
+        if hasattr(obj, "html"):
+            html = obj.html(*args, **kwargs)
         else:
-            try:
-                html = obj.HIDDEN_HTML
-            except AttributeError:
-                html = "Masked " + escape(type(obj).__name__)
+            html = escape(str(obj))
+    else:
+        try:
+            html = obj.HIDDEN_HTML
+        except AttributeError:
+            html = "Masked " + escape(type(obj).__name__)
     return Html(html)
 
 

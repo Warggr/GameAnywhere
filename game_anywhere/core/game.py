@@ -3,13 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable
 
-from ..components.component import Composite, WeakComponentSlot
+from ..components.component import AbstractComposite, Composite, WeakComponentSlot
 from .agent import Agent
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from game_anywhere.components import AbstractComponent
     from game_anywhere.ui import Html
 
 
@@ -110,7 +109,12 @@ class Game(Composite):
         for agent in self.agents:
             agent.message(*args, **kwargs)
 
-    def log_new_slot(self, obj: AbstractComponent, slot: WeakComponentSlot):
+    def log_new_slot(
+        self,
+        obj: AbstractComposite,
+        slot_relative_address: Any,
+        slot: WeakComponentSlot,
+    ):
         """
         Args:
             obj: The object which has a new slot.
@@ -124,11 +128,13 @@ class Game(Composite):
                 update = {
                     "op": "add",
                     "path": slot.get_address(),
-                    "value": slot.html(viewer_id=agent_id),
+                    "value": obj.wrap_slot_html(
+                        slot.html(agent_id), slot_relative_address
+                    ),
                 }
                 agent.update([update])
 
-    def log_delete_slot(self, obj: AbstractComponent, slot_relative_address: Any):
+    def log_delete_slot(self, obj: AbstractComposite, slot_relative_address: Any):
         """
         Args:
             obj: The object which has one fewer slot.
@@ -163,8 +169,9 @@ class Game(Composite):
                     {
                         "op": "replace",
                         "path": address,
-                        "value": slot.html(
-                            viewer_id=agent_id, force_reveal=force_reveal
+                        "value": slot.parent.wrap_slot_html(
+                            slot.html(viewer_id=agent_id, force_reveal=force_reveal),
+                            key=slot.id,
                         ),
                     }
                 ]

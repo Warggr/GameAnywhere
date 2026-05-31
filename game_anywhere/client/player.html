@@ -145,30 +145,43 @@
 
             function getLogicalParent(element) {
                 let p = element.parentElement;
-                while (p !== null && !p.hasAttribute("data-key")) {
-                    if (p.id === "screen") return null;
+                while (
+                    p !== null &&
+                    p.id != "screen" &&
+                    !p.hasAttribute("data-key")
+                ) {
                     p = p.parentElement;
                 }
                 return p;
             }
 
+            function getLogicalChild(parent, segment) {
+                console.assert(
+                    parent.hasAttribute("data-key") || parent.id == "screen",
+                    parent,
+                );
+                return Array.from(
+                    parent.querySelectorAll(`[data-key="${segment}"]`),
+                ).find((el) => getLogicalParent(el) === parent);
+            }
+            function getLogicalContent(parent) {
+                return [...parent.children].filter(
+                    (el) => el.nodeName != "LABEL",
+                )[0];
+            }
             function lookupSlot(address) {
-                let iter = screen.getElementById("screen");
-                let slot = null;
+                let slot = screen.getElementById("screen");
                 console.assert(address.startsWith("/"));
                 address = address.slice(1);
                 for (let segment of address.split("/")) {
-                    slot = Array.from(
-                        iter.querySelectorAll(`[data-key="${segment}"]`),
-                    ).find((el) => getLogicalParent(el) === slot);
-                    console.assert(slot.classList.contains("ga-slot"));
-                    iter = slot.firstChild;
+                    slot = getLogicalChild(slot, segment);
+                    console.assert(slot.classList.contains("ga-slot"), slot);
                 }
                 return slot;
             }
             function lookupComponent(address) {
                 let slot = lookupSlot(address);
-                return slot.firstChild;
+                return getLogicalContent(slot);
             }
 
             const connectToServer = (serverAddress) => {
@@ -409,11 +422,15 @@
                             } else if (diff.op == "remove") {
                                 let key = diff.path.split("/");
                                 let child_num = key.pop();
-                                let parent_component = lookupComponent(
-                                    key.join("/"),
+                                let parent_slot = lookupSlot(key.join("/"));
+                                let child = getLogicalChild(
+                                    parent_slot,
+                                    child_num,
                                 );
-                                let child = parent_component.querySelector(
-                                    `[data-key="${child_num}"]`,
+                                let parent_component =
+                                    getLogicalContent(parent_slot);
+                                console.assert(
+                                    (child.parent = parent_component),
                                 );
                                 if (parent_component.nodeName == "UL") {
                                     // For lists, remove both the slot and the component

@@ -1,10 +1,17 @@
+from __future__ import annotations
+
 import random
 from enum import Enum, auto, unique
+from typing import TYPE_CHECKING
 
 from game_anywhere.components import Component, ComponentSlotProperty, List, PerPlayer
 from game_anywhere.components.component import PerPlayerComponent
 from game_anywhere.core import SimpleGameSummary, TurnBasedGame
 from game_anywhere.run_game import run_game_from_cmdline
+from game_anywhere.ui import tag
+
+if TYPE_CHECKING:
+    from game_anywhere.ui import Html
 
 
 @unique
@@ -25,10 +32,17 @@ class SkullCard(Component):
             case SkullCardType.FLOWER:
                 return "💮"
 
-    HIDDEN_HTML = "🟠"
+    @staticmethod
+    def show_as_card(s: str) -> Html:
+        return tag.span(
+            s,
+            style="border-radius: 50%; aspect-ratio: 1/1; display: inline-flex; justify-content: center; padding: 1em; align-items: center; flex: 0 0 30px;",
+        )
 
-    def html(self, viewer_id=None) -> str:
-        return str(self)
+    HIDDEN_HTML = show_as_card("🟠")
+
+    def html(self, viewer_id=None) -> Html:
+        return self.show_as_card(str(self))
 
 
 class PlayerBoard(PerPlayerComponent):

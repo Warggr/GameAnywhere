@@ -27,16 +27,8 @@
 }
 
 .ga-slot {
-    display: block;
+    box-sizing: border-box;
     width: 100%;
-    padding: 0.8rem 0.9rem;
-    border-radius: 14px;
-    background: var(--surface-strong);
-    border: 1px solid rgba(214, 202, 183, 0.75);
-    color: var(--text);
-    box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.9),
-        0 10px 20px rgba(92, 65, 34, 0.05);
 }
 
 .ga-slot--hidden {

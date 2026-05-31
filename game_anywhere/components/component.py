@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, Mapping, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from game_anywhere.ui.ui import Html, HtmlElement, tag
+from game_anywhere.ui.ui import Html, tag
 
 from .utils import html as to_html
 from .utils import merge_classes
 
 if TYPE_CHECKING:
+    from typing import Mapping, Optional, Sequence
+
     from game_anywhere.agents.descriptors import AgentDescriptor
     from game_anywhere.core import Agent, AgentId, Game
     from game_anywhere.ui.display_styles import DisplayStyle
@@ -16,14 +18,6 @@ if TYPE_CHECKING:
     from .containers import List
 
 ComponentId = str
-
-
-def _display_slot_name(slot_name: str) -> str:
-    if slot_name.startswith("_"):
-        slot_name = slot_name.removeprefix("_")
-    if slot_name.startswith("@["):
-        return slot_name
-    return slot_name.replace("_", " ").strip().title()
 
 
 class AbstractComponent(ABC):
@@ -75,9 +69,9 @@ class AbstractComposite(AbstractComponent, Generic[KeyType]):
         """Return a list of slots with names."""
         ...
 
-    def log_added_slot(self, slot: "WeakComponentSlot"):
+    def log_added_slot(self, slot_name: KeyType, slot: "WeakComponentSlot"):
         try:
-            self.get_game().log_new_slot(self, slot)
+            self.get_game().log_new_slot(self, slot_name, slot)
         except self.NotAttachedToComponentTree:
             pass
 
@@ -87,30 +81,32 @@ class AbstractComposite(AbstractComponent, Generic[KeyType]):
         except self.NotAttachedToComponentTree:
             pass
 
+    def wrap_slot_html(
+        self, slot_html: Any, key: KeyType, is_visible: bool = True
+    ) -> Any:
+        slot_html = Html(slot_html).wrap_to_one_element()
+        slot_html.attrs["data-key"] = key
+        slot_html.add_classes(
+            "ga-slot",
+        )
+        slot_html.add_classes("ga-slot--visible" if is_visible else "ga-slot--hidden")
+        return slot_html
+
+    def merge_slot_html(self, items: list[Any]) -> Any:
+        raise NotImplementedError(
+            f"class {type(self)} neither implements merge_slot_html nor html"
+        )
+
     def html(self, viewer_id: AgentId | None = None) -> Any:
         fields = []
         for slotname, slot in self.get_slots().items():
+            # No display logic can be added here because it is not contained in the incremental patches.
             slot_html = slot.html(viewer_id=viewer_id)
-            fields.append(
-                tag.section(
-                    tag.label(
-                        _display_slot_name(str(slotname)),
-                        **{
-                            "class": "ga-field-label",
-                        },
-                    ),
-                    tag.div(slot_html, **{"class": "ga-field-value"}),
-                    **{"class": "ga-field"},
-                )
-            )
+            is_visible = slot.can_be_seen_by(viewer_id)
+            slot_html = self.wrap_slot_html(slot_html, slotname, is_visible=is_visible)
+            fields.append(slot_html)
 
-        return tag.section(
-            *fields,
-            **{
-                "class": "ga-component",
-                "data-component": type(self).__name__,
-            },
-        )
+        return self.merge_slot_html(fields)
 
 
 class Composite(AbstractComposite[str]):
@@ -120,7 +116,7 @@ class Composite(AbstractComposite[str]):
 
     def add_slot(self, slot_name: str, slot: "WeakComponentSlot"):
         self.slots[slot_name] = slot
-        self.log_added_slot(slot)
+        self.log_added_slot(slot_name, slot)
 
     def remove_slot(self, slot_name: str):
         del self.slots[slot_name]
@@ -128,6 +124,30 @@ class Composite(AbstractComposite[str]):
 
     def get_slots(self) -> Mapping[str, "WeakComponentSlot"]:
         return self.slots
+
+    def wrap_slot_html(self, slot_html: Any, key: str, is_visible: bool = True) -> Html:
+        slot_html = Html(slot_html).wrap_to_one_element()
+        slot_html.add_classes("ga-field-value")
+        slot_html = tag.div(
+            tag.label(
+                self._display_slot_name(key),
+                **{
+                    "class": "ga-field-label",
+                },
+            ),
+            slot_html,
+            **{"class": "ga-field"},
+        )
+        return super().wrap_slot_html(slot_html, key, is_visible=is_visible)
+
+    def merge_slot_html(self, items: Sequence[Html]) -> Html:
+        return tag.div(*items, **{"class": "ga-composite"})
+
+    @staticmethod
+    def _display_slot_name(slot_name: str) -> str:
+        if slot_name.startswith("_"):
+            slot_name = slot_name.removeprefix("_")
+        return slot_name.replace("_", " ").strip().title()
 
 
 class Component(AbstractComponent):
@@ -143,7 +163,7 @@ class WeakComponentSlot(Generic[T]):
     def __init__(
         self,
         id_: Any,
-        parent: AbstractComponent,
+        parent: AbstractComposite,
         content: Optional[T] = None,
         *,
         hidden: bool = False,
@@ -225,21 +245,16 @@ class WeakComponentSlot(Generic[T]):
         self,
         viewer_id=None,
         force_reveal=False,
-    ) -> HtmlElement:
+    ) -> Html:
         is_visible = self.can_be_seen_by(viewer_id) or force_reveal
-        if self.display_as is None:
+        if self._content is None:
+            html = Html()
+        elif self.display_as is None:
             html = to_html(self._content, viewer_id=viewer_id, visible=is_visible)
-            html = html.wrap_to_one_element()
         else:
             html = self.display_as(
                 self._content, viewer_id=viewer_id, visible=is_visible
             )
-        html.attrs["class"] = merge_classes(
-            html.attrs.get("class"),
-            "ga-slot",
-            "ga-slot--visible" if is_visible else "ga-slot--hidden",
-        )
-        html.attrs["data-key"] = self.id
         return html
 
     def __str__(self):
@@ -272,7 +287,7 @@ class ComponentSlotProperty(Generic[T]):
         self.args = args
         self.kwargs = kwargs
 
-    def __set_name__(self, owner: Type[Composite], name):
+    def __set_name__(self, owner: type[Composite], name):
         assert issubclass(owner, Composite), (
             "The ComponentSlotProperty short-hand only works on Composite"
         )
