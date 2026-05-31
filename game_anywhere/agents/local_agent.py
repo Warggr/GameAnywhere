@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import os
@@ -16,7 +18,7 @@ if TYPE_CHECKING:
     from typing import Sequence
 
     from game_anywhere.agents.descriptors import Context
-    from game_anywhere.components import ComponentSlot
+    from game_anywhere.components import Component
 
 T = TypeVar("T")
 
@@ -57,9 +59,9 @@ class TextAgent(Agent, AskMultipleTimesMixin):
         )
 
     # override
-    def choose_one_component_slot(
+    def choose_one(
         self,
-        slots: Sequence["ComponentSlot"],
+        slots: Sequence["Component"],
         indices: Optional[list[T]] = None,
         special_options=(),
         message: str | None = None,

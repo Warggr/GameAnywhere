@@ -158,13 +158,13 @@ class Chess(TurnBasedGame):
         while True:
             starts = list(move_by_starting_position.keys())
 
-            start_field = self.get_current_agent().choose_one_component_slot(
+            start_field = self.get_current_agent().choose_one(
                 [self.board.get_slot(get_coords(start)) for start in starts],
                 starts,
             )
 
             moves = move_by_starting_position[start_field]
-            chosen_move = self.get_current_agent().choose_one_component_slot(
+            chosen_move = self.get_current_agent().choose_one(
                 [self.board.get_slot(get_coords(move.to_square)) for move in moves],
                 moves,
                 special_options=["Back"],

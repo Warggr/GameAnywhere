@@ -161,7 +161,7 @@ class Werewolves(Game):
     def kill(self, player: Player):
         # TODO check for special powers preventing their death (or e.g. Maid)
         if self.mayor == player:
-            successor = player.owner.choose_one_component_slot(
+            successor = player.owner.choose_one(
                 self.alive_players, message="Choose your successor as mayor"
             ).owner
             self.mayor = successor
@@ -250,7 +250,7 @@ def collect_votes(
 ) -> dict[Player, Player]:
     votes = {}
     for player in voters:
-        choice = player.owner.choose_one_component_slot(
+        choice = player.owner.choose_one(
             game.alive_player_slots(),
             special_options=[ABSTENTION],
             message=message,
@@ -309,11 +309,11 @@ class Cupid(Role):
     def wake_up(cls, game: Werewolves, players: list[Player]):
         (cupid,) = players
         singles_slots = game.alive_player_slots()
-        lover1_slot = cupid.owner.choose_one_component_slot(
+        lover1_slot = cupid.owner.choose_one(
             singles_slots, message="Choose the first lover"
         )
         singles_slots.remove(lover1_slot)
-        lover2_slot = cupid.owner.choose_one_component_slot(
+        lover2_slot = cupid.owner.choose_one(
             singles_slots, message="Choose another lover"
         )
         game.lovers = [
@@ -341,7 +341,7 @@ class Seer(Role):
     @classmethod
     def wake_up(cls, game: Werewolves, players: list[Player]):
         (seer,) = players
-        seen = seer.owner.choose_one_component_slot(
+        seen = seer.owner.choose_one(
             game.alive_player_slots(), message="Choose whose role you want to See"
         ).content
         seen.role.card.reveal(to=seer.owner_id)
@@ -366,7 +366,7 @@ class Witch(Role):
         if witch.role.has_poison:
             if witch.owner.boolean_choice("Use poison"):
                 witch.role.has_poison = False
-                killed = witch.owner.choose_one_component_slot(
+                killed = witch.owner.choose_one(
                     game.alive_player_slots(), message="Choose who to kill"
                 ).content
                 game.other_kills.append(killed)

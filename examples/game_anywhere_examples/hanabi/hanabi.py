@@ -126,7 +126,7 @@ class Hanabi(TurnBasedGame):
         if choice == "Place card":
             card = (
                 self.get_current_agent()
-                .choose_one_component_slot(
+                .choose_one(
                     [
                         slot
                         for slot in self.players[self.get_current_agent_index()]
@@ -153,7 +153,7 @@ class Hanabi(TurnBasedGame):
                     )
             self.players[self.get_current_agent_index()].cards.extend(self.deck.draw())
         elif choice == "Cycle card":
-            card_slot = self.get_current_agent().choose_one_component_slot(
+            card_slot = self.get_current_agent().choose_one(
                 list(
                     self.players[self.get_current_agent_index()]
                     .cards.get_slots()
@@ -168,7 +168,7 @@ class Hanabi(TurnBasedGame):
         elif choice == "Give hint":
             player_hinted = (
                 self.get_current_agent()
-                .choose_one_component_slot(
+                .choose_one(
                     [
                         slot
                         for i, slot in enumerate(self.players.get_slots().values())

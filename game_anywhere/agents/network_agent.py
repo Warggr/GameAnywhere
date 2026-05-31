@@ -17,7 +17,7 @@ from .descriptors import AgentDescriptor
 if TYPE_CHECKING:
     from typing import Sequence
 
-    from game_anywhere.components import ComponentSlot
+    from game_anywhere.components import Component
     from game_anywhere.core import Game
 
     from .descriptors import Context
@@ -93,14 +93,14 @@ class JsonSchemaAgentMixin(AskMultipleTimesMixin):
         )
 
     # override
-    def choose_one_component_slot(
+    def choose_one(
         self,
-        slots: Sequence["ComponentSlot"],
+        slots: Sequence["Component"],
         indices: Optional[list[T]] = None,
         special_options=(),
         message: Optional[str] = None,
     ) -> T:
-        if not indices:
+        if indices is None:
             indices = slots
         question = {
             "type": "choice",

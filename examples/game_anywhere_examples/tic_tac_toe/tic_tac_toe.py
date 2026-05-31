@@ -52,7 +52,7 @@ class TicTacToe(TurnBasedGame):
 
         fields = [field for _, field in self.board.get_slots().items() if field.empty()]
         assert len(fields) > 0, self.get_current_turn()
-        field = self.get_current_agent().choose_one_component_slot(fields, fields)
+        field = self.get_current_agent().choose_one(fields, fields)
         field.content = TicTacToeMark(self.get_current_agent_index())
 
         # check rows

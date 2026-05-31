@@ -98,7 +98,7 @@ class Game(Composite):
         return self
 
     # override
-    def get_slot_address(self):
+    def get_address(self):
         return ""
 
     # override
@@ -140,7 +140,7 @@ class Game(Composite):
             if obj.can_be_seen_by_recursive(agent_id):
                 update = {
                     "op": "remove",
-                    "path": obj.get_slot_address() + "/" + str(slot_relative_address),
+                    "path": obj.get_address() + "/" + str(slot_relative_address),
                 }
                 agent.update([update])
 

@@ -45,7 +45,7 @@ class AbstractComponent(ABC):
             raise self.NotAttachedToComponentTree()
         return self.slot.parent.get_game()
 
-    def get_slot_address(self):
+    def get_address(self):
         if self.slot is None:
             return "(detached)"
         return self.slot.get_address()
@@ -160,7 +160,7 @@ class WeakComponentSlot(Generic[T]):
             self.set(content)
 
     def get_address(self):
-        return self.parent.get_slot_address() + "/" + str(self.id)
+        return self.parent.get_address() + "/" + str(self.id)
 
     def get_game(self) -> "Game":
         return self.parent.get_game()

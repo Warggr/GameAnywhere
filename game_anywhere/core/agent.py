@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     import asyncio
     from typing import Sequence
 
-    from game_anywhere.components import ComponentSlot
+    from game_anywhere.components import Component
 
 
 T = TypeVar("T")
@@ -46,9 +46,9 @@ class Agent(ABC):
     def query(self, allowedSchema: JsonSchema) -> Any: ...
 
     @abstractmethod
-    def choose_one_component_slot(
+    def choose_one(
         self,
-        slots: Sequence["ComponentSlot"],
+        slots: Sequence["Component"],
         indices: Optional[list[T]] = None,
         special_options: Sequence[U] = (),
         message: str | None = None,
@@ -66,6 +66,3 @@ class Agent(ABC):
 
     @abstractmethod
     def chat_stream(self, event_loop: "asyncio.AbstractEventLoop") -> ChatStream: ...
-
-    def get_2D_choice(self, dimensions: tuple[int, int]):
-        return tuple(self.int_choice(mini=0, maxi=dim - 1) for dim in dimensions)

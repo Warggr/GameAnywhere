@@ -201,7 +201,7 @@ class Skull(TurnBasedGame):
                     continue
                 choices.append(top_slot)
 
-            chosen_slot = challenger.get_owner().choose_one_component_slot(
+            chosen_slot = challenger.get_owner().choose_one(
                 choices,
                 choices,
             )
@@ -250,9 +250,7 @@ class Skull(TurnBasedGame):
         player = self.players[player_index]
         card = (
             player.get_owner()
-            .choose_one_component_slot(
-                [slot for slot in player.hand_cards.get_slots().values()]
-            )
+            .choose_one([slot for slot in player.hand_cards.get_slots().values()])
             .content
         )
         player.hand_cards.remove(card)
