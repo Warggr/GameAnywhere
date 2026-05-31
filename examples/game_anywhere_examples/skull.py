@@ -184,7 +184,7 @@ class Skull(TurnBasedGame):
                 self.message(
                     f"{challenger.owner.name} revealed their own skull and failed."
                 )
-                self._on_failed_challenge(challenger_index, challenger_index)
+                self._on_failed_challenge(challenger_index, own=True)
                 return
             revealed += 1
 
@@ -212,7 +212,7 @@ class Skull(TurnBasedGame):
                 self.message(
                     f"{challenger.owner.name} revealed {self.players[skull_owner].owner.name}'s skull and failed."
                 )
-                self._on_failed_challenge(challenger_index, skull_owner)
+                self._on_failed_challenge(challenger_index, own=False)
                 return
             revealed += 1
 
@@ -223,13 +223,19 @@ class Skull(TurnBasedGame):
         )
         self._clear_table()
 
-    def _on_failed_challenge(self, challenger_index: int, next_start_player: int):
+    def _on_failed_challenge(self, challenger_index: int, *, own: bool):
         self._collect_played_cards(challenger_index)
         challenger = self.players[challenger_index]
-        lost_card = random.choice(list(challenger.hand_cards))
+        if own:
+            lost_card = challenger.owner.choose_one(
+                list(challenger.hand_cards), message="Choose a card to discard"
+            )
+            self.message(f"{challenger.owner.name} loses one card of their choice.")
+        else:
+            lost_card = random.choice(list(challenger.hand_cards))
+            self.message(f"{challenger.owner.name} loses one random card.")
         challenger.hand_cards.remove(lost_card)
-        self.starting_with = next_start_player
-        self.message(f"{challenger.owner.name} loses one random card.")
+        self.starting_with = challenger_index
         self._clear_table(skip_players={challenger_index})
 
     def _clear_table(self, skip_players: set[int] | None = None):
@@ -245,6 +251,9 @@ class Skull(TurnBasedGame):
         while len(player.played_cards) > 0:
             card = player.played_cards.pop()
             player.hand_cards.append(card)
+        random.shuffle(
+            player.hand_cards
+        )  # TODO: log the shuffle / avoid logging exactly which cards are shuffled
 
     def _play_one_card(self, player_index: int, mandatory: bool = False):
         player = self.players[player_index]
