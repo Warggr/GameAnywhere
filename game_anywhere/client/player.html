@@ -155,6 +155,14 @@
                 return p;
             }
 
+            /*
+		model: 
+	slot.ga-slot[data-key="..."] { (e.g. <li>)
+		wrappers ... { (these can collapse; actually the slot and the component could be the same)
+			component.ga-composite {
+				slot.ga-slot[data-key="..."] {
+
+	    */
             function getLogicalChild(parent, segment) {
                 console.assert(
                     parent.hasAttribute("data-key") || parent.id == "screen",
@@ -163,11 +171,6 @@
                 return Array.from(
                     parent.querySelectorAll(`[data-key="${segment}"]`),
                 ).find((el) => getLogicalParent(el) === parent);
-            }
-            function getLogicalContent(parent) {
-                return [...parent.children].filter(
-                    (el) => el.nodeName != "LABEL",
-                )[0];
             }
             function lookupSlot(address) {
                 let slot = screen.getElementById("screen");
@@ -178,10 +181,6 @@
                     console.assert(slot.classList.contains("ga-slot"), slot);
                 }
                 return slot;
-            }
-            function lookupComponent(address) {
-                let slot = lookupSlot(address);
-                return getLogicalContent(slot);
             }
 
             const connectToServer = (serverAddress) => {
@@ -386,39 +385,42 @@
                                 );
                                 lookupSlot(diff.path).replaceWith(realElems[0]);
                             } else if (diff.op == "add") {
-                                if (diff.path.slice(-5) == "/hint") {
-                                    const hinted = lookupComponent(
-                                        diff.path.slice(0, -5),
-                                    );
-                                    let hint = [...hinted.childNodes].find(
-                                        (node) =>
-                                            node.classList?.contains("hint"),
-                                    );
-                                    if (hint === undefined) {
-                                        hint = document.createElement("div");
-                                        hint.classList.add("hint");
-                                        hinted.appendChild(hint);
-                                    }
-                                    let hintText =
-                                        document.createElement("span");
-                                    hintText.innerText = diff.value;
-                                    hint.appendChild(hintText);
+                                let DOMConstructionSite =
+                                    document.createElement("div");
+                                DOMConstructionSite.innerHTML = diff.value; // TODO: find a more elegant way of parsing HTML
+                                diff.path = diff.path
+                                    .split("/")
+                                    .slice(0, -1)
+                                    .join("/");
+                                let parent = lookupSlot(diff.path);
+                                let appendSite;
+                                console.assert(
+                                    parent.hasAttribute("data-key") &&
+                                        parent.classList.contains("ga-slot"),
+                                );
+                                if (parent.classList.contains("ga-composite")) {
+                                    appendSite = parent;
                                 } else {
-                                    let DOMConstructionSite =
-                                        document.createElement("div");
-                                    DOMConstructionSite.innerHTML = diff.value; // TODO: find a more elegant way of parsing HTML
-                                    diff.path = diff.path
-                                        .split("/")
-                                        .slice(0, -1)
-                                        .join("/");
-                                    let appendSite =
-                                        diff.path === ""
-                                            ? screen.getElementById("screen")
-                                            : lookupComponent(diff.path);
-                                    appendSite.append(
-                                        DOMConstructionSite.firstChild,
+                                    appendSite = [
+                                        ...parent.querySelectorAll(
+                                            ".ga-composite",
+                                        ),
+                                    ].find(
+                                        (el) => getLogicalParent(el) == parent,
                                     );
                                 }
+                                console.assert(
+                                    appendSite !== undefined,
+                                    parent,
+                                );
+                                console.assert(
+                                    DOMConstructionSite.firstChild.classList.contains(
+                                        "ga-slot",
+                                    ),
+                                );
+                                appendSite.append(
+                                    DOMConstructionSite.firstChild,
+                                );
                             } else if (diff.op == "remove") {
                                 let key = diff.path.split("/");
                                 let child_num = key.pop();
@@ -427,19 +429,7 @@
                                     parent_slot,
                                     child_num,
                                 );
-                                let parent_component =
-                                    getLogicalContent(parent_slot);
-                                console.assert(
-                                    (child.parent = parent_component),
-                                );
-                                if (parent_component.nodeName == "UL") {
-                                    // For lists, remove both the slot and the component
-                                    // TODO: also for dicts?
-                                    child.remove();
-                                } else {
-                                    // Otherwise, make the slot empty
-                                    child.innerText = "";
-                                }
+                                child.innerText = "";
                             } else {
                                 console.warn("Unrecognized diff: " + diff);
                             }

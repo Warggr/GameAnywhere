@@ -6,13 +6,16 @@ from importlib.resources import files
 from typing import TYPE_CHECKING, Union
 
 from game_anywhere.components import (
+    AbstractComposite,
+    Component,
     ComponentSlot,
     ComponentSlotProperty,
+    Composite,
     Dict,
     List,
     PerPlayer,
 )
-from game_anywhere.components.component import Component, PerPlayerComponent
+from game_anywhere.components.component import PerPlayerComponent
 from game_anywhere.components.traditional.cards import Deck, DiscardPile
 from game_anywhere.core import AgentId, GameSummary, TurnBasedGame
 from game_anywhere.ui import Html, tag
@@ -20,6 +23,7 @@ from game_anywhere.ui.display_styles import FlippedChips, hand_fan
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Any
 
 
 @unique
@@ -43,7 +47,42 @@ class HanabiCard(Component):
             str(self.value),
             style="color: "
             + self.color.name.lower()
-            + f"; background-image: url(/assets/Hanabi/cards/{self.color.name.lower()}_{self.value}.png); height: 3em; width: 2em;",
+            + f"; background-image: url(/assets/Hanabi/cards/{self.color.name.lower()}_{self.value}.png); height: 9em; width: 6em; background-size: cover;",
+        )
+
+
+class EveryoneCanSeeItExceptMyself(ComponentSlot):
+    # override
+    def can_be_seen_by(self, viewer_id=None):
+        return viewer_id is not None and viewer_id != self.owner_id
+
+
+class HanabiHandCard(Composite):
+    card = ComponentSlotProperty[HanabiCard](EveryoneCanSeeItExceptMyself)
+    hints = ComponentSlotProperty[list[str]]()
+
+    def __init__(self, card: HanabiCard):
+        super().__init__()
+        self.card = card
+        self.hints = List()
+
+    def wrap_slot_html(self, *args, **kwargs):
+        # Do not use the Composite slot HTML with a label
+        return AbstractComposite.wrap_slot_html(self, *args, **kwargs)
+
+    def merge_slot_html(self, items: list[Any]) -> Any:
+        card_html, hints_html = items
+        card_html.attrs["style"] = (
+            card_html.attrs.get("style", "") + "position: absolute; top: 0;"
+        )
+        hints_html.attrs["style"] = (
+            hints_html.attrs.get("style", "") + "color: lightgray;"
+        )
+        return tag.div(
+            card_html,
+            hints_html,
+            style="position: relative;",
+            **{"class": "hanabi-card"},
         )
 
 
@@ -60,14 +99,8 @@ def default_hanabi_deck() -> list[HanabiCard]:
     return deck
 
 
-class EveryoneCanSeeItExceptMyself(ComponentSlot):
-    # override
-    def can_be_seen_by(self, viewer_id=None):
-        return viewer_id is not None and viewer_id != self.owner_id
-
-
 class HanabiPerPlayerComponent(PerPlayerComponent):
-    cards = ComponentSlotProperty[List[HanabiCard]](display_as=hand_fan)
+    cards = ComponentSlotProperty[List[HanabiHandCard]](display_as=hand_fan)
 
 
 class Hanabi(TurnBasedGame):
@@ -81,8 +114,14 @@ class Hanabi(TurnBasedGame):
     nb_lives = ComponentSlotProperty[int]()
     nb_hints = ComponentSlotProperty[int](
         display_as=FlippedChips(
-            front=tag.img(src="/assets/Hanabi/hint_active.png", style="width: 1em;"),
-            back=tag.img(src="/assets/Hanabi/hint_inactive.png", style="width: 1em;"),
+            front=tag.img(
+                src="/assets/Hanabi/hint_active.png",
+                style="max-width: 5vh; max-height: 5vh",
+            ),
+            back=tag.img(
+                src="/assets/Hanabi/hint_inactive.png",
+                style="max-width: 5vh; max-height: 5vh",
+            ),
             maxi=8,
         )
     )
@@ -111,11 +150,10 @@ class Hanabi(TurnBasedGame):
         nb_players = len(agents)
         assert 2 <= nb_players <= 5, "Hanabi can be played only between 2 and 5 players"
         CARDS_PER_PLAYER = 5 if nb_players <= 3 else 4
-        for i, player in enumerate(self.players):
+        for player, agent_id in zip(self.players, self.agent_ids, strict=True):
             player.cards = List(
-                self.deck.draw(CARDS_PER_PLAYER),
-                slotClass=EveryoneCanSeeItExceptMyself,
-                owner_id=i,
+                map(HanabiHandCard, self.deck.draw(CARDS_PER_PLAYER)),
+                owner_id=agent_id,
             )
 
     def turn(self) -> Union["Hanabi.Summary", None]:
@@ -137,6 +175,7 @@ class Hanabi(TurnBasedGame):
                 .content
             )
             self.players[self.get_current_agent_index()].cards.remove(card)
+            card = card.card
             if card.color not in self.stacks and card.value == 1:
                 self.stacks[card.color] = List([card])
             elif (
@@ -151,7 +190,10 @@ class Hanabi(TurnBasedGame):
                     return self.Summary(
                         sum(len(stack) for stack in self.stacks.values())
                     )
-            self.players[self.get_current_agent_index()].cards.extend(self.deck.draw())
+            (drawn_card,) = self.deck.draw()
+            self.players[self.get_current_agent_index()].cards.append(
+                HanabiHandCard(drawn_card)
+            )
         elif choice == "Cycle card":
             card_slot = self.get_current_agent().choose_one(
                 list(
@@ -160,7 +202,7 @@ class Hanabi(TurnBasedGame):
                     .values()
                 )
             )
-            card = card_slot.take()
+            card = card_slot.take().card
             self.discard_pile.append(card)
             self.players[self.get_current_agent_index()].cards.extend(self.deck.draw())
             if self.nb_hints < self.MAX_HINTS:
@@ -184,30 +226,16 @@ class Hanabi(TurnBasedGame):
                 options[str(i)] = i
             hint_key = self.get_current_agent().text_choice(list(options.keys()))
             hint_key = options[hint_key]
-            hint_value = []
             for slot in player_hinted.cards.get_slots().values():
                 if (
                     type(hint_key) is int
-                    and slot.content.value == hint_key
+                    and slot.content.card.value == hint_key
                     or type(hint_key) is Color
-                    and slot.content.color == hint_key
+                    and slot.content.card.color == hint_key
                 ):
-                    hint_value.append(
-                        {
-                            "op": "add",
-                            "path": slot.get_address() + "/hint",
-                            "value": f"is {hint_key}",
-                        }
-                    )
+                    slot.content.hints.append(f"is {hint_key}")
                 else:
-                    hint_value.append(
-                        {
-                            "op": "add",
-                            "path": slot.get_address() + "/hint",
-                            "value": f"is not {hint_key}",
-                        }
-                    )
-            self.agents[player_hinted.owner_id].update(hint_value)
+                    slot.content.hints.append(f"is not {hint_key}")
 
             self.nb_hints -= 1
         else:

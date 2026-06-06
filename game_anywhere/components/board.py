@@ -103,7 +103,10 @@ class CheckerBoard(Board[tuple[int, int]], Generic[T]):
             )
         return Html(
             tag.div(
-                *(field.html() for _, field in self._iter_coords(height, width, turn)),
+                *(
+                    self.wrap_slot_html(field.html(), key)
+                    for key, field in self._iter_coords(height, width, turn)
+                ),
                 **{
                     "class": "checkerboard",
                     "style": f"grid-template-rows: repeat({width}, 1fr); grid-template-columns: repeat({height}, 1fr)",

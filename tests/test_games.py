@@ -1,6 +1,7 @@
 import random
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -51,4 +52,4 @@ def test_instantiate_game(game_class: type[Game]):
     schema["type"] = "object"
     kwargs = random_object(schema, generator)
     num_agents, kwargs = game_class.parse_config(**kwargs)
-    _ = game_class([None for _ in range(num_agents)], **kwargs)
+    _ = game_class([Mock() for _ in range(num_agents)], **kwargs)

@@ -93,6 +93,9 @@ class AbstractComposite(AbstractComponent, Generic[KeyType]):
         return slot_html
 
     def merge_slot_html(self, items: list[Any]) -> Any:
+        """
+        The direct parent of each item must have the `ga-composite` class in order to be able to receive more slots.
+        """
         raise NotImplementedError(
             f"class {type(self)} neither implements merge_slot_html nor html"
         )
@@ -228,7 +231,7 @@ class WeakComponentSlot(Generic[T]):
     def set_owner_id(self, owner_id: int):
         """Owner IDs are inherited down the component tree by default, so this is a recursive method"""
         self.owner_id = owner_id
-        if type(self._content) is Composite:
+        if isinstance(self._content, AbstractComposite):
             for child in self._content.get_slots().values():
                 child.set_owner_id(owner_id)
 

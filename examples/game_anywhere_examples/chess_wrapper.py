@@ -61,8 +61,8 @@ class ChessBoard(CheckerBoard):
                 f"16n+{2 * i + 10}" for i in range(4)
             ]
         else:
-            black_fields = [f"16n+{2 * i + 0}" for i in range(4)] + [
-                f"16n+{2 * i + 11}" for i in range(4)
+            black_fields = [f"16n+{2 * i + 2}" for i in range(4)] + [
+                f"16n+{2 * i + 9}" for i in range(4)
             ]
         black_fields = ", ".join(
             ".checkerboard>div:nth-child(" + idx + ")" for idx in black_fields
@@ -98,7 +98,7 @@ class Chess(TurnBasedGame):
     def __init__(self, *args, shuffle_colors: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
         colors = [chess.WHITE, chess.BLACK]
-        agent_ids = [0, 1]
+        agent_ids = self.agent_ids[:]
         if shuffle_colors:
             from random import shuffle
 

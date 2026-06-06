@@ -50,7 +50,7 @@ class List(AbstractComposite, Generic[T], MutableSequence[T]):
         return super().wrap_slot_html(slot_html, key, is_visible=is_visible)
 
     def merge_slot_html(self, items: Sequence[Html]) -> Html:
-        return tag.ul(*items, **{"class": "ga-list"})
+        return tag.ul(*items, **{"class": "ga-list ga-composite"})
 
     # list interface methods - the most basic ones
 
@@ -139,7 +139,7 @@ class Dict(AbstractComposite[Key], Generic[Key, T], MutableMapping[Key, T]):
         return super().wrap_slot_html(slot_html, key, *args, **kwargs)
 
     def merge_slot_html(self, items: Sequence[Html]) -> Html:
-        return tag.div(*items, **{"class": "ga-dict"})
+        return tag.div(*items, **{"class": "ga-dict ga-composite"})
 
     # Dict interface methods - the most basic ones
     def __setitem__(self, __key: Key, __value: T):

@@ -27,5 +27,5 @@
 
 .ga-hand-fan li:hover {
     transform: translateY(-20px) scale(1.05) rotate(var(--angle));
-    z-index: 100;
+    z-index: 100 !important; /* Overrides the zIndex from hand_fan.js */
 }

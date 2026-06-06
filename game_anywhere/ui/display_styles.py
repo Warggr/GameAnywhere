@@ -68,11 +68,14 @@ register_component(
 def hand_fan(obj: List, viewer_id=None, visible: bool = True) -> "Html":
     assert isinstance(obj, List), "only lists can be displayed in a fan layout!"
     assert visible, "Hand fan cannot be completely hidden"
-    elements = [o.html(viewer_id=viewer_id) for o in obj.get_slots().values()]
+    elements = [
+        obj.wrap_slot_html(slot.html(viewer_id=viewer_id), slotname)
+        for slotname, slot in obj.get_slots().items()
+    ]
     return HtmlElement(
         tag.ul(*elements),
         tag_name="ga-hand-fan",
         css="hand_fan/css",
         js="hand_fan/js",
-        **{"class": "ga-list ga-hand-fan"},
+        **{"class": "ga-list ga-hand-fan ga-composite"},
     )

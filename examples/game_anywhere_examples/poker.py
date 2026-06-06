@@ -55,13 +55,11 @@ class Poker(Game):
         try:
             self.betting_round(force_blinds=[self.small_blind, self.big_blind])
             # no need to burn cards
-            self.revealed_cards.extend(
-                self.deck.draw() for _ in range(3)
-            )  # TODO: OPTIM: add a draw_multiple function
+            self.revealed_cards.extend(self.deck.draw(3))
             self.betting_round()
-            self.revealed_cards.append(self.deck.draw())
+            self.revealed_cards.extend(self.deck.draw())
             self.betting_round()
-            self.revealed_cards.append(self.deck.draw())
+            self.revealed_cards.extend(self.deck.draw())
         except Poker.EveryoneFolds as win:
             return self.win_game(win.winner_index)
 
@@ -106,7 +104,7 @@ class Poker(Game):
                     decision = agent.text_choice(["fold", "follow", "raise"])
 
                 if decision == "raise":
-                    amount = agent.int_choice(min=maximum_bet)
+                    amount = agent.int_choice(mini=maximum_bet)
 
             if decision == "fold":
                 self.players[turn_counter].folded = True
