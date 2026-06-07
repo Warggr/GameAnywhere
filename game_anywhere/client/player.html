@@ -114,6 +114,11 @@
                         <button type="submit">Send</button>
                     </form>
                 </div>
+
+                <dialog id="winnerDialog">
+                    <h1>Konec hry</h1>
+                    <p>Winner: <span id="winner"></span></p>
+                </dialog>
             </div>
         </main>
 
@@ -360,6 +365,14 @@
                     } else if (data.type === "message") {
                         addLogLine(`<b>${data.sender}: </b>${data.text}`);
                     } else if (data.type === "game_update") {
+                        if (data.summary !== undefined) {
+                            const dialog =
+                                document.getElementById("winnerDialog");
+                            dialog.querySelector("#winner").textContent =
+                                data.summary.players[data.summary.winner];
+                            dialog.show();
+                            return;
+                        }
                         console.assert(Array.isArray(data.patch));
                         for (let diff of data.patch) {
                             if (diff.op == "replace") {

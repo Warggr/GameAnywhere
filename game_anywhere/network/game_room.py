@@ -16,9 +16,9 @@ if TYPE_CHECKING:
     from typing import Sequence
 
     from game_anywhere.agents.descriptors import GameDescriptor
-    from game_anywhere.core import Game, GameSummary
+    from game_anywhere.core import AgentId, Game, GameSummary
 
-    from .room import SeatId, Username
+    from .room import Username
     from .server import Server
     from .spectator import Session
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 @dataclass
 class GameMetadata:
     game: type["Game"]
-    players: dict["SeatId", "Username"]
+    players: dict["AgentId", "Username"]
     started: datetime
     ended: datetime
     summary: "GameSummary | None"
@@ -70,6 +70,15 @@ class BaseGameRoom(ServerRoom):
                 raise web.HTTPForbidden(text="Session not owned by authenticated user")
             html = self.game.get_html_for_agent_ref(self.sessions[session_id])
         return web.Response(body=str(html), content_type="text/html")
+
+    async def close(self, summary: GameSummary, players: dict[AgentId, str]):
+        summary = json_encode_game_summary(summary, players)
+        promises = [
+            spectator.send({"type": "game_update", "summary": summary})
+            for spectator in self.get_spectators_and_sessions()
+        ]
+        await asyncio.gather(*promises)
+        self.server.delete_room(self)
 
 
 class Lobby(ServerRoom):
@@ -270,13 +279,16 @@ class Lobby(ServerRoom):
         started = datetime.now()
 
         summary = game.play_game()
-
-        self.server.loop.call_soon_threadsafe(self.nt_interrupt)
-
         players = {
             agent_id: agent.name
             for agent_id, agent in zip(game.agent_ids, game.agents, strict=True)
         }
+
+        asyncio.run_coroutine_threadsafe(
+            self.new_room.close(summary, players), loop=self.server.loop
+        )
+        self.server.loop.call_soon_threadsafe(self.nt_interrupt)
+
         metadata = GameMetadata(
             game=self.game_type,
             players=players,
@@ -319,3 +331,12 @@ class Lobby(ServerRoom):
         session.send_sync({"type": "finalize", "seat_id": session.seat_id})
         session.username = self.spectator_names[self.spectators[i]]
         return session
+
+
+def json_encode_game_summary(
+    summary: "GameSummary", players: dict[AgentId, str]
+) -> dict:
+    return {
+        "winner": summary.get_winner(),
+        "players": players,
+    }

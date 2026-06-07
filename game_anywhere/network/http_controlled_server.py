@@ -12,19 +12,13 @@ from game_anywhere.agents.descriptors import GameDescriptor
 from game_anywhere.agents.network_agent import NetworkAgent
 from game_anywhere.ui.custom_components import get_registered_component
 
-from .game_room import BaseGameRoom, Lobby
+from .game_room import BaseGameRoom, Lobby, json_encode_game_summary
 from .server import Server
 
 if TYPE_CHECKING:
-    from game_anywhere.core import Game, GameSummary
+    from game_anywhere.core import Game
 
     from .game_room import GameMetadata
-
-
-def json_encode_game_summary(summary: "GameSummary") -> dict:
-    return {
-        "winner": summary.get_winner(),
-    }
 
 
 def json_encode_game_metadata(metadata: "GameMetadata") -> dict:
@@ -33,7 +27,9 @@ def json_encode_game_metadata(metadata: "GameMetadata") -> dict:
     result["started"] = metadata.started.timestamp()
     result["ended"] = metadata.ended.timestamp()
     if result["summary"] is not None:
-        result["summary"] = json_encode_game_summary(result["summary"])
+        result["summary"] = json_encode_game_summary(
+            result["summary"], metadata.players
+        )
     else:
         result["summary"] = None
     return result
