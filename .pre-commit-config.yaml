@@ -5,8 +5,10 @@ repos:
     - id: ruff-check
       args: [ --fix ]
     - id: ruff-format
-- repo: https://github.com/pre-commit/mirrors-prettier
-  rev: v3.1.0
+- repo: https://github.com/ddanier/sub-pre-commit.git
+  rev: v4.5.1
   hooks:
-    - id: prettier
-      files: \.html|\.json
+    - id: sub-pre-commit
+      name: npm precommit action
+      args: ["-p", "game_anywhere/client"]
+      files: ^game_anywhere/client/.*

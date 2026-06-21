@@ -1,0 +1,7 @@
+repos:
+    - repo: local
+      hooks:
+          - id: npm_precommit
+            name: "Run `npm pre-commit`"
+            entry: "npm run pre-commit"
+            language: node

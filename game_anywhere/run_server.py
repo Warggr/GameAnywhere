@@ -33,7 +33,7 @@ args = parser.parse_args()
 
 available_games = load_games()
 
-client_root = files("game_anywhere") / "client"
+client_root = files("game_anywhere") / "client" / "dist"
 
 with as_file(client_root) as client_dir:
     # fmt: off

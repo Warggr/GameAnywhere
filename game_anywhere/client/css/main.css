@@ -38,7 +38,12 @@ body {
         linear-gradient(180deg, rgba(17, 124, 138, 0.08), transparent 320px),
         var(--bg);
     font-family:
-        Inter, "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+        Inter,
+        "Avenir Next",
+        "Segoe UI",
+        system-ui,
+        -apple-system,
+        sans-serif;
 }
 
 body.app-page {
@@ -110,6 +115,13 @@ button.secondary:hover,
 .button-link.secondary:hover {
     background: var(--surface-muted);
     box-shadow: none;
+}
+
+button:disabled {
+    background: var(--surface-muted);
+    color: var(--text-muted);
+    box-shadow: none;
+    transform: none;
 }
 
 input[type="text"] {

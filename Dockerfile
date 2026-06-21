@@ -2,6 +2,8 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
+RUN apt update && apt install -y npm && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir --root-user-action ignore -r requirements.txt
 
