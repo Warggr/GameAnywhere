@@ -3,12 +3,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Iterable
 
-from ..components.component import AbstractComposite, Composite, WeakComponentSlot
+from ..components.component import Composite
 from .agent import Agent
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from game_anywhere.components import AbstractComponentSlot, AbstractComposite
     from game_anywhere.ui import Html
 
 
@@ -113,7 +114,7 @@ class Game(Composite):
         self,
         obj: AbstractComposite,
         slot_relative_address: Any,
-        slot: WeakComponentSlot,
+        slot: AbstractComponentSlot,
     ):
         """
         Args:
@@ -152,7 +153,7 @@ class Game(Composite):
 
     def log_component_update(
         self,
-        slot: WeakComponentSlot,
+        slot: AbstractComponentSlot,
         only_update: AgentId | None = None,
         *,
         force_reveal=False,

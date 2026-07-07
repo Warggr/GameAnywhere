@@ -64,6 +64,9 @@ class List(AbstractComposite, Generic[T], MutableSequence[T]):
         # set slot content separately, so that the slot can decide itself how it wants to log the update event (and take e.g. the hidden flag into account).
         # TODO: there might be a cleaner way of doing this
         slot.set(value)
+        if self.slot is not None:
+            for slot in self.slot.dependents:
+                slot.invalidate_cache()
 
     def __getitem__(self, index) -> T:
         return self.slots[index].get()

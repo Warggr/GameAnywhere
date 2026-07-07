@@ -1,6 +1,7 @@
 from .board import Board, CheckerBoard
 from .component import (
     AbstractComponent,
+    AbstractComponentSlot,
     AbstractComposite,
     Component,
     ComponentSlot,
@@ -9,9 +10,11 @@ from .component import (
     PerPlayer,
 )
 from .containers import Dict, List
+from .dynamic import computed
 
 __all__ = [
     "AbstractComponent",
+    "AbstractComponentSlot",
     "AbstractComposite",
     "Board",
     "CheckerBoard",
@@ -19,6 +22,7 @@ __all__ = [
     "ComponentSlot",
     "ComponentSlotProperty",
     "Composite",
+    "computed",
     "PerPlayer",
     "Dict",
     "List",

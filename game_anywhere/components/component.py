@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from game_anywhere.ui.ui import Html, tag
 
+from .tracing import computed_stack
 from .utils import html as to_html
 from .utils import merge_classes
 
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
     from game_anywhere.ui.display_styles import DisplayStyle
 
     from .containers import List
+    from .dynamic import ComputedComponentSlot
 
 ComponentId = str
 
@@ -64,12 +66,21 @@ KeyType = TypeVar("KeyType")
 
 
 class AbstractComposite(AbstractComponent, Generic[KeyType]):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.computed_properties: dict[str, ComputedComponentSlot] = {}
+
+    def invalidate_cache(self, computed_property_name: str):
+        slot = self.computed_properties[computed_property_name]
+        slot.invalidate_cache()
+        self.get_game().log_component_update(slot)
+
     @abstractmethod
     def get_slots(self) -> Mapping[KeyType, "WeakComponentSlot"]:
         """Return a list of slots with names."""
         ...
 
-    def log_added_slot(self, slot_name: KeyType, slot: "WeakComponentSlot"):
+    def log_added_slot(self, slot_name: KeyType, slot: "AbstractComponentSlot"):
         try:
             self.get_game().log_new_slot(self, slot_name, slot)
         except self.NotAttachedToComponentTree:
@@ -109,13 +120,19 @@ class AbstractComposite(AbstractComponent, Generic[KeyType]):
             slot_html = self.wrap_slot_html(slot_html, slotname, is_visible=is_visible)
             fields.append(slot_html)
 
+        if hasattr(self, "_computed_slots"):
+            for slotname in self._computed_slots:
+                slot_html = to_html(getattr(self, slotname))
+                slot_html = self.wrap_slot_html(slot_html, slotname, is_visible=True)
+                fields.append(slot_html)
+
         return self.merge_slot_html(fields)
 
 
 class Composite(AbstractComposite[str]):
     def __init__(self):
-        super().__init__()
         self.slots: dict[str, "WeakComponentSlot"] = {}
+        super().__init__()
 
     def add_slot(self, slot_name: str, slot: "WeakComponentSlot"):
         self.slots[slot_name] = slot
@@ -160,9 +177,28 @@ class Component(AbstractComponent):
 """ Typically, ComponentTreeNodes are Components. But we also support raw values, e.g. booleans. """
 ComponentTreeNode = Any
 T = TypeVar("T", bound=ComponentTreeNode)
+ParentType = TypeVar("ParentType", bound=AbstractComponent)
 
 
-class WeakComponentSlot(Generic[T]):
+class AbstractComponentSlot(Generic[T, ParentType], ABC):
+    def __init__(self, id_: Any, parent: ParentType):
+        self.id = id_
+        self.parent = parent
+
+    def get_address(self):
+        return self.parent.get_address() + "/" + str(self.id)
+
+    def get_game(self) -> "Game":
+        return self.parent.get_game()
+
+    @abstractmethod
+    def html(self, viewer_id=None, *, force_reveal: bool = False) -> Html: ...
+
+    @abstractmethod
+    def get(self) -> T | None: ...
+
+
+class WeakComponentSlot(AbstractComponentSlot[T, AbstractComposite]):
     def __init__(
         self,
         id_: Any,
@@ -173,22 +209,20 @@ class WeakComponentSlot(Generic[T]):
         owner_id: Optional[int] = None,
         display_as: DisplayStyle | None = None,
     ):
-        self.id = id_
-        self.parent = parent
+        super().__init__(id_, parent)
         self.hidden = hidden
         self.owner_id = owner_id
         self._content = None
         self.display_as = display_as
+        self.dependents: set[ComputedComponentSlot] = set()
         if content:
             self.set(content)
 
-    def get_address(self):
-        return self.parent.get_address() + "/" + str(self.id)
-
-    def get_game(self) -> "Game":
-        return self.parent.get_game()
-
     def get(self) -> T | None:
+        for c in computed_stack:
+            print(f"Adding dependency on {self.get_address()} to {c.get_address()}")
+            self.dependents.add(c)
+            c.dependencies.add(self)
         return self._content
 
     def set(self, content: T | None):
@@ -204,6 +238,8 @@ class WeakComponentSlot(Generic[T]):
             # No need to update the clients then
             return
         game.log_component_update(self)
+        for slot in self.dependents:
+            slot.invalidate_cache()
 
     def reveal(self, to: int | None = None):
         try:
@@ -247,6 +283,7 @@ class WeakComponentSlot(Generic[T]):
     def html(
         self,
         viewer_id=None,
+        *,
         force_reveal=False,
     ) -> Html:
         is_visible = self.can_be_seen_by(viewer_id) or force_reveal
