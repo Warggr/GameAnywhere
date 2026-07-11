@@ -86,7 +86,6 @@ class Lobby(ServerRoom):
         self,
         game_type: type[Game],
         expected: Sequence[int] = (),
-        game_description: GameDescriptor | None = None,
         *args,
         **kwargs,
     ):
@@ -114,15 +113,16 @@ class Lobby(ServerRoom):
         self.game_type = game_type
         self.finalized = asyncio.Event()
         self.game_thread = None
-        # TODO: at that point we could split it into a Lobby and a GameOwningLobby
-        if game_description is not None:
-            self.expected = set()
-            self.game_promise = game_description.start_initialization(server_room=self)
-            # the NetworkAgents should have registered themselves
-            assert self.expected == set(expected)
-        else:
-            self.expected = set(expected)
-            self.game_promise = None
+        self.expected = set(expected)
+        self.game_promise = None
+
+    @staticmethod
+    def open_game_owning_lobby(game_description: GameDescriptor, *args, **kwargs):
+        lobby = Lobby(*args, game_type=game_description.game_type, **kwargs)
+        lobby.game_promise = game_description.start_initialization(server_room=lobby)
+        # the NetworkAgents should have registered themselves
+        assert lobby.expected == set(range(len(game_description.agents_descriptors)))
+        return lobby
 
     # override
     @classmethod
@@ -301,15 +301,12 @@ class Lobby(ServerRoom):
 
     # override
     async def nt_close(self):
-        # print("nt_closing GameRoom…")
         # first close the spectators
         await super().nt_close()
-        # print("Everything closed, now waiting for the game thread to end…")
         # then wait for the game to end (with no one connected, it can't take long)
         if self.game_thread is not None:
             try:
                 self.game_thread.join()
-                # print("Game thread ended")
             except Exception:
                 print("Game thread ended with an exception")
 

@@ -77,10 +77,8 @@ class HttpControlledServer(Server):
                 **game_kwargs,
             )
             room_id, _ = self.new_room(
-                room=Lobby(
-                    game_type,
-                    list(range(num_players)),
-                    game_description=game_description,
+                room=Lobby.open_game_owning_lobby(
+                    game_description,
                     server=self,
                 )
             )
